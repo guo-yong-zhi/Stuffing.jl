@@ -1,7 +1,7 @@
 using Stuffing
 using Random
 
-# prepare some pseudo image 
+# prepare some pseudo images 
 mask = fill("aa", 500, 800) #can be any AbstractMatrix
 m,n = size(mask)
 for i in 1:m

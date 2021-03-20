@@ -1,6 +1,7 @@
 module Stuffing
 export qtree, maskqtree, qtrees, placement!, overlap!, getpositions, setpositions!, packing, packing!
-export QTree, getshift, getcenter, setshift!, setcenter!, batchcollision, collision_bfs_rand
+export QTree, getshift, getcenter, setshift!, setcenter!, outofbounds, batchcollision, 
+collision_bfs_rand, findroom_uniform, findroom_gathering
 export Trainer, train!, fit!, Momentum
 # Write your package code here.
 include("qtree.jl")
@@ -51,7 +52,7 @@ function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
     ts
 end
 qtrees(mask, pics; kargs...) = qtrees(pics; mask=mask, kargs...)
-
+#??
 function placement!(qtrees::AbstractVector{<:ShiftedQtree}; karg...)
     QTree.placement!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
     qtrees
