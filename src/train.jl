@@ -409,12 +409,8 @@ function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}})
     if l == 0
         return cinds
     end
-    keep = (l ./ 8 .* randexp(l)) .> l:-1:1 #约保留1/8
-    if !any(keep)
-        keep[end] = 1
-    end
-    sort!(collpool, by=maximum)
-#     @show collpool keep
+    keep = (l ./ 8 .* randexp(l)) .> 1:l #约保留1/8
+    sort!(collpool, by=maximum, rev=true)
     for (i, j) in @view collpool[keep]
         mij = max(i, j)
         if mij in cinds
@@ -423,6 +419,16 @@ function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}})
         cp = collision(qtrees[i], qtrees[j])
         if cp[1] >= 0
             push!(cinds, mij)
+        end
+    end
+    if length(cinds)==0
+        for (i, j) in @view collpool[.!keep]
+            mij = max(i, j)
+            cp = collision(qtrees[i], qtrees[j])
+            if cp[1] >= 0
+                push!(cinds, mij)
+                break
+            end
         end
     end
     return cinds
