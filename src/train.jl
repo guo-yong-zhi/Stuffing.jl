@@ -151,7 +151,6 @@ function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ)
     if nc == 0 return nc end
     step_inds!(qtrees, collpool, optimiser)
     inds = first.(collpool)|>Iterators.flatten|>Set
-    pop!(inds,1, 1)
 #     @show length(qtrees),length(inds)
     for ni in 1:length(qtrees)÷length(inds)
         batchcollision(qtrees, inds, queue=queue, collist=empty!(collpool))
@@ -174,7 +173,6 @@ function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimise
     step_inds!(qtrees, collpool, optimiser)
     inds = first.(collpool)|>Iterators.flatten|>Set
 #     @show length(inds)
-    pop!(inds,1, 1)
     push!.(memory, inds)
     inds = take(memory, length(inds)*2)
     for ni in 1:length(qtrees)÷length(inds)
@@ -182,7 +180,6 @@ function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimise
         step_inds!(qtrees, collpool, optimiser)
         if ni > 4length(collpool) break end
         inds2 = first.(collpool)|>Iterators.flatten|>Set
-        pop!(inds2,0, 0)
 #         @show length(qtrees),length(inds),length(inds2)
         for ni2 in 1:length(inds)÷length(inds2)
             batchcollision(qtrees,  inds2, queue=queue, collist=empty!(collpool))
@@ -203,7 +200,6 @@ function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
     step_inds!(qtrees, collpool, optimiser)
     inds = first.(collpool)|>Iterators.flatten|>Set
 #     @show length(inds)
-    pop!(inds,1, 1)
     push!.(memory, inds)
     inds = take(memory, length(inds)*4)
     for ni in 1:length(qtrees)÷length(inds)
@@ -211,7 +207,6 @@ function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
         step_inds!(qtrees, collpool, optimiser)
         if ni > 4length(collpool) break end
         inds2 = first.(collpool)|>Iterators.flatten|>Set
-        pop!(inds2,0, 0)
         push!.(memory, inds2)
         inds2 = take(memory, length(inds2)*2)
         for ni2 in 1:length(inds)÷length(inds2)
@@ -219,7 +214,6 @@ function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
             step_inds!(qtrees, collpool, optimiser)
             if ni2 > 4length(collpool) break end
             inds3 = first.(collpool)|>Iterators.flatten|>Set
-            pop!(inds3,0, 0)
 #             @show length(qtrees),length(inds),length(inds2),length(inds3)
             for ni3 in 1:length(inds2)÷length(inds3)
                 batchcollision(qtrees,  inds3, queue=queue, collist=empty!(collpool))
@@ -242,7 +236,6 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
     step_inds!(qtrees, collpool, optimiser)
     inds = first.(collpool)|>Iterators.flatten|>Set
 #     @show length(inds)
-    pop!(inds,1, 1)
     push!.(memory, inds)
     inds = take(memory, length(inds)*8)
     for ni in 1:length(qtrees)÷length(inds)
@@ -250,7 +243,6 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
         step_inds!(qtrees, collpool, optimiser)
         if ni > 4length(collpool) break end
         inds2 = first.(collpool)|>Iterators.flatten|>Set
-        pop!(inds2,0, 0)
         push!.(memory, inds2)
         inds2 = take(memory, length(inds2)*4)
         for ni2 in 1:length(inds)÷length(inds2)
@@ -258,7 +250,6 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
             step_inds!(qtrees, collpool, optimiser)
             if ni2 > 4length(collpool) break end
             inds3 = first.(collpool)|>Iterators.flatten|>Set
-            pop!(inds3,0, 0)
             push!.(memory, inds3)
             inds3 = take(memory, length(inds3)*2)
             for ni3 in 1:length(inds2)÷length(inds3)
@@ -266,7 +257,6 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
                 step_inds!(qtrees, collpool, optimiser)
                 if ni3 > 4length(collpool) break end
                 inds4 = first.(collpool)|>Iterators.flatten|>Set
-                pop!(inds4,0, 0)
 #             @show length(qtrees),length(inds),length(inds2),length(inds3)
                 for ni4 in 1:length(inds3)÷length(inds4)
                     batchcollision(qtrees,  inds4, queue=queue, collist=empty!(collpool))
@@ -456,7 +446,7 @@ function teleport!(ts, collpool=nothing, args...; kargs...)
         end
         return cinds
     end
-    return outinds
+    return outinds .+ 1
 end
 
 function train!(ts, nepoch::Number=-1, args...; 
