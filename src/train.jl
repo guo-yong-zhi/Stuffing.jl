@@ -142,7 +142,7 @@ function step_inds!(qtrees, collist::Vector{QTree.ColItemType}, optimiser)
 end
 
 "element-wise trainer"
-trainepoch_E!(tr_ma::Tuple) = Dict(:collpool=>Vector{QTree.ColItemType}(), :queue=>Vector{Tuple{Int, Int, Int}}())
+trainepoch_E!(;inputs) = Dict(:collpool=>Vector{QTree.ColItemType}(), :queue=>Vector{Tuple{Int, Int, Int}}())
 trainepoch_E!(s::Symbol) = get(Dict(:patient=>10, :nepoch=>1000), s, nothing)
 function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ)->Δ./6, 
     queue=Vector{Tuple{Int, Int, Int}}(), collpool=trainepoch_E!(:collpool))
@@ -161,9 +161,9 @@ function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ)
 end
 
 "element-wise trainer with LRU"
-trainepoch_EM!(tr_ma::Tuple) = Dict(:collpool=>Vector{QTree.ColItemType}(), 
+trainepoch_EM!(;inputs) = Dict(:collpool=>Vector{QTree.ColItemType}(), 
                             :queue=>Vector{Tuple{Int, Int, Int}}(), 
-                            :memory=>intlru(length(tr_ma[1])+1))
+                            :memory=>intlru(length(inputs)))
 trainepoch_EM!(s::Symbol) = get(Dict(:patient=>10, :nepoch=>1000), s, nothing)
 function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ)->Δ./6, 
     queue=Vector{Tuple{Int, Int, Int}}(), collpool=Vector{QTree.ColItemType}())
@@ -190,7 +190,7 @@ function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimise
     nc
 end
 "element-wise trainer with LRU(more levels)"
-trainepoch_EM2!(tr_ma::Tuple) = trainepoch_EM!(tr_ma)
+trainepoch_EM2!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM2!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ)->Δ./6, 
     queue=Vector{Tuple{Int, Int, Int}}(), collpool=Vector{QTree.ColItemType}())
@@ -226,7 +226,7 @@ function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
 end
 
 "element-wise trainer with LRU(more-more levels)"
-trainepoch_EM3!(tr_ma::Tuple) = trainepoch_EM!(tr_ma)
+trainepoch_EM3!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM3!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ)->Δ./6, 
     queue=Vector{Tuple{Int, Int, Int}}(), collpool=Vector{QTree.ColItemType}())
@@ -271,6 +271,7 @@ end
 
 function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser, queue)
     nsp1 = 0
+    collist = Vector{QTree.ColItemType}()
     for (i1, i2) in inpool |> shuffle!
         cp = collision_bfs_rand(qtrees[i1], qtrees[i2], empty!(queue))
         if cp[1] >= nearlevel2
@@ -278,16 +279,17 @@ function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser, queue)
                 push!(outpool, (i1, i2))
             end
             if cp[1] > 0
-                step_ind!(qtrees, i1, i2, cp, optimiser)
+                push!(collist, (i1,i2)=>cp)
                 nsp1 += 1
             end
         end
     end
+    step_inds!(qtrees, collist, optimiser)
     nsp1
 end
 
 "pairwise trainer"
-trainepoch_P!(tr_ma::Tuple) = Dict(:collpool=>Vector{Tuple{Int, Int}}(),
+trainepoch_P!(;inputs) = Dict(:collpool=>Vector{Tuple{Int, Int}}(),
                             :queue=>Vector{Tuple{Int, Int, Int}}(),
                             :nearpool=>Vector{Tuple{Int,Int}}())
 trainepoch_P!(s::Symbol) = get(Dict(:patient=>10, :nepoch=>100), s, nothing)
@@ -317,7 +319,7 @@ function trainepoch_P!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ)
 end
 
 "pairwise trainer(more level)"
-trainepoch_P2!(tr_ma::Tuple) = Dict(:collpool=>Vector{Tuple{Int, Int}}(),
+trainepoch_P2!(;inputs) = Dict(:collpool=>Vector{Tuple{Int, Int}}(),
                             :queue=>Vector{Tuple{Int, Int, Int}}(),
                             :nearpool1=>Vector{Tuple{Int,Int}}(),
                             :nearpool2=>Vector{Tuple{Int,Int}}())
@@ -374,7 +376,7 @@ function levelpools(qtrees, levels=[-levelnum(qtrees[1]):2:-3..., -1])
     pools
 end
 "pairwise trainer(general levels)"
-trainepoch_Px!(tr_ma::Tuple) = Dict(:levelpools=>levelpools(tr_ma[1]),
+trainepoch_Px!(;inputs) = Dict(:levelpools=>levelpools(inputs),
                             :queue=>Vector{Tuple{Int, Int, Int}}())
 trainepoch_Px!(s::Symbol) = get(Dict(:patient=>1, :nepoch=>10), s, nothing)
 function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQtree}; 
@@ -464,7 +466,7 @@ function train!(ts, nepoch::Number=-1, args...;
     nc_min = typemax(Int)
     teleport_count = 0
     last_cinds = nothing
-    resource = trainer((ts[2:end], ts[1]))
+    resource = trainer(inputs=ts)
     collpool = nothing
     if :collpool in keys(resource)
         collpool = resource[:collpool]

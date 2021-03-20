@@ -42,6 +42,8 @@
 
     qts = qtrees(objs, mask=mask, maskbackground="aa")
     placement!(qts)
+    fit!(qts)
+    placement!(qts)
     fit!(qts, trainer=Trainer.trainepoch_P2!)
     placement!(qts)
     fit!(qts, trainer=Trainer.trainepoch_Px!)
