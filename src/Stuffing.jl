@@ -1,5 +1,5 @@
 module Stuffing
-export qtree, maskqtree, qtrees, placement!, overlap!, getpositions, setpositions!, packing, packing!
+export qtree, maskqtree, qtrees, placement!, overlap!, overlap, getpositions, setpositions!, packing, packing!
 export QTree, getshift, getcenter, setshift!, setcenter!, outofbounds, batchcollision, 
 collision_bfs_rand, findroom_uniform, findroom_gathering
 export Trainer, train!, fit!, Momentum
@@ -53,11 +53,18 @@ function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
 end
 qtrees(mask, pics; kargs...) = qtrees(pics; mask=mask, kargs...)
 #??
-function placement!(qtrees::AbstractVector{<:ShiftedQtree}; karg...)
-    QTree.placement!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
+function QTree.placement!(qtrees::AbstractVector{<:ShiftedQtree}; karg...)
+    ind = QTree.placement!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
+    if ind === nothing error("no room for placement") end
     qtrees
 end
-overlap!(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTree.overlap!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
+function QTree.placement!(qtrees::AbstractVector{<:ShiftedQtree}, inds; karg...)
+    ind = QTree.placement!(deepcopy(qtrees[1]), qtrees[2:end], inds.-1; karg...)
+    if ind === nothing error("no room for placement") end
+    qtrees
+end
+QTree.overlap!(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTree.overlap!(qtrees[1], qtrees[2:end]; karg...)
+QTree.overlap(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTree.overlap!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
 
 function getpositions(qts; type=getshift)
     mqt = qts[1]

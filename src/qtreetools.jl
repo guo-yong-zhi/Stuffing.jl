@@ -233,11 +233,6 @@ function overlap!(tree1::ShiftedQtree, tree2::ShiftedQtree)
 end
 
 function overlap!(tree::ShiftedQtree, trees::AbstractVector{<:ShiftedQtree})
-    if length(trees) == 0
-        return
-    end
-    @assert lastindex(tree) == lastindex(trees[1])
-    @assert size(tree[end]) == size(trees[1][end]) == (1, 1)
     for t in trees
         overlap!(tree, t)
     end
@@ -245,7 +240,7 @@ function overlap!(tree::ShiftedQtree, trees::AbstractVector{<:ShiftedQtree})
 end
 
 "将sortedtrees依次叠加到ground上，同时修改sortedtrees的shift"
-function placement!(ground, sortedtrees; kargs...)
+function placement!(ground::ShiftedQtree, sortedtrees::AbstractVector; kargs...)
 #     pos = Vector{Tuple{Int, Int, Int}}()
     ind = nothing
     for t in sortedtrees
@@ -260,7 +255,7 @@ function placement!(ground, sortedtrees; kargs...)
 #     return pos
 end
 
-function placement!(ground, qtree::ShiftedQtree; roomfinder=findroom_uniform, kargs...)
+function placement!(ground::ShiftedQtree, qtree::ShiftedQtree; roomfinder=findroom_uniform, kargs...)
     ind = roomfinder(ground; kargs...)
     # @show ind
     if ind === nothing
@@ -270,7 +265,7 @@ function placement!(ground, qtree::ShiftedQtree; roomfinder=findroom_uniform, ka
     return ind
 end
 
-function placement!(ground, sortedtrees, index::Number; kargs...)
+function placement!(ground::ShiftedQtree, sortedtrees::AbstractVector, index::Number; kargs...)
     for i in 1:length(sortedtrees)
         if i == index
             continue
@@ -279,7 +274,7 @@ function placement!(ground, sortedtrees, index::Number; kargs...)
     end
     placement!(ground, sortedtrees[index]; kargs...)
 end
-function placement!(ground, sortedtrees, indexes; kargs...)
+function placement!(ground::ShiftedQtree, sortedtrees::AbstractVector, indexes; kargs...)
     for i in 1:length(sortedtrees)
         if i in indexes
             continue

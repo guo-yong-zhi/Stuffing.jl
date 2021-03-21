@@ -441,20 +441,19 @@ end
 
 function teleport!(ts, collpool=nothing, args...; kargs...)
     maskqt = ts[1]
-    ts2 = ts[2:end]
-    outinds = outofbounds(maskqt, ts2)
+    outinds = outofbounds(maskqt, ts[2:end]) .+ 1
     if !isempty(outinds)
-        placement!(deepcopy(maskqt), ts2, outinds)
-        return outinds .+ 1
+        placement!(deepcopy(maskqt), ts, outinds)
+        return outinds
     end
     if collpool !== nothing
         cinds = collisional_indexes_rand(ts, collpool, args...; kargs...)
         if cinds !== nothing && length(cinds)>0
-            placement!(deepcopy(maskqt), ts2, cinds.-1)
+            placement!(deepcopy(maskqt), ts, cinds)
         end
         return cinds
     end
-    return outinds .+ 1
+    return outinds
 end
 
 function train!(ts, nepoch::Number=-1, args...; 
