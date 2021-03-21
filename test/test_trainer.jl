@@ -39,14 +39,14 @@
         obj = fill(true, round(Int, s)+1, round(Int, s*(0.5+rand()/2))+1) #Bool Matrix implied that background is `false`
         push!(objs, obj)
     end
-
+    ts = [Trainer.trainepoch_E!,Trainer.trainepoch_EM!,
+    Trainer.trainepoch_EM2!,Trainer.trainepoch_EM3!,
+    Trainer.trainepoch_P!,Trainer.trainepoch_P2!,Trainer.trainepoch_Px!]
     qts = qtrees(objs, mask=mask, maskbackground="aa")
-    placement!(qts)
-    fit!(qts)
-    placement!(qts)
-    fit!(qts, trainer=Trainer.trainepoch_P2!)
-    placement!(qts)
-    fit!(qts, trainer=Trainer.trainepoch_Px!)
+    for t in ts
+        placement!(qts)
+        fit!(qts, trainer=t)
+    end
     placement!(qts)
     fit!(qts, 100, optimiser=(t, Δ)->Δ./6, patient=5)
 end
