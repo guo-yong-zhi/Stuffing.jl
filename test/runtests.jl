@@ -32,4 +32,25 @@ include("test_trainer.jl")
     @test size(qts[2][1], 1) >= 800
     maskqt = qts[1]
     @test maskqt[1][QTree.getcenter(maskqt)...] == QTree.FULL
+    
+    o1 = zeros(100, 100)
+    o1[30:50, 30:50] .= 1
+    o2 = zeros(100, 100)
+    o2[40:80, 40:80] .= 1
+    o3 = zeros(100, 100)
+    o3[79:90, 79:90] .= 1
+    C = batchcollision(qtrees([o1, o2, o3], background=0.0))
+    @test length(C) == 2
+
+    mask = fill(true, 500, 800) #can be any AbstractMatrix
+    objs = []
+    for i in 1:30
+        s = 20 + randexp() * 50
+        obj = fill(true, round(Int, s)+1, round(Int, s*(0.5+rand()/2))+1) #Bool Matrix implied that background is `false`
+        push!(objs, obj)
+    end
+    packing(mask, objs, 10)
+    qts = qtrees(objs, mask=mask);
+    packing!(qts, trainer=Trainer.trainepoch_P2!)
+    getpositions(qts)
 end

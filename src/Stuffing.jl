@@ -3,7 +3,6 @@ export qtree, maskqtree, qtrees, placement!, overlap!, overlap, getpositions, se
 export QTree, getshift, getcenter, setshift!, setcenter!, outofbounds, batchcollision, 
 collision_bfs_rand, findroom_uniform, findroom_gathering
 export Trainer, train!, fit!, Momentum
-# Write your package code here.
 include("qtree.jl")
 include("train.jl")
 using .QTree
@@ -82,18 +81,19 @@ function setpositions!(qts, x_y; type=setshift!)
     end
     x_y
 end
-function packing(mask, objs; background=:auto, maskbackground=:auto)
-    qts = qtrees(objs, mask=mask, background=background, maskbackground=maskbackground) |> packing! 
+function packing(mask, objs, args...; background=:auto, maskbackground=:auto, kargs...)
+    qts = qtrees(objs, mask=mask, background=background, maskbackground=maskbackground)
+    packing!(qts, args...; kargs...)
     getpositions(qts)
 end
-function packing!(qts)
+function packing!(qts, args...; kargs...)
     placement!(qts)
-    ep, nc = fit!(qts)
+    ep, nc = fit!(qts, args...; kargs...)
     println("$ep epochs, $nc collections")
     if nc != 0
         colllist = first.(batchcollision(qts))
         println("have $(length(colllist)) collisions:")
-        get_text(i) = i>1 ? "obj$(i-1)" : "#MASK#"
+        get_text(i) = i>1 ? "obj_$(i-1)" : "#MASK#"
         println([(get_text(i), get_text(j)) for (i,j) in colllist])
     end
     qts
