@@ -406,7 +406,7 @@ end
 function batchcollision(qtrees::AbstractVector, args...; 
     queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
     kargs...)
-    if length(qtrees) > 25
+    if length(qtrees) > 10 * (Threads.nthreads() + 1)
         return batchcollision_qtree(qtrees, args...; queue=queue, kargs...)
     else
         return batchcollision_native(qtrees, args...; queue=queue, kargs...)
