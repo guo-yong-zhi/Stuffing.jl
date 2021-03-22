@@ -10,7 +10,7 @@ function collision(Q1::AbstractStackQtree, Q2::AbstractStackQtree, i=(levelnum(Q
         return i
     end
     r = .- i
-    for cn in 1:4 # half
+    for cn in 1:4 # MIX
         ci = child(i, cn)
     #         @show cn,ci
     #         @show Q1[ci],Q2[ci]
@@ -32,11 +32,10 @@ function collision_bfs_rand(Q1::AbstractStackQtree, Q2::AbstractStackQtree, q=[(
         for cn in shuffle4()
             ci = child(i, cn)
             q2 = _getindex(Q2, ci)
-            # q1 = _getindex(Q1, ci)
-            # q1cc[q1] += 1 result ratio [1.4, 0.002, 1.0] EMPTY > MIX > FULL
-            # q2cc[q2] += 1 result ratio [2.6, 0.002, 1.0]
-            cond = q2 == EMPTY
-            if cond #q2 is smaller, so it's more empty
+#             q1 = getindex(Q1, ci)
+#             q1cc[q1] += 1 #result ratio [1.1, 0.04, 1.0] EMPTY > MIX > FULL
+#             q2cc[q2] += 1 #result ratio [1.8, 0.07, 1.0]
+            if q2 == EMPTY #assume q2 is more empty
                 continue
             elseif q2 == MIX
                 q1 = _getindex(Q1, ci)
@@ -59,7 +58,7 @@ function collision_bfs_rand(Q1::AbstractStackQtree, Q2::AbstractStackQtree, q=[(
     end
     return .- i # no collision
 end
-
+# thcc = [0 for i = 1:Threads.nthreads()]
 ColItemType = Pair{Tuple{Int,Int},Tuple{Int,Int,Int}}
 ThreadQueueType = AbstractVector{<:AbstractVector{Tuple{Int,Int,Int}}}
 function batchcollision_native(qtrees::AbstractVector, indpairs; 
@@ -68,6 +67,7 @@ function batchcollision_native(qtrees::AbstractVector, indpairs;
         at=(levelnum(qtrees[1]), 1, 1))
     sl = Threads.SpinLock()
     Threads.@threads for (i1, i2) in indpairs
+#         thcc[Threads.threadid()] += 1
         que = queue[Threads.threadid()]
         empty!(que)
         push!(que, at)
@@ -81,10 +81,11 @@ function batchcollision_native(qtrees::AbstractVector, indpairs;
     collist
 end
 function batchcollision_native(qtrees::AbstractVector, 
-    indpairs::Vector{Tuple{Tuple{Integer,Integer},Tuple{Integer,Integer,Integer}}}; collist=Vector{ColItemType}(),
+    indpairs::Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int,Int}}}; collist=Vector{ColItemType}(),
     queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()])
     sl = Threads.SpinLock()
     Threads.@threads for ((i1, i2), at) in indpairs
+#         thcc[Threads.threadid()] += 1
         que = queue[Threads.threadid()]
         empty!(que)
         push!(que, at)
@@ -98,28 +99,9 @@ function batchcollision_native(qtrees::AbstractVector,
     collist
 end
 function batchcollision_native(qtrees::AbstractVector, 
-    inds::AbstractVector{<:Integer}=1:length(qtrees); collist=Vector{ColItemType}(), 
-    queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
-    at=(levelnum(qtrees[1]), 1, 1))
+    inds::AbstractVector{<:Integer}=1:length(qtrees); kargs...)
     l = length(inds)
-    rl = Threads.SpinLock()
-    Threads.@threads for i in 1:l
-        que = queue[Threads.threadid()]
-        for j in i+1:l
-            empty!(que)
-            push!(que, at)
-            @inbounds i1 = inds[i]
-            @inbounds i2 = inds[j]
-#             @show inds i,j
-            cp = collision_bfs_rand(qtrees[i1], qtrees[i2], que)
-            if cp[1] >= 0
-                lock(rl) do
-                    push!(collist, (i1,i2)=>cp)
-                end
-            end
-        end
-    end
-    collist
+    batchcollision_native(qtrees, [(inds[i], inds[j]) for i in 1:l for j in l:-1:i+1]; kargs...)
 end
 function batchcollision_native(qtrees::AbstractVector, inds::AbstractSet{<:Integer}; kargs...)
    batchcollision_native(qtrees, inds|>collect; kargs...)
@@ -323,10 +305,10 @@ function locate(qt::AbstractStackQtree, ind::Tuple{Int, Int, Int}=(levelnum(qt),
     return locate(qt, unempty)
 end
 IndType = Tuple{Int, Int, Int}
-LocQtreeType = QtreeNode{NamedTuple{(:loc, :cumloc, :ind),Tuple{Array{Any,1},Array{Any,1}, IndType}}}
-LocQtreeTypeInt = QtreeNode{NamedTuple{(:loc, :cumloc, :ind),Tuple{Array{Int,1},Array{Int,1}, IndType}}}
-LocQtree(ind) = LocQtreeType((loc = Vector(), cumloc = Vector(), ind=ind))
-LocQtreeInt(ind) = LocQtreeTypeInt((loc = Vector{Int}(), cumloc = Vector{Int}(), ind=ind))
+LocQtreeType = QtreeNode{Pair{IndType, Array{Any,1}}}
+LocQtreeTypeInt = QtreeNode{Pair{IndType, Array{Int,1}}}
+LocQtree(ind, parent=nothing) = LocQtreeType(ind=>[], parent)
+LocQtreeInt(ind, parent=nothing) = LocQtreeTypeInt(ind=>Vector{Int}(), parent)
 function locate!(qt::AbstractStackQtree, loctree::QtreeNode=LocQtree((levelnum(qt), 1, 1)),
     ind::Tuple{Int, Int, Int}=(levelnum(qt), 1, 1); label=qt, newnode=LocQtree)
     if _getindex(qt, ind) == EMPTY
@@ -345,15 +327,14 @@ function locate!(qt::AbstractStackQtree, loctree::QtreeNode=LocQtree((levelnum(q
                 unempty = c
                 unemptyci = ci
             else
-                push!(loctree.value.loc, label)
+                push!(loctree.value.second, label)
                 return loctree #multiple empty child
             end
         end
     end
     if loctree.children[unemptyci] === nothing
-        loctree.children[unemptyci] = newnode(unempty)
+        loctree.children[unemptyci] = newnode(unempty, loctree)
     end
-    push!(loctree.value.cumloc, label)
     locate!(qt, loctree.children[unemptyci], unempty, label=label, newnode=newnode)
     return loctree
 end
@@ -378,24 +359,40 @@ function batchcollision_qtree(qtrees::AbstractVector, loctree::QtreeNode;
     queue = [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
     )
     nodequeue = [loctree]
-
+    pairlist = Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int,Int}}}()
     while !isempty(nodequeue)
-        loctree = popfirst!(nodequeue)
-        if length(loctree.value.loc) > 1
-#             @show length(loctree.value.loc), length(loctree.value.cumloc)
-            batchcollision_native(qtrees, loctree.value.loc, collist=collist, queue=queue, at=loctree.value.ind)
+        N = popfirst!(nodequeue)
+        pos, inds = N.value
+        linds = length(inds) 
+        if linds > 1
+            for i in 1:linds
+                for j in linds:-1:i+1
+                    push!(pairlist, ((@inbounds inds[i], @inbounds inds[j]), pos))
+                end
+            end
         end
-        if length(loctree.value.loc) > 0 && length(loctree.value.cumloc) > 0
-            indpairs = Iterators.product(loctree.value.loc, loctree.value.cumloc)|>collect
-            batchcollision_native(qtrees, indpairs, collist=collist, queue=queue, at=loctree.value.ind)
+        p = N.parent
+        if linds > 0
+            while p !== nothing
+                pinds = p.value.second
+                pinds = [i for i in pinds if inkernelbounds(@inbounds(qtrees[i][pos[1]]), pos[2], pos[3])]
+                #check here because there are no bounds check in collision_bfs_rand
+                lpinds = length(pinds)
+                if lpinds > 0
+                    #append!(pairlist, (((i, pi), pos) for i in inds for pi in pinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢
+                    #append!(pairlist, [((i, pi), pos) for i in inds for pi in pinds]) 
+                    append!(pairlist, ((p, pos) for p in Iterators.product(inds, pinds)))
+                end
+                p = p.parent
+            end
         end
-        for c in loctree.children
+        for c in N.children
             if c !== nothing
                 push!(nodequeue, c)
             end
         end
     end
-    collist
+    batchcollision_native(qtrees, pairlist, collist=collist, queue=queue)
 end
 function batchcollision_qtree(qtrees::AbstractVector; kargs...)
     loctree = locate!(qtrees)
