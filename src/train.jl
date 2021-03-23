@@ -372,7 +372,7 @@ function trainepoch_P2!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ
     nsp
 end
 
-function levelpools(qtrees, levels=[-levelnum(qtrees[1]):2:-3..., -1])
+function levelpools(qtrees, levels=[-levelnum(qtrees[1]):3:-3..., -1])
     pools = [i=>Vector{Tuple{Int, Int}}() for i in levels]
 #     @show typeof(pools)
     l = length(qtrees)
@@ -401,7 +401,7 @@ function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQtree};
         nc = filttrain!(qtrees, inpool, outpool, outlevel, optimiser=optimiser; kargs...)
         if first(levelpools[1]) < -levelnum(qtrees[1])+2
             r = outpool !== nothing ? length(outpool)/length(inpool) : 1
-            println(niter, "#"^(-first(levelpools[1])), "$(first(levelpools[1])) pool:$(length(inpool))($r) nc:$nc ")
+            @info string(niter, "#"^(-first(levelpools[1])), "$(first(levelpools[1])) pool:$(length(inpool))($r) nc:$nc ")
         end
         if (nc == 0) break end
 #         if (nc < last_nc) last_nc = nc else break end
@@ -481,7 +481,7 @@ function train!(ts, nepoch::Number=-1, args...;
         collpool = resource[:levelpools][end] |> last
     end
     nepoch = nepoch >= 0 ? nepoch : trainer(:nepoch)
-    @show nepoch, patient
+    @info "nepoch: $nepoch, patient: $patient"
     while ep < nepoch
 #         @show "##", ep, nc, length(collpool), (count,nc_min)
         nc = trainer(ts, args...; resource..., optimiser=optimiser, kargs...)
@@ -497,7 +497,7 @@ function train!(ts, nepoch::Number=-1, args...;
             if cinds !== nothing && length(cinds)>0
                 reset!.(optimiser, ts[cinds])
             end
-            println("@epoch $ep (waited $count), $nc($(length(collpool))) collisions, teleport $cinds to $(getshift.(ts[cinds]))")
+            @info "@epoch $ep (waited $count), $nc($(length(collpool))) collisions, teleport $cinds to $(getshift.(ts[cinds]))"
             count = 0
             cinds_set = Set(cinds)
             if last_cinds == cinds_set
@@ -516,16 +516,16 @@ function train!(ts, nepoch::Number=-1, args...;
             if lout == 0
                 return ep, nc
             else
-                println("$outinds out of bounds")
+                @info "$outinds out of bounds"
                 nc += lout
             end
         end
         if teleport_count >= 10
-            println("The teleport strategy failed after $ep epochs")
+            @info "The teleport strategy failed after $ep epochs"
             return ep, nc
         end
         if count > max(2, 2patient, nepoch ÷ 10)
-            println("training early break after $ep epochs ($nc collisions, waited $count epochs)")
+            @info "training early break after $ep epochs ($nc collisions, waited $count epochs)"
             return ep, nc
         end
     end

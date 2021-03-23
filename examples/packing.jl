@@ -14,7 +14,7 @@ end
 objs = []
 for i in 1:30
     s = 20 + randexp() * 60
-    obj = fill(true, round(Int, s)+1, round(Int, s*(0.5+rand()/2))+1) #Bool Matrix implied that background is `false`
+    obj = fill(true, round(Int, s)+1, round(Int, s*(0.5+rand()/2))+1) #Bool Matrix implied that background = false
     push!(objs, obj)
 end
 
@@ -24,7 +24,8 @@ placement!(qts)
 fit!(qts)
 
 # draw
-oqt = overlap!(qts)
+println("visualization:")
+oqt = overlap(qts)
 println(repr("text/plain",oqt))
 #or
 println(QTree.charimage(oqt, maxlen=97))

@@ -4,12 +4,12 @@ function collision(Q1::AbstractStackQtree, Q2::AbstractStackQtree, i=(levelnum(Q
     n1 = Q1[i]
     n2 = Q2[i]
     if n1 == EMPTY || n2 == EMPTY
-        return .- i
+        return -i[1], i[2], i[3]
     end
     if n1 == FULL || n2 == FULL
         return i
     end
-    r = .- i
+    r = -i[1], i[2], i[3]
     for cn in 1:4 # MIX
         ci = child(i, cn)
     #         @show cn,ci
@@ -56,7 +56,7 @@ function collision_bfs_rand(Q1::AbstractStackQtree, Q2::AbstractStackQtree, q=[(
             end
         end
     end
-    return .- i # no collision
+    return -i[1], i[2], i[3] # no collision
 end
 # thcc = [0 for i = 1:Threads.nthreads()]
 ColItemType = Pair{Tuple{Int,Int},Tuple{Int,Int,Int}}
@@ -314,6 +314,10 @@ function locate!(qt::AbstractStackQtree, loctree::QtreeNode=LocQtree((levelnum(q
     if _getindex(qt, ind) == EMPTY
         return loctree
     end
+    locate_core!(qt, loctree, ind, label, newnode)
+end
+function locate_core!(qt::AbstractStackQtree, loctree::QtreeNode,
+    ind::Tuple{Int, Int, Int}, label, newnode)
     if ind[1] == 1
         push!(loctree.value.loc, label)
         return loctree
@@ -335,10 +339,8 @@ function locate!(qt::AbstractStackQtree, loctree::QtreeNode=LocQtree((levelnum(q
     if loctree.children[unemptyci] === nothing
         loctree.children[unemptyci] = newnode(unempty, loctree)
     end
-    locate!(qt, loctree.children[unemptyci], unempty, label=label, newnode=newnode)
-    return loctree
+    locate_core!(qt, loctree.children[unemptyci], unempty, label, newnode)
 end
-
 function locate!(qts::AbstractVector, loctree::QtreeNode=LocQtreeInt((levelnum(qts[1]), 1, 1))) #must have same levelnum
     for (i, qt) in enumerate(qts)
         locate!(qt, loctree, label=i, newnode=LocQtreeInt)
@@ -403,10 +405,11 @@ function batchcollision_qtree(qtrees::AbstractVector, inds::Union{AbstractVector
     batchcollision_qtree(qtrees, loctree; kargs...)
 end
 
+const QTREE_COLLISION_ENABLE_TH = round(Int, 20 + 20 * log2(Threads.nthreads()))
 function batchcollision(qtrees::AbstractVector, args...; 
     queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
     kargs...)
-    if length(qtrees) > 10 * (Threads.nthreads() + 1)
+    if length(qtrees) > QTREE_COLLISION_ENABLE_TH
         return batchcollision_qtree(qtrees, args...; queue=queue, kargs...)
     else
         return batchcollision_native(qtrees, args...; queue=queue, kargs...)

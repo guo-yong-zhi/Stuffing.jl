@@ -46,11 +46,12 @@ include("test_trainer.jl")
     objs = []
     for i in 1:30
         s = 20 + randexp() * 50
-        obj = fill(true, round(Int, s)+1, round(Int, s*(0.5+rand()/2))+1) #Bool Matrix implied that background is `false`
+        obj = fill(true, round(Int, s)+1, round(Int, s*(0.5+rand()/2))+1) #Bool Matrix implied that background = false
         push!(objs, obj)
     end
     packing(mask, objs, 10)
     qts = qtrees(objs, mask=mask);
+    setpositions!(qts, :, (200,300))
     packing!(qts, trainer=Trainer.trainepoch_P2!)
     getpositions(qts)
 end

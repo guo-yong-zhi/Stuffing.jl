@@ -9,6 +9,8 @@ using .QTree
 using .Trainer
 include("utils.jl")
 
+@info "Threads.nthreads() = $(Threads.nthreads())"
+
 function qtree(pic::AbstractArray{Bool,2}, args...)
     pic = map(x -> ifelse(x, QTree.FULL, QTree.EMPTY), pic)
     qt = ShiftedQtree(pic, args..., default=QTree.EMPTY) |> buildqtree!
@@ -34,7 +36,7 @@ end
 function maskqtree(pic::AbstractMatrix; background=pic[1])
     maskqtree(pic .!= background)
 end
-
+# appointment: the first one is mask
 function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
     ts = Vector{Stuffing.QTree.ShiftedQtree}()
     if mask !== nothing
@@ -51,7 +53,7 @@ function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
     ts
 end
 qtrees(mask, pics; kargs...) = qtrees(pics; mask=mask, kargs...)
-#??
+
 function QTree.placement!(qtrees::AbstractVector{<:ShiftedQtree}; karg...)
     ind = QTree.placement!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
     if ind === nothing error("no room for placement") end
@@ -65,22 +67,29 @@ end
 QTree.overlap!(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTree.overlap!(qtrees[1], qtrees[2:end]; karg...)
 QTree.overlap(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTree.overlap!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
 
-function getpositions(qts; type=getshift)
-    mqt = qts[1]
-    msy, msx = getshift(mqt)
-    pos = getshift.(qts[2:end])
+function getpositions(mask::ShiftedQtree, qtrees::AbstractVector, inds=:; type=getshift)
+    msy, msx = getshift(mask)
+    pos = type.(qtrees[inds])
+    pos = eltype(pos) <: Number ? Ref(pos) : pos
     Broadcast.broadcast(p->(p[2]-msx+1, p[1]-msy+1), pos) #左上角重合时返回(1,1)
 end
-
-function setpositions!(qts, x_y; type=setshift!)
-    mqt = qts[1]
-    msy, msx = getshift(mqt)
+function getpositions(qtrees::AbstractVector{<:ShiftedQtree}, inds=:; type=getshift)
+    @assert length(qtrees) >= 1
+    getpositions(qtrees[1], @view(qtrees[2:end]), inds, type=type)
+end
+function setpositions!(mask::ShiftedQtree, qtrees::AbstractVector, inds, x_y; type=setshift!)
+    msy, msx = getshift(mask)
     x_y = eltype(x_y) <: Number ? Ref(x_y) : x_y
-        Broadcast.broadcast(qts[2:end], x_y) do qt, p
+    Broadcast.broadcast(qtrees[inds], x_y) do qt, p
         type(qt, (p[2]-1+msy, p[1]-1+msx))
     end
     x_y
 end
+function setpositions!(qtrees::AbstractVector{<:ShiftedQtree}, inds, x_y; type=setshift!)
+    @assert length(qtrees) >= 1
+    setpositions!(qtrees[1], @view(qtrees[2:end]), inds, x_y, type=type)
+end
+
 function packing(mask, objs, args...; background=:auto, maskbackground=:auto, kargs...)
     qts = qtrees(objs, mask=mask, background=background, maskbackground=maskbackground)
     packing!(qts, args...; kargs...)
@@ -89,12 +98,12 @@ end
 function packing!(qts, args...; kargs...)
     placement!(qts)
     ep, nc = fit!(qts, args...; kargs...)
-    println("$ep epochs, $nc collections")
+    @info "$ep epochs, $nc collections"
     if nc != 0
         colllist = first.(batchcollision(qts))
-        println("have $(length(colllist)) collisions:")
         get_text(i) = i>1 ? "obj_$(i-1)" : "#MASK#"
-        println([(get_text(i), get_text(j)) for (i,j) in colllist])
+        @warn "have $(length(colllist)) collisions:\n" * 
+            string([(get_text(i), get_text(j)) for (i,j) in colllist])
     end
     qts
 end

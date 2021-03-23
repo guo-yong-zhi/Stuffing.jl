@@ -33,8 +33,8 @@ testqtree = Stuffing.testqtree
     end
     
     objs = []
-    for i in 1:30
-        s = 20 + randexp() * 60
+    for i in 1:15
+        s = 20 + randexp() * 40
         obj = fill(true, round(Int, s)+1, round(Int, s*(0.5+rand()/2))+1)
         push!(objs, obj)
     end
