@@ -129,8 +129,8 @@ NodeValueType = Pair{IndType, Array{Any,1}}
 IntNodeValueType = Pair{IndType, Array{Int,1}}
 LocQtreeType = QtreeNode{NodeValueType}
 IntLocQtreeType = QtreeNode{IntNodeValueType}
-NULLNODE = LocQtreeType()
-INTNULLNODE = QtreeNode{IntNodeValueType}()
+const NULLNODE = LocQtreeType()
+const INTNULLNODE = QtreeNode{IntNodeValueType}()
 nullnode(n::LocQtreeType) = NULLNODE
 nullnode(n::IntLocQtreeType) = INTNULLNODE
 LocQtree(ind::IndType, parent=NULLNODE) = LocQtreeType(ind=>[], parent, [NULLNODE, NULLNODE, NULLNODE, NULLNODE])
