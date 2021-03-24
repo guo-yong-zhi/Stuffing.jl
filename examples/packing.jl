@@ -17,6 +17,7 @@ for i in 1:30
     obj = fill(true, round(Int, s)+1, round(Int, s*(0.5+rand()/2))+1) #Bool Matrix implied that background = false
     push!(objs, obj)
 end
+sort!(objs, by=prod∘size, rev=true) #better in descending order of size
 
 #packing
 qts = qtrees(objs, mask=mask, maskbackground="aa")
