@@ -1,3 +1,4 @@
+########## batchcollision
 function collision(Q1::AbstractStackQtree, Q2::AbstractStackQtree, i=(levelnum(Q1), 1, 1))
     #     @show i
 #     @assert size(Q1) == size(Q2)
@@ -106,7 +107,145 @@ end
 function batchcollision_native(qtrees::AbstractVector, inds::AbstractSet{<:Integer}; kargs...)
    batchcollision_native(qtrees, inds|>collect; kargs...)
 end
+function locate(qt::AbstractStackQtree, ind::Tuple{Int, Int, Int}=(levelnum(qt), 1, 1))
+    if qt[ind] == EMPTY
+        return ind
+    end
+    unempty = (-1, -1, -1)
+    for ci in 1:4
+        c = child(ind, ci)
+        if qt[c] != EMPTY
+            if unempty[1] == -1 #only one empty child
+                unempty = c
+            else
+                return ind #multiple empty child
+            end
+        end
+    end
+    return locate(qt, unempty)
+end
+IndType = Tuple{Int, Int, Int}
+LocQtreeType = QtreeNode{Pair{IndType, Array{Any,1}}}
+LocQtreeTypeInt = QtreeNode{Pair{IndType, Array{Int,1}}}
+LocQtree(ind, parent=nothing) = LocQtreeType(ind=>[], parent)
+LocQtreeInt(ind, parent=nothing) = LocQtreeTypeInt(ind=>Vector{Int}(), parent)
+function locate!(qt::AbstractStackQtree, loctree::QtreeNode=LocQtree((levelnum(qt), 1, 1)),
+    ind::Tuple{Int, Int, Int}=(levelnum(qt), 1, 1); label=qt, newnode=LocQtree)
+    if _getindex(qt, ind) == EMPTY
+        return loctree
+    end
+    locate_core!(qt, loctree, ind, label, newnode)
+end
+function locate_core!(qt::AbstractStackQtree, loctree::QtreeNode,
+    ind::Tuple{Int, Int, Int}, label, newnode)
+    if ind[1] == 1
+        push!(loctree.value.second, label)
+        return loctree
+    end
+    unempty = (-1, -1, -1)
+    unemptyci = -1
+    for ci in 1:4
+        c = child(ind, ci)
+        if _getindex(qt, c) != EMPTY
+            if unemptyci == -1 #only one empty child
+                unempty = c
+                unemptyci = ci
+            else
+                push!(loctree.value.second, label)
+                return loctree #multiple empty child
+            end
+        end
+    end
+    if loctree.children[unemptyci] === nothing
+        loctree.children[unemptyci] = newnode(unempty, loctree)
+    end
+    locate_core!(qt, loctree.children[unemptyci], unempty, label, newnode)
+end
+function locate!(qts::AbstractVector, loctree::QtreeNode=LocQtreeInt((levelnum(qts[1]), 1, 1))) #must have same levelnum
+    for (i, qt) in enumerate(qts)
+        locate!(qt, loctree, label=i, newnode=LocQtreeInt)
+    end
+    loctree
+end
+function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int}, AbstractSet{Int}}, 
+        loctree::QtreeNode=LocQtreeInt((levelnum(qts[1]), 1, 1))) #must have same levelnum
+    for i in inds
+        locate!(qts[i], loctree, label=i, newnode=LocQtreeInt)
+    end
+    loctree
+end
 
+@assert collect(Iterators.product(1:2,4:6))[1] == (1,4)
+function batchcollision_qtree(qtrees::AbstractVector, loctree::QtreeNode;
+    collist = Vector{ColItemType}(),
+    queue = [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
+    )
+    nodequeue = [loctree]
+    pairlist = Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int,Int}}}()
+    while !isempty(nodequeue)
+        N = popfirst!(nodequeue)
+        pos, inds = N.value
+        linds = length(inds) 
+        if linds > 1
+            for i in 1:linds
+                for j in linds:-1:i+1
+                    push!(pairlist, ((@inbounds inds[i], @inbounds inds[j]), pos))
+                end
+            end
+        end
+        p = N.parent
+        if linds > 0
+            while p !== nothing
+                pinds = p.value.second
+                pinds = [i for i in pinds if inkernelbounds(@inbounds(qtrees[i][pos[1]]), pos[2], pos[3])]
+                #check here because there are no bounds check in collision_bfs_rand
+                lpinds = length(pinds)
+                if lpinds > 0
+                    #append!(pairlist, (((i, pi), pos) for i in inds for pi in pinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢
+                    #append!(pairlist, [((i, pi), pos) for i in inds for pi in pinds]) 
+                    append!(pairlist, ((p, pos) for p in Iterators.product(inds, pinds)))
+                end
+                p = p.parent
+            end
+        end
+        for c in N.children
+            if c !== nothing
+                push!(nodequeue, c)
+            end
+        end
+    end
+    batchcollision_native(qtrees, pairlist, collist=collist, queue=queue)
+end
+function batchcollision_qtree(qtrees::AbstractVector; kargs...)
+    loctree = locate!(qtrees)
+    batchcollision_qtree(qtrees, loctree; kargs...)
+end
+function batchcollision_qtree(qtrees::AbstractVector, inds::Union{AbstractVector{Int}, AbstractSet{Int}}; kargs...)
+    loctree = locate!(qtrees, inds)
+    batchcollision_qtree(qtrees, loctree; kargs...)
+end
+
+const QTREE_COLLISION_ENABLE_TH = round(Int, 20 + 20 * log2(Threads.nthreads()))
+function batchcollision(qtrees::AbstractVector; 
+    queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
+    kargs...)
+    if length(qtrees) > QTREE_COLLISION_ENABLE_TH
+        return batchcollision_qtree(qtrees; queue=queue, kargs...)
+    else
+        return batchcollision_native(qtrees; queue=queue, kargs...)
+    end
+end
+function batchcollision(qtrees::AbstractVector, inds; 
+    queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
+    kargs...)
+    if length(inds) > QTREE_COLLISION_ENABLE_TH
+        return batchcollision_qtree(qtrees, inds; queue=queue, kargs...)
+    else
+        return batchcollision_native(qtrees, inds; queue=queue, kargs...)
+    end
+end
+
+########## placement!
 function findroom_uniform(ground, q=[(levelnum(ground), 1, 1)])
     if isempty(q)
         push!(q, (levelnum(ground), 1, 1))
@@ -285,133 +424,4 @@ function placement!(ground::ShiftedQtree, sortedtrees::AbstractVector, indexes; 
         overlap!(ground, sortedtrees[i])
     end
     ind
-end
-
-function locate(qt::AbstractStackQtree, ind::Tuple{Int, Int, Int}=(levelnum(qt), 1, 1))
-    if qt[ind] == EMPTY
-        return ind
-    end
-    unempty = (-1, -1, -1)
-    for ci in 1:4
-        c = child(ind, ci)
-        if qt[c] != EMPTY
-            if unempty[1] == -1 #only one empty child
-                unempty = c
-            else
-                return ind #multiple empty child
-            end
-        end
-    end
-    return locate(qt, unempty)
-end
-IndType = Tuple{Int, Int, Int}
-LocQtreeType = QtreeNode{Pair{IndType, Array{Any,1}}}
-LocQtreeTypeInt = QtreeNode{Pair{IndType, Array{Int,1}}}
-LocQtree(ind, parent=nothing) = LocQtreeType(ind=>[], parent)
-LocQtreeInt(ind, parent=nothing) = LocQtreeTypeInt(ind=>Vector{Int}(), parent)
-function locate!(qt::AbstractStackQtree, loctree::QtreeNode=LocQtree((levelnum(qt), 1, 1)),
-    ind::Tuple{Int, Int, Int}=(levelnum(qt), 1, 1); label=qt, newnode=LocQtree)
-    if _getindex(qt, ind) == EMPTY
-        return loctree
-    end
-    locate_core!(qt, loctree, ind, label, newnode)
-end
-function locate_core!(qt::AbstractStackQtree, loctree::QtreeNode,
-    ind::Tuple{Int, Int, Int}, label, newnode)
-    if ind[1] == 1
-        push!(loctree.value.loc, label)
-        return loctree
-    end
-    unempty = (-1, -1, -1)
-    unemptyci = -1
-    for ci in 1:4
-        c = child(ind, ci)
-        if _getindex(qt, c) != EMPTY
-            if unemptyci == -1 #only one empty child
-                unempty = c
-                unemptyci = ci
-            else
-                push!(loctree.value.second, label)
-                return loctree #multiple empty child
-            end
-        end
-    end
-    if loctree.children[unemptyci] === nothing
-        loctree.children[unemptyci] = newnode(unempty, loctree)
-    end
-    locate_core!(qt, loctree.children[unemptyci], unempty, label, newnode)
-end
-function locate!(qts::AbstractVector, loctree::QtreeNode=LocQtreeInt((levelnum(qts[1]), 1, 1))) #must have same levelnum
-    for (i, qt) in enumerate(qts)
-        locate!(qt, loctree, label=i, newnode=LocQtreeInt)
-    end
-    loctree
-end
-function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int}, AbstractSet{Int}}, 
-        loctree::QtreeNode=LocQtreeInt((levelnum(qts[1]), 1, 1))) #must have same levelnum
-    for i in inds
-        locate!(qts[i], loctree, label=i, newnode=LocQtreeInt)
-    end
-    loctree
-end
-
-@assert collect(Iterators.product(1:2,4:6))[1] == (1,4)
-function batchcollision_qtree(qtrees::AbstractVector, loctree::QtreeNode;
-    collist = Vector{ColItemType}(),
-    queue = [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
-    )
-    nodequeue = [loctree]
-    pairlist = Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int,Int}}}()
-    while !isempty(nodequeue)
-        N = popfirst!(nodequeue)
-        pos, inds = N.value
-        linds = length(inds) 
-        if linds > 1
-            for i in 1:linds
-                for j in linds:-1:i+1
-                    push!(pairlist, ((@inbounds inds[i], @inbounds inds[j]), pos))
-                end
-            end
-        end
-        p = N.parent
-        if linds > 0
-            while p !== nothing
-                pinds = p.value.second
-                pinds = [i for i in pinds if inkernelbounds(@inbounds(qtrees[i][pos[1]]), pos[2], pos[3])]
-                #check here because there are no bounds check in collision_bfs_rand
-                lpinds = length(pinds)
-                if lpinds > 0
-                    #append!(pairlist, (((i, pi), pos) for i in inds for pi in pinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢
-                    #append!(pairlist, [((i, pi), pos) for i in inds for pi in pinds]) 
-                    append!(pairlist, ((p, pos) for p in Iterators.product(inds, pinds)))
-                end
-                p = p.parent
-            end
-        end
-        for c in N.children
-            if c !== nothing
-                push!(nodequeue, c)
-            end
-        end
-    end
-    batchcollision_native(qtrees, pairlist, collist=collist, queue=queue)
-end
-function batchcollision_qtree(qtrees::AbstractVector; kargs...)
-    loctree = locate!(qtrees)
-    batchcollision_qtree(qtrees, loctree; kargs...)
-end
-function batchcollision_qtree(qtrees::AbstractVector, inds::Union{AbstractVector{Int}, AbstractSet{Int}}; kargs...)
-    loctree = locate!(qtrees, inds)
-    batchcollision_qtree(qtrees, loctree; kargs...)
-end
-
-const QTREE_COLLISION_ENABLE_TH = round(Int, 20 + 20 * log2(Threads.nthreads()))
-function batchcollision(qtrees::AbstractVector, args...; 
-    queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
-    kargs...)
-    if length(qtrees) > QTREE_COLLISION_ENABLE_TH
-        return batchcollision_qtree(qtrees, args...; queue=queue, kargs...)
-    else
-        return batchcollision_native(qtrees, args...; queue=queue, kargs...)
-    end
 end
