@@ -272,14 +272,14 @@ end
 
 struct QtreeNode{T}
     value::T
-    children::Vector{Union{Nothing, QtreeNode}}
-    parent::Union{Nothing, QtreeNode}
+    parent::QtreeNode{T}
+    children::Vector{QtreeNode{T}}
+    QtreeNode{T}() where T = new{T}()
+    QtreeNode{T}(v, p, c) where T = new{T}(v, p, c)
 end
 
-function QtreeNode{T}(value::T, parent=nothing) where T
-    QtreeNode{T}(value, Vector{Union{Nothing, QtreeNode}}(nothing, 4), parent)
-end
-QtreeNode(value::T, parent=nothing) where T = QtreeNode{T}(value, parent)
+QtreeNode(value::T, parent, children) where T = QtreeNode{T}(value, parent, children)
+
 include("qtreetools.jl")
 
 function charmat(mat; maxlen=49)

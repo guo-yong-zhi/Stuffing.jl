@@ -1,18 +1,28 @@
 mutable struct ListNode{T}
-    value::Union{Nothing, T}
-    prev::Union{Nothing, ListNode}
-    next::Union{Nothing, ListNode}
+    value::T
+    prev::ListNode
+    next::ListNode
+    function ListNode{T}() where T
+        n = new{T}()
+        n.prev = n
+        n.next = n
+    end
+    n
 end
-ListNode(value) = ListNode(value, nothing, nothing)
-ListNode{T}(value) where T = ListNode{T}(value, nothing, nothing)
+function ListNode{T}(value::T) where T
+    n = ListNode{T}()
+    n.value = value
+    n
+end
+ListNode(value::T) where T = ListNode{T}(value)
 
 mutable struct DoubleList{T}
     head::ListNode{T}
     tail::ListNode{T}
 end
 function DoubleList{T}() where T
-    h = ListNode{T}(nothing)
-    t = ListNode{T}(nothing)
+    h = ListNode{T}()
+    t = ListNode{T}()
     h.next = t
     t.prev = h
     DoubleList(h, t)
