@@ -277,7 +277,7 @@ function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser,
     sl2 = Threads.SpinLock()
     Threads.@threads for (i1, i2) in inpool |> shuffle!
         que = queue[Threads.threadid()]
-        cp = collision_bfs_rand(qtrees[i1], qtrees[i2], empty!(que))
+        cp = collision_randbfs(qtrees[i1], qtrees[i2], empty!(que))
         if cp[1] >= nearlevel2
             if outpool !== nothing
                 lock(sl1) do
@@ -426,7 +426,7 @@ function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}})
         if mij in cinds
             continue
         end
-        cp = collision(qtrees[i], qtrees[j])
+        cp = collision_dfs(qtrees[i], qtrees[j])
         if cp[1] >= 0
             push!(cinds, mij)
         end
@@ -434,7 +434,7 @@ function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}})
     if length(cinds)==0
         for (i, j) in @view collpool[.!keep]
             mij = max(i, j)
-            cp = collision(qtrees[i], qtrees[j])
+            cp = collision_dfs(qtrees[i], qtrees[j])
             if cp[1] >= 0
                 push!(cinds, mij)
                 break

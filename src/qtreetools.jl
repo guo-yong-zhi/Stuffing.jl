@@ -1,5 +1,5 @@
 ########## batchcollision
-function collision(Q1::AbstractStackQtree, Q2::AbstractStackQtree, i=(levelnum(Q1), 1, 1))
+function collision_dfs(Q1::AbstractStackQtree, Q2::AbstractStackQtree, i=(levelnum(Q1), 1, 1))
     #     @show i
 #     @assert size(Q1) == size(Q2)
     n1 = Q1[i]
@@ -15,14 +15,14 @@ function collision(Q1::AbstractStackQtree, Q2::AbstractStackQtree, i=(levelnum(Q
         ci = child(i, cn)
     #         @show cn,ci
     #         @show Q1[ci],Q2[ci]
-        r = collision(Q1, Q2, ci)
+        r = collision_dfs(Q1, Q2, ci)
         if r[1]>0 return r end 
     end
     return r # no collision
 end
 # q1cc = [0,0,0]
 # q2cc = [0,0,0]
-function collision_bfs_rand(Q1::AbstractStackQtree, Q2::AbstractStackQtree, q=[(levelnum(Q1), 1, 1)])
+function collision_randbfs(Q1::AbstractStackQtree, Q2::AbstractStackQtree, q=[(levelnum(Q1), 1, 1)])
 #     @assert size(Q1) == size(Q2)
     if isempty(q)
         push!(q, (levelnum(Q1), 1, 1))
@@ -59,6 +59,7 @@ function collision_bfs_rand(Q1::AbstractStackQtree, Q2::AbstractStackQtree, q=[(
     end
     return -i[1], i[2], i[3] # no collision
 end
+collision = collision_randbfs
 # thcc = [0 for i = 1:Threads.nthreads()]
 ColItemType = Pair{Tuple{Int,Int},Tuple{Int,Int,Int}}
 ThreadQueueType = AbstractVector{<:AbstractVector{Tuple{Int,Int,Int}}}
@@ -72,7 +73,7 @@ function batchcollision_native(qtrees::AbstractVector, indpairs;
         que = queue[Threads.threadid()]
         empty!(que)
         push!(que, at)
-        cp = collision_bfs_rand(qtrees[i1], qtrees[i2], que)
+        cp = collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
             lock(sl) do
                 push!(collist, (i1,i2)=>cp)
@@ -90,7 +91,7 @@ function batchcollision_native(qtrees::AbstractVector,
         que = queue[Threads.threadid()]
         empty!(que)
         push!(que, at)
-        cp = collision_bfs_rand(qtrees[i1], qtrees[i2], que)
+        cp = collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
             lock(sl) do
                 push!(collist, (i1,i2)=>cp)
@@ -206,7 +207,7 @@ function batchcollision_qtree(qtrees::AbstractVector, loctree::QtreeNode;
             while p !== nullnode(loctree)
                 pinds = p.value.second
                 pinds = [i for i in pinds if inkernelbounds(@inbounds(qtrees[i][pos[1]]), pos[2], pos[3])]
-                #check here because there are no bounds check in collision_bfs_rand
+                #check here because there are no bounds check in collision_randbfs
                 lpinds = length(pinds)
                 if lpinds > 0
                     #append!(pairlist, (((i, pi), pos) for i in inds for pi in pinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢
