@@ -233,7 +233,7 @@ function batchcollision_qtree(qtrees::AbstractVector, inds::Union{AbstractVector
     batchcollision_qtree(qtrees, loctree; kargs...)
 end
 
-const QTREE_COLLISION_ENABLE_TH = round(Int, 20 + 20 * log2(Threads.nthreads()))
+const QTREE_COLLISION_ENABLE_TH = round(Int, 15 + 10 * log2(Threads.nthreads()))
 function batchcollision(qtrees::AbstractVector; 
     queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
     kargs...)

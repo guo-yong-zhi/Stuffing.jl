@@ -6,8 +6,8 @@ mutable struct ListNode{T}
         n = new{T}()
         n.prev = n
         n.next = n
+        n
     end
-    n
 end
 function ListNode{T}(value::T) where T
     n = ListNode{T}()
