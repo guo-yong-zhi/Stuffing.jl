@@ -1,4 +1,5 @@
 # Stuffing
+[![CI](https://github.com/guo-yong-zhi/Stuffing.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/guo-yong-zhi/Stuffing.jl/actions/workflows/ci.yml)  
 It's a packing algorithm.  
 The algorithm accepts **any shape of 2D raster masks** as inputs and is good at handling the packing problems of many gadgets. The implementation is based on Quadtree & gradient optimization. Also, it can be parallelized if you start `julia` with `julia --threads k`. This package is used by [WordCloud](https://github.com/guo-yong-zhi/WordCloud).  
 Examples: [collision detection](./examples/collision.jl), [packing](./examples/packing.jl)  
