@@ -34,8 +34,8 @@
         end
     end
     objs = []
-    for i in 1:30
-        s = 15 + randexp() * 50
+    for i in 1:100
+        s = 50
         obj = fill(true, round(Int, s)+1, round(Int, s*(0.5+rand()/2))+1) #Bool Matrix implied that background is `false`
         push!(objs, obj)
     end
