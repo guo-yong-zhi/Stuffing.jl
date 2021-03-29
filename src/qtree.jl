@@ -187,6 +187,8 @@ function ShiftedQtree(pic::AbstractMatrix, args...; kargs...)
 end
 Base.@propagate_inbounds Base.getindex(t::ShiftedQtree, l::Integer) = t.layers[l]
 levelnum(t::ShiftedQtree) = length(t.layers)
+inkernelbounds(t::ShiftedQtree, l, a, b) = inkernelbounds(t[l], a, b)
+inkernelbounds(t::ShiftedQtree, ind) = inkernelbounds(t, ind...)
 function buildqtree!(t::ShiftedQtree, layer=2)
     for l in layer:levelnum(t)
         m = rshift(t[l - 1])
