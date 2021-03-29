@@ -39,8 +39,11 @@ include("test_trainer.jl")
     o2[40:80, 40:80] .= 1
     o3 = zeros(100, 100)
     o3[79:90, 79:90] .= 1
-    C = batchcollision(qtrees([o1, o2, o3], background=0.0))
+    qts = qtrees([o1, o2, o3], background=0.0)
+    C = batchcollision(qts)
     @test length(C) == 2
+    setshift!(qts[1], (-1000, -1000))
+    @test collision(qts[1], qts[2])[1] < 0
 
     mask = fill(true, 500, 800) #can be any AbstractMatrix
     objs = []
