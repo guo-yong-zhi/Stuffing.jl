@@ -465,7 +465,7 @@ function teleport!(ts, collpool=nothing, args...; kargs...)
 end
 
 function train!(ts, nepoch::Number=-1, args...; 
-        trainer=trainepoch_EM3!, patient::Number=trainer(:patient), optimiser=Momentum(η=1/4, ρ=0.5), 
+        trainer=trainepoch_EM2!, patient::Number=trainer(:patient), optimiser=Momentum(η=1/4, ρ=0.5), 
         callbackstep=1, callbackfun=x->x, kargs...)
     ep = 0
     nc = 0
@@ -499,13 +499,15 @@ function train!(ts, nepoch::Number=-1, args...;
             end
             @info "@epoch $ep (waited $count), $nc($(length(collpool))) collisions, teleport $cinds to $(getshift.(ts[cinds]))"
             count = 0
-            cinds_set = Set(cinds)
-            if last_cinds == cinds_set
-                teleport_count += 1
-            else
-                teleport_count = 0
+            if length(cinds)>0
+                cinds_set = Set(cinds)
+                if last_cinds == cinds_set
+                    teleport_count += 1
+                else
+                    teleport_count = 0
+                end
+                last_cinds = cinds_set
             end
-            last_cinds = cinds_set
         end
         if ep%callbackstep==0
             callbackfun(ep)
