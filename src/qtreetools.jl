@@ -197,6 +197,24 @@ function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int}, AbstractS
     loctree
 end
 
+function _outkernelcollision(qtrees, pos, inds, pinds, collist)
+    ininds = Int[]
+    for pind in pinds
+        #check here because there are no bounds checking in collision_randbfs
+        if inkernelbounds(@inbounds(qtrees[pind][pos[1]]), pos[2], pos[3])
+            push!(ininds, pind)
+        elseif getdefault(@inbounds(qtrees[pind][1])) == QTree.FULL
+            for cind in inds
+                if @inbounds(qtrees[cind][pos]) != QTree.EMPTY
+                    # @show (cind, pind)=>pos
+                    push!(collist, (cind, pind)=>pos)
+                end
+            end
+        end
+    end
+    ininds
+end
+
 @assert collect(Iterators.product(1:2,4:6))[1] == (1,4)
 function batchcollision_qtree(qtrees::AbstractVector, loctree::QtreeNode;
     collist = Vector{ColItemType}(),
@@ -220,8 +238,7 @@ function batchcollision_qtree(qtrees::AbstractVector, loctree::QtreeNode;
         if linds > 0
             while p !== nullnode(loctree)
                 pinds = p.value.second
-                pinds = [i for i in pinds if inkernelbounds(@inbounds(qtrees[i][pos[1]]), pos[2], pos[3])]
-                #check here because there are no bounds check in collision_randbfs
+                pinds = _outkernelcollision(qtrees, pos, inds, pinds, collist)
                 lpinds = length(pinds)
                 if lpinds > 0
                     #append!(pairlist, (((i, pi), pos) for i in inds for pi in pinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢

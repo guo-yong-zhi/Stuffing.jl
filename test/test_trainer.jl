@@ -44,6 +44,8 @@
     Trainer.trainepoch_EM2!,Trainer.trainepoch_EM3!,
     Trainer.trainepoch_P!,Trainer.trainepoch_P2!,Trainer.trainepoch_Px!]
     qts = qtrees(objs, mask=mask, maskbackground="aa")
+    setshift!(qts[2], 1, 1000, 1000);
+    @test !isempty(QTree.batchcollision_qtree(qts[1:2]))
     for t in ts
         placement!(qts)
         fit!(qts, trainer=t)
