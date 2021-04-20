@@ -58,4 +58,6 @@ include("test_trainer.jl")
     setpositions!(qts, :, (200,300))
     packing!(qts, trainer=Trainer.trainepoch_P2!)
     getpositions(qts)
+    @test isempty(outofkernelbounds(qts[1], qts[2:end]))
+    @test isempty(outofbounds(qts[1], qts[2:end]))
 end
