@@ -449,7 +449,7 @@ end
 
 function teleport!(ts, collpool=nothing, args...; kargs...)
     maskqt = ts[1]
-    outinds = outofbounds(maskqt, ts[2:end]) .+ 1
+    outinds = outofkernelbounds(maskqt, ts[2:end]) .+ 1
     if !isempty(outinds)
         placement!(deepcopy(maskqt), ts, outinds)
         return outinds

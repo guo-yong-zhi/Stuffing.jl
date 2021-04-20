@@ -2,8 +2,8 @@ module QTree
 export AbstractStackQtree, StackQtree, ShiftedQtree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
     collision, collision_dfs, collision_randbfs, batchcollision,
-    findroom_uniform, findroom_gathering, levelnum, outofbounds, kernelsize, 
-    placement!, overlap, overlap!, decode, charimage
+    findroom_uniform, findroom_gathering, levelnum, outofbounds, outofkernelbounds, 
+    kernelsize, placement!, overlap, overlap!, decode, charimage
 
 using Random
 
@@ -266,8 +266,14 @@ setcenter!(t::ShiftedQtree, center) = setshift!(t, callefttop(t, center))
 function inbounds(bgqt::ShiftedQtree, qt::ShiftedQtree)
     inbounds(bgqt[1], getcenter(qt)...)
 end
+function inkernelbounds(bgqt::ShiftedQtree, qt::ShiftedQtree)
+    inkernelbounds(bgqt[1], getcenter(qt)...)
+end
 function outofbounds(bgqt::ShiftedQtree, qts)
     [i for (i,t) in enumerate(qts) if !inbounds(bgqt, t)]
+end
+function outofkernelbounds(bgqt::ShiftedQtree, qts)
+    [i for (i,t) in enumerate(qts) if !inkernelbounds(bgqt, t)]
 end
 
 ################ LinkedQtree
