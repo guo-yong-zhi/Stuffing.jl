@@ -413,7 +413,7 @@ function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQtree};
     nc
 end
 
-function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}})
+function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}}; on=i->true)
     cinds = Vector{Int}()
     l = length(collpool)
     if l == 0
@@ -423,7 +423,7 @@ function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}})
     sort!(collpool, by=maximum, rev=true)
     for (i, j) in @view collpool[keep]
         mij = max(i, j)
-        if mij in cinds
+        if mij in cinds || !on(mij - 1) #use index without counting mask
             continue
         end
         cp = collision_dfs(qtrees[i], qtrees[j])
@@ -434,6 +434,9 @@ function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}})
     if length(cinds)==0
         for (i, j) in @view collpool[.!keep]
             mij = max(i, j)
+            if !on(mij - 1)
+                continue
+            end
             cp = collision_dfs(qtrees[i], qtrees[j])
             if cp[1] >= 0
                 push!(cinds, mij)
@@ -443,8 +446,8 @@ function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}})
     end
     return cinds
 end
-function collisional_indexes_rand(qtrees, collpool::Vector{QTree.ColItemType})
-    collisional_indexes_rand(qtrees, first.(collpool))
+function collisional_indexes_rand(qtrees, collpool::Vector{QTree.ColItemType}; kargs...)
+    collisional_indexes_rand(qtrees, first.(collpool); kargs...)
 end
 
 function teleport!(ts, collpool=nothing, args...; kargs...)
@@ -466,7 +469,24 @@ end
 
 function train!(ts, nepoch::Number=-1, args...; 
         trainer=trainepoch_EM2!, patient::Number=trainer(:patient), optimiser=Momentum(η=1/4, ρ=0.5), 
-        callbackstep=1, callbackfun=x->x, kargs...)
+        callbackstep=1, callbackfun=x->x, teleporting=i->true, kargs...)
+    teleporton = true
+    if teleporting isa Function
+        on = teleporting
+    elseif teleporting isa Bool
+        on = i->teleporting
+        teleporton = teleporting
+    elseif teleporting isa AbstractFloat
+        @assert 0 <= teleporting <= 1
+        th = (length(ts)-1) * (1-teleporting)
+        on = i -> i >= th
+    elseif teleporting isa Int
+        @assert teleporting >= 0
+        on = i -> i >= teleporting
+    else
+        teleporting = teleporting isa AbstractSet ? teleporting : Set(teleporting)
+        on = i -> i in teleporting
+    end
     ep = 0
     nc = 0
     count = 0
@@ -481,7 +501,7 @@ function train!(ts, nepoch::Number=-1, args...;
         collpool = resource[:levelpools][end] |> last
     end
     nepoch = nepoch >= 0 ? nepoch : trainer(:nepoch)
-    @info "nepoch: $nepoch, patient: $patient"
+    @info "nepoch: $nepoch, " * (teleporton ? "patient: $patient" : "teleporting off")
     while ep < nepoch
 #         @show "##", ep, nc, length(collpool), (count,nc_min)
         nc = trainer(ts, args...; resource..., optimiser=optimiser, kargs...)
@@ -491,15 +511,13 @@ function train!(ts, nepoch::Number=-1, args...;
             count = 0
             nc_min = nc
         end
-        if nc != 0 && length(ts)/20>length(collpool)>0 && patient>0 && (count >= patient || count > length(collpool)) #超出耐心或少数几个碰撞
+        if nc != 0 && teleporton && length(ts)/20>length(collpool)>0 && patient>0 && (count >= patient || count > length(collpool)) #超出耐心或少数几个碰撞
             nc_min = nc
-            cinds = teleport!(ts, collpool)
-            if cinds !== nothing && length(cinds)>0
-                reset!.(optimiser, ts[cinds])
-            end
+            cinds = teleport!(ts, collpool, on=on)
             @info "@epoch $ep (waited $count), $nc($(length(collpool))) collisions, teleport $cinds to $(getshift.(ts[cinds]))"
             count = 0
-            if length(cinds)>0
+            if cinds !== nothing && length(cinds)>0
+                reset!.(optimiser, ts[cinds])
                 cinds_set = Set(cinds)
                 if last_cinds == cinds_set
                     teleport_count += 1
@@ -523,7 +541,7 @@ function train!(ts, nepoch::Number=-1, args...;
             end
         end
         if teleport_count >= 10
-            @info "The teleport strategy failed after $ep epochs"
+            @info "The teleporting strategy failed after $ep epochs"
             return ep, nc
         end
         if count > max(2, 2patient, nepoch ÷ 10)

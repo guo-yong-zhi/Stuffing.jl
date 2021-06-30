@@ -46,9 +46,13 @@
     qts = qtrees(objs, mask=mask, maskbackground="aa")
     setshift!(qts[2], 1, 1000, 1000);
     @test !isempty(QTree.batchcollision_qtree(qts[1:2]))
+    l = length(qts) - 1
+    tele = [0.3, true, false, i->i%2==1, round(Int, l*0.2), [10:l...]]
     for t in ts
-        placement!(qts)
-        fit!(qts, trainer=t)
+        for te in tele
+            placement!(qts)
+            fit!(qts, trainer=t, teleporting=te)
+        end
     end
     placement!(qts)
     fit!(qts, 100, optimiser=(t, Δ)->Δ./6, patient=5)
