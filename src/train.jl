@@ -489,8 +489,10 @@ function train!(ts, nepoch::Number=-1, args...;
     end
     ep = 0
     nc = 0
-    count = 0
-    nc_min = typemax(Int)
+    count_t = 0
+    nc_min_t = typemax(Int)
+    count_g = 0
+    nc_min_g = typemax(Int)
     teleport_count = 0
     last_cinds = nothing
     resource = trainer(inputs=ts)
@@ -502,21 +504,29 @@ function train!(ts, nepoch::Number=-1, args...;
     end
     nepoch = nepoch >= 0 ? nepoch : trainer(:nepoch)
     @info "nepoch: $nepoch, " * (teleporton ? "patient: $patient" : "teleporting off")
+    # curve = []
     while ep < nepoch
-#         @show "##", ep, nc, length(collpool), (count,nc_min)
         nc = trainer(ts, args...; resource..., optimiser=optimiser, kargs...)
         ep += 1
-        count += 1
-        if nc < nc_min
-            count = 0
-            nc_min = nc
+        count_t += 1
+        count_g += 1
+        if nc < nc_min_t
+            # println("   *", nc_min_t,"->",nc, " ", count_t)
+            count_t = 0
+            nc_min_t = nc
         end
-        if nc != 0 && teleporton && length(ts)/20>length(collpool)>0 && patient>0 && (count >= patient || count > length(collpool)) #超出耐心或少数几个碰撞
-            nc_min = nc
+        if nc < nc_min_g
+            # println(nc_min_g,"=>",nc, " ", count_g)
+            count_g = 0
+            nc_min_g = nc
+            # push!(curve, (ep, nc))
+        end
+        if nc != 0 && teleporton && length(ts)/20>length(collpool)>0 && patient>0 && (count_t >= patient || count_t > length(collpool)) #超出耐心或少数几个碰撞
             cinds = teleport!(ts, collpool, on=on)
-            @info "@epoch $ep (waited $count), $nc($(length(collpool))) collisions, teleport $cinds to $(getshift.(ts[cinds]))"
-            count = 0
-            if cinds !== nothing && length(cinds)>0
+            @info "@epoch $ep (waited $count_t), $nc($(length(collpool))) collisions, teleport " * 
+            (length(cinds)>0 ? "$cinds to $(getshift.(ts[cinds]))" : "nothing")
+            if length(cinds) > 0
+                nc_min_t = typemax(nc_min_t)
                 reset!.(optimiser, ts[cinds])
                 cinds_set = Set(cinds)
                 if last_cinds == cinds_set
@@ -527,14 +537,14 @@ function train!(ts, nepoch::Number=-1, args...;
                 last_cinds = cinds_set
             end
         end
-        if ep%callbackstep==0
+        if ep%callbackstep == 0
             callbackfun(ep)
         end
         if nc == 0
             outinds = teleport!(ts)
             lout = length(outinds)
             if lout == 0
-                return ep, nc
+                break
             else
                 @info "$outinds out of bounds"
                 nc += lout
@@ -542,13 +552,14 @@ function train!(ts, nepoch::Number=-1, args...;
         end
         if teleport_count >= 10
             @info "The teleporting strategy failed after $ep epochs"
-            return ep, nc
+            break
         end
-        if count > max(2, 2patient, nepoch ÷ 10)
-            @info "training early break after $ep epochs ($nc collisions, waited $count epochs)"
-            return ep, nc
+        if count_g > max(2, 2patient, nepoch / 50 * max(1, (length(ts)/nc_min_g)) )
+            @info "training early break after $ep epochs (current $nc collisions, best $nc_min_g collisions, waited $count_g epochs)"
+            break
         end
     end
+    # println(curve) #nc = a*exp(-b*ep)
     ep, nc
 end
 fit! = train!
