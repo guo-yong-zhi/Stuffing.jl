@@ -1,6 +1,6 @@
 name = "Stuffing"
 uuid = "4175e07e-e5b7-423e-8796-3ea7f6d48281"
-authors = ["guoyongzhi <momoshanghan@163.com>"]
+authors = ["guoyongzhi <guo-yong-zhi@outlook.com>"]
 version = "0.3.7"
 
 [deps]
