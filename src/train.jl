@@ -493,7 +493,7 @@ function train!(ts, nepoch::Number=-1, args...;
     nc_min_t = typemax(Int)
     count_g = 0
     nc_min_g = typemax(Int)
-    teleport_count = 0
+    teleport_count = 0.
     last_cinds = nothing
     resource = trainer(inputs=ts)
     collpool = nothing
@@ -528,14 +528,14 @@ function train!(ts, nepoch::Number=-1, args...;
             if length(cinds) > 0
                 nc_min_t = typemax(nc_min_t)
                 reset!.(optimiser, ts[cinds])
-                cinds_set = Set(cinds)
-                if last_cinds == cinds_set
-                    teleport_count += 1
-                else
-                    teleport_count = 0
-                end
-                last_cinds = cinds_set
             end
+            cinds_set = Set(cinds)
+            if last_cinds == cinds_set
+                teleport_count += length(cinds_set) > 0 ? 1 : 0.5
+            else
+                teleport_count = 0.
+            end
+            last_cinds = cinds_set
         end
         if ep%callbackstep == 0
             callbackfun(ep)
