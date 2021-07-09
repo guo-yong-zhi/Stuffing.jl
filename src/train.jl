@@ -454,13 +454,13 @@ function teleport!(ts, collpool=nothing, args...; kargs...)
     maskqt = ts[1]
     outinds = outofkernelbounds(maskqt, ts[2:end]) .+ 1
     if !isempty(outinds)
-        placement!(deepcopy(maskqt), ts, outinds)
+        place!(deepcopy(maskqt), ts, outinds)
         return outinds
     end
     if collpool !== nothing
         cinds = collisional_indexes_rand(ts, collpool, args...; kargs...)
         if cinds !== nothing && length(cinds)>0
-            placement!(deepcopy(maskqt), ts, cinds)
+            place!(deepcopy(maskqt), ts, cinds)
         end
         return cinds
     end

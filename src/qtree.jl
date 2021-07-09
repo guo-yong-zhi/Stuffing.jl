@@ -3,7 +3,7 @@ export AbstractStackQtree, StackQtree, ShiftedQtree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
     collision, collision_dfs, collision_randbfs, batchcollision,
     findroom_uniform, findroom_gathering, levelnum, outofbounds, outofkernelbounds, 
-    kernelsize, placement!, overlap, overlap!, decode, charimage
+    kernelsize, place!, overlap, overlap!, decode, charimage
 
 using Random
 

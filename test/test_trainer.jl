@@ -50,10 +50,10 @@
     tele = [0.3, true, false, i->i%2==1, round(Int, l*0.2), [10:l...]]
     for t in ts
         for te in tele
-            placement!(qts)
+            place!(qts)
             fit!(qts, trainer=t, teleporting=te)
         end
     end
-    placement!(qts)
+    place!(qts)
     fit!(qts, 100, optimiser=(t, Δ)->Δ./6, patient=5)
 end

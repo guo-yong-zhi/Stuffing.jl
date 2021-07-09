@@ -1,5 +1,5 @@
 module Stuffing
-export qtree, maskqtree, qtrees, placement!, overlap!, overlap, getpositions, setpositions!, packing, packing!
+export qtree, maskqtree, qtrees, place!, overlap!, overlap, getpositions, setpositions!, packing, packing!
 export QTree, getshift, getcenter, setshift!, setcenter!, outofbounds, outofkernelbounds, 
     batchcollision, collision, findroom_uniform, findroom_gathering
 export Trainer, train!, fit!, Momentum
@@ -54,13 +54,13 @@ function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
 end
 qtrees(mask, pics; kargs...) = qtrees(pics; mask=mask, kargs...)
 
-function QTree.placement!(qtrees::AbstractVector{<:ShiftedQtree}; karg...)
-    ind = QTree.placement!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
+function QTree.place!(qtrees::AbstractVector{<:ShiftedQtree}; karg...)
+    ind = QTree.place!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
     if ind === nothing error("no room for placement") end
     qtrees
 end
-function QTree.placement!(qtrees::AbstractVector{<:ShiftedQtree}, inds; karg...)
-    ind = QTree.placement!(deepcopy(qtrees[1]), qtrees[2:end], inds.-1; karg...)
+function QTree.place!(qtrees::AbstractVector{<:ShiftedQtree}, inds; karg...)
+    ind = QTree.place!(deepcopy(qtrees[1]), qtrees[2:end], inds.-1; karg...)
     if ind === nothing error("no room for placement") end
     qtrees
 end
@@ -96,7 +96,7 @@ function packing(mask, objs, args...; background=:auto, maskbackground=:auto, ka
     getpositions(qts)
 end
 function packing!(qts, args...; kargs...)
-    placement!(qts)
+    place!(qts)
     ep, nc = fit!(qts, args...; kargs...)
     @info "$ep epochs, $nc collections"
     if nc != 0

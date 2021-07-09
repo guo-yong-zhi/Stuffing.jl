@@ -285,7 +285,7 @@ function batchcollision(qtrees::AbstractVector, inds;
     end
 end
 
-########## placement!
+########## place!
 function findroom_uniform(ground, q=[(levelnum(ground), 1, 1)])
     if isempty(q)
         push!(q, (levelnum(ground), 1, 1))
@@ -416,11 +416,11 @@ function overlap!(tree::ShiftedQtree, trees::AbstractVector)
 end
 
 "将sortedtrees依次叠加到ground上，同时修改sortedtrees的shift"
-function placement!(ground::ShiftedQtree, sortedtrees::AbstractVector; kargs...)
+function place!(ground::ShiftedQtree, sortedtrees::AbstractVector; kargs...)
 #     pos = Vector{Tuple{Int, Int, Int}}()
     ind = nothing
     for t in sortedtrees
-        ind = placement!(ground, t; kargs...)
+        ind = place!(ground, t; kargs...)
         overlap!(ground, t)
         if ind === nothing
             return ind
@@ -431,7 +431,7 @@ function placement!(ground::ShiftedQtree, sortedtrees::AbstractVector; kargs...)
 #     return pos
 end
 
-function placement!(ground::ShiftedQtree, qtree::ShiftedQtree; roomfinder=findroom_uniform, kargs...)
+function place!(ground::ShiftedQtree, qtree::ShiftedQtree; roomfinder=findroom_uniform, kargs...)
     ind = roomfinder(ground; kargs...)
     # @show ind
     if ind === nothing
@@ -441,16 +441,16 @@ function placement!(ground::ShiftedQtree, qtree::ShiftedQtree; roomfinder=findro
     return ind
 end
 
-function placement!(ground::ShiftedQtree, sortedtrees::AbstractVector, index::Number; kargs...)
+function place!(ground::ShiftedQtree, sortedtrees::AbstractVector, index::Number; kargs...)
     for i in 1:length(sortedtrees)
         if i == index
             continue
         end
         overlap!(ground, sortedtrees[i])
     end
-    placement!(ground, sortedtrees[index]; kargs...)
+    place!(ground, sortedtrees[index]; kargs...)
 end
-function placement!(ground::ShiftedQtree, sortedtrees::AbstractVector, indexes; kargs...)
+function place!(ground::ShiftedQtree, sortedtrees::AbstractVector, indexes; kargs...)
     for i in 1:length(sortedtrees)
         if i in indexes
             continue
@@ -459,7 +459,7 @@ function placement!(ground::ShiftedQtree, sortedtrees::AbstractVector, indexes; 
     end
     ind = nothing
     for i in indexes
-        ind = placement!(ground, sortedtrees[i]; kargs...)
+        ind = place!(ground, sortedtrees[i]; kargs...)
         if ind === nothing return ind end
         overlap!(ground, sortedtrees[i])
     end

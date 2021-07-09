@@ -21,7 +21,7 @@ sort!(objs, by=prod∘size, rev=true) #better in descending order of size
 
 #packing
 qts = qtrees(objs, mask=mask, maskbackground="aa")
-placement!(qts)
+place!(qts)
 fit!(qts)
 
 # draw
