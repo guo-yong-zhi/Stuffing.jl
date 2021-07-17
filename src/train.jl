@@ -469,7 +469,7 @@ end
 
 function train!(ts, nepoch::Number=-1, args...; 
         trainer=trainepoch_EM2!, patient::Number=trainer(:patient), optimiser=Momentum(η=1/4, ρ=0.5), 
-        callbackstep=1, callbackfun=x->x, teleporting=i->true, kargs...)
+    callbackstep=1, callbackfun=x->x, teleporting=i->true, resource=trainer(inputs=ts), kargs...)
     teleporton = true
     if teleporting isa Function
         on = teleporting
@@ -495,7 +495,6 @@ function train!(ts, nepoch::Number=-1, args...;
     nc_min_g = typemax(Int)
     teleport_count = 0.
     last_cinds = nothing
-    resource = trainer(inputs=ts)
     collpool = nothing
     if :collpool in keys(resource)
         collpool = resource[:collpool]
