@@ -16,7 +16,7 @@ function collision_dfs(Q1::AbstractStackQtree, Q2::AbstractStackQtree, i=(leveln
     #         @show cn,ci
     #         @show Q1[ci],Q2[ci]
         r = collision_dfs(Q1, Q2, ci)
-        if r[1]>0 return r end 
+        if r[1] > 0 return r end 
     end
     return r # no collision
 end
@@ -36,7 +36,7 @@ function collision_randbfs(Q1::AbstractStackQtree, Q2::AbstractStackQtree, q=[(l
 #             q1 = getindex(Q1, ci)
 #             q1cc[q1] += 1 #result ratio [1.1, 0.04, 1.0] EMPTY > MIX > FULL
 #             q2cc[q2] += 1 #result ratio [1.8, 0.07, 1.0]
-            if q2 == EMPTY #assume q2 is more empty
+            if q2 == EMPTY # assume q2 is more empty
                 continue
             elseif q2 == MIX
                 q1 = _getindex(Q1, ci)
@@ -71,7 +71,7 @@ end
 # thcc = [0 for i = 1:Threads.nthreads()]
 ColItemType = Pair{Tuple{Int,Int},Tuple{Int,Int,Int}}
 ThreadQueueType = AbstractVector{<:AbstractVector{Tuple{Int,Int,Int}}}
-#assume inkernelbounds(qtree, at) is true
+# assume inkernelbounds(qtree, at) is true
 function _batchcollision_native(qtrees::AbstractVector, indpairs; 
         collist=Vector{ColItemType}(),
         queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
@@ -85,7 +85,7 @@ function _batchcollision_native(qtrees::AbstractVector, indpairs;
         cp = collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
             lock(sl) do
-                push!(collist, (i1,i2)=>cp)
+                push!(collist, (i1, i2) => cp)
             end
         end
     end
@@ -103,7 +103,7 @@ function _batchcollision_native(qtrees::AbstractVector,
         cp = collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
             lock(sl) do
-                push!(collist, (i1,i2)=>cp)
+                push!(collist, (i1, i2) => cp)
             end
         end
     end
@@ -112,17 +112,17 @@ end
 function _batchcollision_native(qtrees::AbstractVector, 
     inds::AbstractVector{<:Integer}=1:length(qtrees); kargs...)
     l = length(inds)
-    _batchcollision_native(qtrees, [(inds[i], inds[j]) for i in 1:l for j in l:-1:i+1]; kargs...)
+    _batchcollision_native(qtrees, [(inds[i], inds[j]) for i in 1:l for j in l:-1:i + 1]; kargs...)
 end
 function _batchcollision_native(qtrees::AbstractVector, inds::AbstractSet{<:Integer}; kargs...)
-   _batchcollision_native(qtrees, inds|>collect; kargs...)
+    _batchcollision_native(qtrees, inds |> collect; kargs...)
 end
 function batchcollision_native(qtrees::AbstractVector, inds=1:length(qtrees); kargs...)
     l = levelnum(qtrees[1])
     inds = [i for i in inds if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
     _batchcollision_native(qtrees, inds; kargs...)
 end
-function locate(qt::AbstractStackQtree, ind::Tuple{Int, Int, Int}=(levelnum(qt), 1, 1))
+function locate(qt::AbstractStackQtree, ind::Tuple{Int,Int,Int}=(levelnum(qt), 1, 1))
     if qt[ind] == EMPTY
         return ind
     end
@@ -130,36 +130,36 @@ function locate(qt::AbstractStackQtree, ind::Tuple{Int, Int, Int}=(levelnum(qt),
     for ci in 1:4
         c = child(ind, ci)
         if qt[c] != EMPTY
-            if unempty[1] == -1 #only one empty child
+            if unempty[1] == -1 # only one empty child
                 unempty = c
             else
-                return ind #multiple empty child
+                return ind # multiple empty child
             end
         end
     end
     return locate(qt, unempty)
 end
-IndType = Tuple{Int, Int, Int}
-NodeValueType = Pair{IndType, Array{Any,1}}
-IntNodeValueType = Pair{IndType, Array{Int,1}}
+IndType = Tuple{Int,Int,Int}
+NodeValueType = Pair{IndType,Array{Any,1}}
+IntNodeValueType = Pair{IndType,Array{Int,1}}
 LocQtreeType = QtreeNode{NodeValueType}
 IntLocQtreeType = QtreeNode{IntNodeValueType}
 const NULLNODE = LocQtreeType()
 const INTNULLNODE = QtreeNode{IntNodeValueType}()
 nullnode(n::LocQtreeType) = NULLNODE
 nullnode(n::IntLocQtreeType) = INTNULLNODE
-LocQtree(ind::IndType, parent=NULLNODE) = LocQtreeType(ind=>[], parent, [NULLNODE, NULLNODE, NULLNODE, NULLNODE])
-IntLocQtree(ind::IndType, parent=INTNULLNODE) = IntLocQtreeType(ind=>Vector{Int}(), parent, 
+LocQtree(ind::IndType, parent=NULLNODE) = LocQtreeType(ind => [], parent, [NULLNODE, NULLNODE, NULLNODE, NULLNODE])
+IntLocQtree(ind::IndType, parent=INTNULLNODE) = IntLocQtreeType(ind => Vector{Int}(), parent, 
     [INTNULLNODE,INTNULLNODE,INTNULLNODE,INTNULLNODE])
 function locate!(qt::AbstractStackQtree, loctree::QtreeNode=LocQtree((levelnum(qt), 1, 1)),
-    ind::Tuple{Int, Int, Int}=(levelnum(qt), 1, 1); label=qt, newnode=LocQtree)
+    ind::Tuple{Int,Int,Int}=(levelnum(qt), 1, 1); label=qt, newnode=LocQtree)
     if qt[ind] == EMPTY
         return loctree
     end
     locate_core!(qt, loctree, ind, label, newnode)
 end
 function locate_core!(qt::AbstractStackQtree, loctree::QtreeNode,
-    ind::Tuple{Int, Int, Int}, label, newnode)
+    ind::Tuple{Int,Int,Int}, label, newnode)
     if ind[1] == 1
         push!(loctree.value.second, label)
         return loctree
@@ -169,12 +169,12 @@ function locate_core!(qt::AbstractStackQtree, loctree::QtreeNode,
     for ci in 1:4
         c = child(ind, ci)
         if _getindex(qt, c) != EMPTY
-            if unemptyci == -1 #only one empty child
+            if unemptyci == -1 # only one empty child
                 unempty = c
                 unemptyci = ci
             else
                 push!(loctree.value.second, label)
-                return loctree #multiple empty child
+                return loctree # multiple empty child
             end
         end
     end
@@ -183,14 +183,14 @@ function locate_core!(qt::AbstractStackQtree, loctree::QtreeNode,
     end
     locate_core!(qt, loctree.children[unemptyci], unempty, label, newnode)
 end
-function locate!(qts::AbstractVector, loctree::QtreeNode=IntLocQtree((levelnum(qts[1]), 1, 1))) #must have same levelnum
+function locate!(qts::AbstractVector, loctree::QtreeNode=IntLocQtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
     for (i, qt) in enumerate(qts)
         locate!(qt, loctree, label=i, newnode=IntLocQtree)
     end
     loctree
 end
-function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int}, AbstractSet{Int}}, 
-        loctree::QtreeNode=IntLocQtree((levelnum(qts[1]), 1, 1))) #must have same levelnum
+function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}, 
+        loctree::QtreeNode=IntLocQtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
     for i in inds
         locate!(qts[i], loctree, label=i, newnode=IntLocQtree)
     end
@@ -200,14 +200,14 @@ end
 function _outkernelcollision(qtrees, pos, inds, pinds, collist)
     ininds = Int[]
     for pind in pinds
-        #check here because there are no bounds checking in collision_randbfs
+        # check here because there are no bounds checking in collision_randbfs
         if inkernelbounds(@inbounds(qtrees[pind][pos[1]]), pos[2], pos[3])
             push!(ininds, pind)
         elseif getdefault(@inbounds(qtrees[pind][1])) == QTree.FULL
             for cind in inds
                 if @inbounds(qtrees[cind][pos]) != QTree.EMPTY
                     # @show (cind, pind)=>pos
-                    push!(collist, (cind, pind)=>pos)
+                    push!(collist, (cind, pind) => pos)
                 end
             end
         end
@@ -215,10 +215,10 @@ function _outkernelcollision(qtrees, pos, inds, pinds, collist)
     ininds
 end
 
-@assert collect(Iterators.product(1:2,4:6))[1] == (1,4)
+@assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
 function batchcollision_qtree(qtrees::AbstractVector, loctree::QtreeNode;
-    collist = Vector{ColItemType}(),
-    queue = [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
+    collist=Vector{ColItemType}(),
+    queue=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
     )
     # @assert loctree !== nullnode(loctree)
     nodequeue = [loctree]
@@ -241,8 +241,8 @@ function batchcollision_qtree(qtrees::AbstractVector, loctree::QtreeNode;
                 pinds = _outkernelcollision(qtrees, pos, inds, pinds, collist)
                 lpinds = length(pinds)
                 if lpinds > 0
-                    #append!(pairlist, (((i, pi), pos) for i in inds for pi in pinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢
-                    #append!(pairlist, [((i, pi), pos) for i in inds for pi in pinds]) 
+                    # append!(pairlist, (((i, pi), pos) for i in inds for pi in pinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢
+                    # append!(pairlist, [((i, pi), pos) for i in inds for pi in pinds]) 
                     append!(pairlist, ((p, pos) for p in Iterators.product(inds, pinds)))
                 end
                 p = p.parent
@@ -260,7 +260,7 @@ function batchcollision_qtree(qtrees::AbstractVector; kargs...)
     loctree = locate!(qtrees)
     batchcollision_qtree(qtrees, loctree; kargs...)
 end
-function batchcollision_qtree(qtrees::AbstractVector, inds::Union{AbstractVector{Int}, AbstractSet{Int}}; kargs...)
+function batchcollision_qtree(qtrees::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}; kargs...)
     loctree = locate!(qtrees, inds)
     batchcollision_qtree(qtrees, loctree; kargs...)
 end
@@ -299,7 +299,7 @@ function findroom_uniform(ground, q=[(levelnum(ground), 1, 1)])
             for cn in shuffle4()
                 ci = child(i, cn)
                 if ground[ci] == EMPTY
-                    if rand() < 0.7 #避免每次都是局部最优
+                    if rand() < 0.7 # 避免每次都是局部最优
                         return ci 
                     else
                         push!(q, ci)
@@ -314,16 +314,16 @@ function findroom_uniform(ground, q=[(levelnum(ground), 1, 1)])
 end
 function findroom_gathering(ground, q=[]; level=5, p=2)
     if isempty(q)
-        l = max(1, levelnum(ground)-level)
+        l = max(1, levelnum(ground) - level)
         s = size(ground[l], 1)
-        append!(q, ((l, i, j) for i in 1:s for j in 1:s if ground[l, i, j]!=FULL))
+        append!(q, ((l, i, j) for i in 1:s for j in 1:s if ground[l, i, j] != FULL))
     end
     while !isempty(q)
         # @assert q[1][1] == q[end][1]
         ce = (1 + size(ground[q[1][1]], 1)) / 2
         h,w = kernelsize(ground)
         shuffle!(q)
-        sort!(q, by=i->(abs((i[2]-ce)/h)^p+(abs(i[3]-ce)/w)^p)) #椭圆p范数
+        sort!(q, by=i -> (abs((i[2] - ce) / h)^p + (abs(i[3] - ce) / w)^p)) # 椭圆p范数
         lq = length(q)
         for n in 1:lq
             i = popfirst!(q)
@@ -333,7 +333,7 @@ function findroom_gathering(ground, q=[]; level=5, p=2)
                 for cn in shuffle4()
                     ci = child(i, cn)
                     if ground[ci] == EMPTY
-                        if rand() < 0.7 #避免每次都是局部最优
+                        if rand() < 0.7 # 避免每次都是局部最优
                             return ci 
                         else
                             push!(q, ci)
@@ -347,17 +347,7 @@ function findroom_gathering(ground, q=[]; level=5, p=2)
     end
     return nothing
 end
-function treeset!(tree::ShiftedQtree, ind::Tuple{Int,Int,Int}, value::UInt8) #unused
-    l, m1, n1 = ind
-    m2, n2 = m1, n1
-    for ll in l:-1:1
-        tree[ll][m1:m2, n1:n2] .= value #goes wrong when out of kernel bounds
-        m1 = 2m1 - 1
-        m2 = 2m2
-        n1 = 2n1 - 1
-        n2 = 2n2
-    end
-end
+
 
 function overlap(p1::UInt8, p2::UInt8)
     if p1 == FULL || p2 == FULL

@@ -69,12 +69,12 @@ function take(l::DoubleList{T}, args...) where T
     take!(l, collection, args...)
 end
 
-struct LRU{T, MAPTYPE}
+struct LRU{T,MAPTYPE}
     list::DoubleList{T}
     map::MAPTYPE
 end
-LRU{T}() where T = LRU{T, Dict}(DoubleList{T}(), Dict())
-LRU{T}(map::U) where {T, U} = LRU{T, U}(DoubleList{T}(), map)
+LRU{T}() where T = LRU{T,Dict}(DoubleList{T}(), Dict())
+LRU{T}(map::U) where {T,U} = LRU{T,U}(DoubleList{T}(), map)
 
 function Base.push!(lru::LRU, v)
     if haskey(lru.map, v)
@@ -106,7 +106,7 @@ mutable struct MemSet
 end
 
 MemSet(n::Int) = MemSet([Set{Int}() for i in 1:n], 0)
-getmem(ms::MemSet, g=1) = ms.mem[((g-1)+ms.shift)%length(ms.mem)+1]
+getmem(ms::MemSet, g=1) = ms.mem[((g - 1) + ms.shift) % length(ms.mem) + 1]
 function Base.push!(ms::MemSet, mem)
     m = getmem(ms, 1)
     empty!(m)
