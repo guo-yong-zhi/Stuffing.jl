@@ -440,7 +440,7 @@ function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}}; on=i
             cp = collision_dfs(qtrees[i], qtrees[j])
             if cp[1] >= 0
                 push!(cinds, mij)
-            break
+                break
             end
         end
     end
@@ -522,7 +522,7 @@ function train!(ts, nepoch::Number=-1, args...;
         end
         if nc != 0 && teleporton && length(ts) / 20 > length(collpool) > 0 && patient > 0 && (count_t >= patient || count_t > length(collpool)) # 超出耐心或少数几个碰撞
             cinds = teleport!(ts, collpool, on=on)
-            @info "@epoch $ep (waited $count_t), $nc($(length(collpool))) collisions, teleport " * 
+            @info "@epoch $ep(+$count_t), $nc($(length(collpool))) collisions, teleport " * 
             (length(cinds) > 0 ? "$cinds to $(getshift.(ts[cinds]))" : "nothing")
             if length(cinds) > 0
                 nc_min_t = typemax(nc_min_t)
