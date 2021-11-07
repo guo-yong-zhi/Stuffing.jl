@@ -16,7 +16,7 @@ C = batchcollision(qts)
 println(C)
 
 for (k, p) in C
-    println(k, " collided at ", QTree.indexrange(p))
+    println(k, " collided at ", QTrees.indexrange(p))
 end
 println("visualization:")
 println(repr("text/plain", overlap(qts)))

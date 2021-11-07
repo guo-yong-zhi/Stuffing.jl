@@ -29,10 +29,10 @@ println("visualization:")
 oqt = overlap(qts)
 println(repr("text/plain", oqt))
 # or
-println(QTree.charimage(oqt, maxlen=97))
+println(QTrees.charimage(oqt, maxlen=97))
 # or
 using Colors
-imageof(qt) = Gray.(QTree.decode.(qt[1]))
+imageof(qt) = Gray.(QTrees.decode.(qt[1]))
 imageof(oqt)
 
 # get layout

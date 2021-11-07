@@ -203,9 +203,9 @@ function _outkernelcollision(qtrees, pos, inds, pinds, collist)
         # check here because there are no bounds checking in collision_randbfs
         if inkernelbounds(@inbounds(qtrees[pind][pos[1]]), pos[2], pos[3])
             push!(ininds, pind)
-        elseif getdefault(@inbounds(qtrees[pind][1])) == QTree.FULL
+        elseif getdefault(@inbounds(qtrees[pind][1])) == QTrees.FULL
             for cind in inds
-                if @inbounds(qtrees[cind][pos]) != QTree.EMPTY
+                if @inbounds(qtrees[cind][pos]) != QTrees.EMPTY
                     # @show (cind, pind)=>pos
                     push!(collist, (cind, pind) => pos)
                 end

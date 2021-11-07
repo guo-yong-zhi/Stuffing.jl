@@ -1,34 +1,34 @@
-ShiftedQtree = QTree.ShiftedQtree
-buildqtree! = QTree.buildqtree!
-EMPTY = QTree.EMPTY
+ShiftedQtree = QTrees.ShiftedQtree
+buildqtree! = QTrees.buildqtree!
+EMPTY = QTrees.EMPTY
 testqtree = Stuffing.testqtree
 
-@testset "qtree.jl" begin
+@testset "qtrees.jl" begin
     qt = ShiftedQtree(rand((0, 0, 1), rand(50:300), rand(50:300))) |> buildqtree!
     @test qt[1][-10,-15] == EMPTY
     @test_throws  BoundsError qt[1][-10,-15] = EMPTY
     qt2 = ShiftedQtree(rand((0, 0, 1), size(qt[1]))) |> buildqtree!
     testqtree(qt)
-    QTree.shift!(qt, 3, 2, 5)
-    QTree.setshift!(qt2, 4, 1, 2)
+    QTrees.shift!(qt, 3, 2, 5)
+    QTrees.setshift!(qt2, 4, 1, 2)
     testqtree(qt)
     testqtree(qt2)
-    QTree.overlap!(qt2, qt)
+    QTrees.overlap!(qt2, qt)
     testqtree(qt2)
     qt = ShiftedQtree(rand((0, 0, 1), 1, 1)) |> buildqtree!
-    @test QTree.levelnum(qt) == 1
+    @test QTrees.levelnum(qt) == 1
     qt = ShiftedQtree(rand((0, 0, 1), 1, 2)) |> buildqtree!
-    @test QTree.levelnum(qt) == 2
+    @test QTrees.levelnum(qt) == 2
     @test_throws  AssertionError qt = ShiftedQtree(rand((0, 0, 1), 0, 0)) |> buildqtree!
 
     qt = ShiftedQtree(rand((0, 0, 0, 1), rand(50:300), rand(50:300)), 512) |> buildqtree!
-    li = QTree.locate(qt)
-    @test qt[li] != QTree.EMPTY
-    for l in QTree.levelnum(qt)
+    li = QTrees.locate(qt)
+    @test qt[li] != QTrees.EMPTY
+    for l in QTrees.levelnum(qt)
         if l >= li[1]
-            @test sum(qt[li[1]] .!= QTree.EMPTY) <= 1
+            @test sum(qt[li[1]] .!= QTrees.EMPTY) <= 1
         else
-            @test sum(qt[li[1] - 1] .!= QTree.EMPTY) > 1
+            @test sum(qt[li[1] - 1] .!= QTrees.EMPTY) > 1
         end
     end
     
@@ -40,9 +40,9 @@ testqtree = Stuffing.testqtree
     end
     mask = fill(true, 500, 500)
     qts = qtrees(mask, objs)
-    place!(qts, roomfinder=QTree.findroom_gathering)
+    place!(qts, roomfinder=QTrees.findroom_gathering)
     place!(qts)
-    clq = QTree.batchcollision_qtree(qts)
-    cln = QTree.batchcollision_native(qts)
+    clq = QTrees.batchcollision_qtree(qts)
+    cln = QTrees.batchcollision_native(qts)
     @test Set(Set.(first.(clq))) == Set(Set.(first.(cln)))
 end

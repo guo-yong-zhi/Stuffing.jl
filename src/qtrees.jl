@@ -1,4 +1,4 @@
-module QTree
+module QTrees
 export AbstractStackQtree, StackQtree, ShiftedQtree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
     collision, collision_dfs, collision_randbfs, batchcollision,
@@ -173,7 +173,7 @@ function ShiftedQtree(pic::PaddedMat{T}) where T
     ShiftedQtree(l)
 end
 function ShiftedQtree(pic::AbstractMatrix{UInt8}, sz::Integer; default=EMPTY)
-@assert isinteger(log2(sz))
+    @assert isinteger(log2(sz))
     ShiftedQtree(PaddedMat(pic, (sz, sz), default=default))
 end
 function ShiftedQtree(pic::AbstractMatrix{UInt8}; default=EMPTY)
@@ -290,6 +290,7 @@ QtreeNode(value::T, parent, children) where T = QtreeNode{T}(value, parent, chil
 
 include("qtreetools.jl")
 
+################ show
 function charmat(mat; maxlen=49)
     m, n = size(mat)
     half = maxlen ÷ 2

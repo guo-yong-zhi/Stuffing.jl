@@ -1,19 +1,19 @@
 module Stuffing
 export qtree, maskqtree, qtrees, place!, overlap!, overlap, getpositions, setpositions!, packing, packing!
-export QTree, getshift, getcenter, setshift!, setcenter!, outofbounds, outofkernelbounds, 
+export QTrees, getshift, getcenter, setshift!, setcenter!, outofbounds, outofkernelbounds, 
     batchcollision, collision, findroom_uniform, findroom_gathering
 export Trainer, train!, fit!, Momentum
-include("qtree.jl")
+include("qtrees.jl")
 include("train.jl")
-using .QTree
+using .QTrees
 using .Trainer
 include("utils.jl")
 
 @info "Threads.nthreads() = $(Threads.nthreads())"
 
 function qtree(pic::AbstractArray{Bool,2}, args...)
-    pic = map(x -> ifelse(x, QTree.FULL, QTree.EMPTY), pic)
-    qt = ShiftedQtree(pic, args..., default=QTree.EMPTY) |> buildqtree!
+    pic = map(x -> ifelse(x, QTrees.FULL, QTrees.EMPTY), pic)
+    qt = ShiftedQtree(pic, args..., default=QTrees.EMPTY) |> buildqtree!
 #     @show size(pic),m,s
     return qt
 end
@@ -22,11 +22,11 @@ function qtree(pic::AbstractMatrix, args...; background=pic[1])
 end
 
 function maskqtree(pic::AbstractArray{Bool,2})
-    pic = map(x -> ifelse(x, QTree.EMPTY, QTree.FULL), pic)
+    pic = map(x -> ifelse(x, QTrees.EMPTY, QTrees.FULL), pic)
     ms = max(size(pic)...)
     b = max(ms * 0.024, 20)
     s = 2^ceil(Int, log2(ms + b))
-    qt = ShiftedQtree(pic, s, default=QTree.FULL)
+    qt = ShiftedQtree(pic, s, default=QTrees.FULL)
 #     @show size(pic),m,s
     a, b = size(pic)
     setrshift!(qt[1], (s - a) ÷ 2)
@@ -38,7 +38,7 @@ function maskqtree(pic::AbstractMatrix; background=pic[1])
 end
 # appointment: the first one is mask
 function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
-    ts = Vector{Stuffing.QTree.ShiftedQtree}()
+    ts = Vector{Stuffing.QTrees.ShiftedQtree}()
     if mask !== nothing
         mq = maskbackground == :auto ? maskqtree(mask) : maskqtree(mask; background=maskbackground)
         push!(ts, mq)
@@ -54,18 +54,18 @@ function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
 end
 qtrees(mask, pics; kargs...) = qtrees(pics; mask=mask, kargs...)
 
-function QTree.place!(qtrees::AbstractVector{<:ShiftedQtree}; karg...)
-    ind = QTree.place!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
+function QTrees.place!(qtrees::AbstractVector{<:ShiftedQtree}; karg...)
+    ind = QTrees.place!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
     if ind === nothing error("no room for placement") end
     qtrees
 end
-function QTree.place!(qtrees::AbstractVector{<:ShiftedQtree}, inds; karg...)
-    ind = QTree.place!(deepcopy(qtrees[1]), qtrees[2:end], inds .- 1; karg...)
+function QTrees.place!(qtrees::AbstractVector{<:ShiftedQtree}, inds; karg...)
+    ind = QTrees.place!(deepcopy(qtrees[1]), qtrees[2:end], inds .- 1; karg...)
     if ind === nothing error("no room for placement") end
     qtrees
 end
-QTree.overlap!(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTree.overlap!(qtrees[1], qtrees[2:end]; karg...)
-QTree.overlap(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTree.overlap!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
+QTrees.overlap!(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTrees.overlap!(qtrees[1], qtrees[2:end]; karg...)
+QTrees.overlap(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTrees.overlap!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
 
 function getpositions(mask::ShiftedQtree, qtrees::AbstractVector, inds=:; type=getshift)
     msy, msx = getshift(mask)

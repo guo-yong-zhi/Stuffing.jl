@@ -3,7 +3,7 @@ export Momentum, train!, fit!
 export trainepoch_E!, trainepoch_EM!, trainepoch_EM2!, trainepoch_EM3!, trainepoch_P!, trainepoch_P2!, trainepoch_Px!
 
 using Random
-using ..QTree
+using ..QTrees
 
 include("traintools.jl")
 mutable struct Momentum
@@ -29,7 +29,7 @@ end
 reset!(o::Momentum, x) =  pop!(o.velocity, x)  
 reset!(o, x) = nothing
 Base.broadcastable(m::Momentum) = Ref(m)
-@assert QTree.EMPTY == 1 && QTree.FULL == 2 && QTree.MIX == 3
+@assert QTrees.EMPTY == 1 && QTrees.FULL == 2 && QTrees.MIX == 3
 @inline decode2(c) = @inbounds (0, 2, 1)[c]
 
 # const DECODETABLE = [0, 2, 1]
@@ -133,7 +133,7 @@ function step_ind!(qtrees, i1, i2, collisionpoint, optimiser)
     end
 end
 
-function step_inds!(qtrees, collist::Vector{QTree.ColItemType}, optimiser)
+function step_inds!(qtrees, collist::Vector{QTrees.ColItemType}, optimiser)
     for ((i1, i2), cp) in shuffle!(collist)
 #         @show cp
         # @assert cp[1] > 0
@@ -142,7 +142,7 @@ function step_inds!(qtrees, collist::Vector{QTree.ColItemType}, optimiser)
 end
 
 "element-wise trainer"
-trainepoch_E!(;inputs) = Dict(:collpool => Vector{QTree.ColItemType}(), :queue => [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()])
+trainepoch_E!(;inputs) = Dict(:collpool => Vector{QTrees.ColItemType}(), :queue => [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()])
 trainepoch_E!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ) -> Δ ./ 6, 
     collpool=trainepoch_E!(:collpool), kargs...)
@@ -161,12 +161,12 @@ function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ)
 end
 
 "element-wise trainer with LRU"
-trainepoch_EM!(;inputs) = Dict(:collpool => Vector{QTree.ColItemType}(), 
+trainepoch_EM!(;inputs) = Dict(:collpool => Vector{QTrees.ColItemType}(), 
                             :queue => [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()], 
                             :memory => intlru(length(inputs)))
 trainepoch_EM!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    collpool=Vector{QTree.ColItemType}(), kargs...)
+    collpool=Vector{QTrees.ColItemType}(), kargs...)
     batchcollision(qtrees, collist=empty!(collpool); kargs...)
     nc = length(collpool)
     if nc == 0 return nc end
@@ -193,7 +193,7 @@ end
 trainepoch_EM2!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM2!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    collpool=Vector{QTree.ColItemType}(), kargs...)
+    collpool=Vector{QTrees.ColItemType}(), kargs...)
     batchcollision(qtrees, collist=empty!(collpool); kargs...)
     nc = length(collpool)
     if nc == 0 return nc end
@@ -229,7 +229,7 @@ end
 trainepoch_EM3!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM3!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    collpool=Vector{QTree.ColItemType}(), kargs...)
+    collpool=Vector{QTrees.ColItemType}(), kargs...)
     batchcollision(qtrees, collist=empty!(collpool); kargs...)
     nc = length(collpool)
     if nc == 0 return nc end
@@ -270,9 +270,9 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
 end
 
 function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser, 
-    queue::QTree.ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()])
+    queue::QTrees.ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()])
     nsp1 = 0
-    collist = Vector{QTree.ColItemType}()
+    collist = Vector{QTrees.ColItemType}()
     sl1 = Threads.SpinLock()
     sl2 = Threads.SpinLock()
     Threads.@threads for (i1, i2) in inpool |> shuffle!
@@ -446,7 +446,7 @@ function collisional_indexes_rand(qtrees, collpool::Vector{Tuple{Int,Int}}; on=i
     end
     return cinds
 end
-function collisional_indexes_rand(qtrees, collpool::Vector{QTree.ColItemType}; kargs...)
+function collisional_indexes_rand(qtrees, collpool::Vector{QTrees.ColItemType}; kargs...)
     collisional_indexes_rand(qtrees, first.(collpool); kargs...)
 end
 

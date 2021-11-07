@@ -1,11 +1,11 @@
-import .QTree.decode
+import .QTrees.decode
 bitor(l) = reduce((a, b) -> a .| b, l)
 
-FULL = QTree.FULL
-EMPTY = QTree.EMPTY
-MIX = QTree.MIX
+FULL = QTrees.FULL
+EMPTY = QTrees.EMPTY
+MIX = QTrees.MIX
 function testqtree(qt)
-    for l in 2:QTree.levelnum(qt)
+    for l in 2:QTrees.levelnum(qt)
         for i in 1:size(qt[l], 1)
             for j in 1:size(qt[l], 2)
                 c = [qt[l - 1, 2i, 2j], qt[l - 1, 2i - 1, 2j], qt[l - 1, 2i, 2j - 1], qt[l - 1, 2i - 1, 2j - 1]]

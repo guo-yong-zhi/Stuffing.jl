@@ -2,14 +2,14 @@ using Stuffing
 using Test
 using Random
 
-include("test_qtree.jl")
+include("test_qtrees.jl")
 include("test_trainer.jl")
 @testset "Stuffing.jl" begin
     qt = qtree(fill(true, 3, 4), 16)
-    @test qt[1][1,1] == QTree.FULL
+    @test qt[1][1,1] == QTrees.FULL
 
     qt = qtree(fill(true, 3, 4), background=true)
-    @test qt[1][1,1] == QTree.EMPTY
+    @test qt[1][1,1] == QTrees.EMPTY
     
     mask = fill("aa", 500, 800)
     m, n = size(mask)
@@ -21,7 +21,7 @@ include("test_trainer.jl")
         end
     end
     maskqt = maskqtree(mask, background="aa") # 椭圆空间
-    @test maskqt[1][QTree.getcenter(maskqt)...] == QTree.EMPTY
+    @test maskqt[1][QTrees.getcenter(maskqt)...] == QTrees.EMPTY
 
     objs = [fill(true, 3, 4), fill(true, 1, 5), fill(true, 9, 9), fill(true, 12, 2)]
     qts = qtrees(objs)
@@ -31,7 +31,7 @@ include("test_trainer.jl")
     qts = qtrees(objs, mask=mask, maskbackground="bb")
     @test size(qts[2][1], 1) >= 800
     maskqt = qts[1]
-    @test maskqt[1][QTree.getcenter(maskqt)...] == QTree.FULL
+    @test maskqt[1][QTrees.getcenter(maskqt)...] == QTrees.FULL
     
     o1 = zeros(100, 100)
     o1[30:50, 30:50] .= 1
