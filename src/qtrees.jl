@@ -296,7 +296,7 @@ function charmat(mat; maxlen=49)
     half = maxlen ÷ 2
     maxlen = half * 2 + 1
     if m <= maxlen && n <= maxlen
-        return map(x -> 0 < x < 4 ? ("▢", "▩", "▨")[x] : "▣", mat)
+        return map(x -> 0 < x < 4 ? ("░", "▓", "▒")[x] : "▞", mat)
     elseif m > maxlen
         return vcat(charmat(@view(mat[1:half, :]), maxlen=maxlen),
             reshape(repeat([" ⋮"], min(maxlen, n)), 1, min(maxlen, n)),
