@@ -7,8 +7,8 @@ o3 = zeros(100, 100)
 o3[60:90, 67:90] .= 1
 
 qts = qtrees([o1, o2, o3], background=0.0)
-println("The first number is positive means tow objs collided, and the value can represent the severity in some sense. ",
-"The last two numbers are coordinates.")
+println("If the first number is positive，it means tow objects collided, and the value can represent the severity in some sense. ",
+"The last two numbers are coordinates where the collision occurred.")
 C = [(i, j) => collision(qts[i], qts[j]) for (i, j) in [(1, 2),(1, 3),(2, 3)]]
 println(C)
 # or
