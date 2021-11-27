@@ -80,16 +80,7 @@ function move!(qt, ws)
     # @assert u == floor(Int, log2(wm))
     shift!(qt, 1 + u, (trunc.(Int, ws) .÷ 2^u)...) # 舍尾，保留最高二进制位
 end
-function relative(a, b)
-    if a * b > 0
-        if abs(a) > abs(b)
-            return (a - b), zero(b)
-        else
-            return zero(a), (b - a)
-        end
-    end
-    return a, b
-end
+
 function step!(t1, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser=(t, Δ) -> Δ ./ 6)
     ks1 = kernelsize(t1[1])
     ks1 = ks1[1] * ks1[2]
@@ -98,14 +89,13 @@ function step!(t1, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser
     l = collisionpoint[1]
     ll = 2^(l - 1)
 #     @show collisionpoint
-    y1, x1 = ll .* whitesum(t1, collisionpoint...)
-    y2, x2 = ll .* whitesum(t2, collisionpoint...)
+    ws1 = ll .* whitesum(t1, collisionpoint...)
+    ws2 = ll .* whitesum(t2, collisionpoint...)
     # @assert whitesum(t1, collisionpoint...)==whitesum2(t1, collisionpoint...)
     #     @show ws1,collisionpoint,whitesum(t1, collisionpoint...)
-    y1, y2 = relative(y1, y2)
-    x1, x2 = relative(x1, x2)
-    ws1 = optimiser(t1, (y1, x1))
-    ws2 = optimiser(t2, (y2, x2))
+    ws1 = optimiser(t1, ws1)
+#     @show ws1
+    ws2 = optimiser(t2, ws2)
     move1 = rand() < ks2 / ks1 # ks1越大移动概率越小，ks1<=ks2时必然移动（质量越大，惯性越大运动越少）
     move2 = rand() < ks1 / ks2
     if move1
