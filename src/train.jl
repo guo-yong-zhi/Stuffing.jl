@@ -35,11 +35,11 @@ Base.broadcastable(m::Momentum) = Ref(m)
 # const DECODETABLE = [0, 2, 1]
 # near(a::Integer, b::Integer, r=1) = a-r:a+r, b-r:b+r
 # near(m::AbstractMatrix, a::Integer, b::Integer, r=1) = @view m[near(a, b, r)...]
-# const DIRECTKERNEL = collect.(Iterators.product(-1:1,-1:1))
-# whitesum(m::AbstractMatrix) = sum(DIRECTKERNEL .* m)
-# whitesum(t::ShiftedQtree, l, a, b) = whitesum(decode2(near(t[l],a,b)))|>Tuple
+# const KERNEL = collect.(Iterators.product(-1:1,-1:1))
+# gard2d(m::AbstractMatrix) = sum(KERNEL .* m)
+# gard2d(t::ShiftedQtree, l, a, b) = gard2d(decode2(near(t[l],a,b)))|>Tuple
 
-function whitesum(t::ShiftedQtree, l, a, b) # FULL is white, Positive directions are right & down 
+function gard2d(t::ShiftedQtree, l, a, b) # FULL is white, Positive directions are right & down 
     m = t[l]
     diag = -decode2(m[a - 1, b - 1]) + decode2(m[a + 1, b + 1])
     cdiag = -decode2(m[a - 1, b + 1]) + decode2(m[a + 1, b - 1])
@@ -89,10 +89,10 @@ function step!(t1, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser
     l = collisionpoint[1]
     ll = 2^(l - 1)
 #     @show collisionpoint
-    ws1 = ll .* whitesum(t1, collisionpoint...)
-    ws2 = ll .* whitesum(t2, collisionpoint...)
-    # @assert whitesum(t1, collisionpoint...)==whitesum2(t1, collisionpoint...)
-    #     @show ws1,collisionpoint,whitesum(t1, collisionpoint...)
+    ws1 = ll .* gard2d(t1, collisionpoint...)
+    ws2 = ll .* gard2d(t2, collisionpoint...)
+    # @assert gard2d(t1, collisionpoint...)==gard2d2(t1, collisionpoint...)
+    #     @show ws1,collisionpoint,gard2d(t1, collisionpoint...)
     ws1 = optimiser(t1, ws1)
 #     @show ws1
     ws2 = optimiser(t2, ws2)
@@ -114,8 +114,8 @@ end
 function step_mask!(mask, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser=(t, Δ) -> Δ ./ 6)
     l = collisionpoint[1]
     ll = 2^(l - 1)
-    ws1 = ll .* whitesum(mask, collisionpoint...)
-    ws2 = ll .* whitesum(t2, collisionpoint...)
+    ws1 = ll .* gard2d(mask, collisionpoint...)
+    ws2 = ll .* gard2d(t2, collisionpoint...)
     ws1 = optimiser(mask, ws1)
     ws2 = optimiser(t2, ws2)
     ws2 = (ws2 .- ws1) ./ 2
