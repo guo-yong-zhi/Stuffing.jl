@@ -12,7 +12,7 @@ println("If the first number is positive，it means tow objects collided, and th
 C = [(i, j) => collision(qts[i], qts[j]) for (i, j) in [(1, 2),(1, 3),(2, 3)]]
 println(C)
 # or
-C = batchcollision(qts)
+C = batchcollisions(qts)
 println(C)
 
 for (k, p) in C

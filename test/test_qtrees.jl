@@ -42,7 +42,7 @@ testqtree = Stuffing.testqtree
     qts = qtrees(mask, objs)
     place!(qts, roomfinder=QTrees.findroom_gathering)
     place!(qts)
-    clq = QTrees.batchcollision_qtree(qts)
-    cln = QTrees.batchcollision_native(qts)
+    clq = QTrees.batchcollisions_qtree(qts)
+    cln = QTrees.batchcollisions_native(qts)
     @test Set(Set.(first.(clq))) == Set(Set.(first.(cln)))
 end

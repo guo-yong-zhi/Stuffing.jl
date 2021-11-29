@@ -146,14 +146,14 @@ trainepoch_E!(;inputs) = Dict(:collpool => Vector{QTrees.ColItemType}(), :queue 
 trainepoch_E!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ) -> Δ ./ 6, 
     collpool=trainepoch_E!(:collpool), kargs...)
-    batchcollision(qtrees, collist=empty!(collpool); kargs...)
+    batchcollisions(qtrees, collist=empty!(collpool); kargs...)
     nc = length(collpool)
     if nc == 0 return nc end
     step_inds!(qtrees, collpool, optimiser)
     inds = first.(collpool) |> Iterators.flatten |> Set
 #     @show length(qtrees),length(inds)
     for ni in 1:length(qtrees) ÷ length(inds)
-        batchcollision(qtrees, inds, collist=empty!(collpool); kargs...)
+        batchcollisions(qtrees, inds, collist=empty!(collpool); kargs...)
         step_inds!(qtrees, collpool, optimiser)
         if ni > 8length(collpool) break end
     end
@@ -167,7 +167,7 @@ trainepoch_EM!(;inputs) = Dict(:collpool => Vector{QTrees.ColItemType}(),
 trainepoch_EM!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
     collpool=Vector{QTrees.ColItemType}(), kargs...)
-    batchcollision(qtrees, collist=empty!(collpool); kargs...)
+    batchcollisions(qtrees, collist=empty!(collpool); kargs...)
     nc = length(collpool)
     if nc == 0 return nc end
     step_inds!(qtrees, collpool, optimiser)
@@ -176,13 +176,13 @@ function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimise
     push!.(memory, inds)
     inds = take(memory, length(inds) * 2)
     for ni in 1:2length(qtrees) ÷ length(inds)
-        batchcollision(qtrees, inds, collist=empty!(collpool); kargs...)
+        batchcollisions(qtrees, inds, collist=empty!(collpool); kargs...)
         step_inds!(qtrees, collpool, optimiser)
         if ni > 2length(collpool) break end
         inds2 = first.(collpool) |> Iterators.flatten |> Set
 #         @show length(qtrees),length(inds),length(inds2)
         for ni2 in 1:2length(inds) ÷ length(inds2)
-            batchcollision(qtrees, inds2, collist=empty!(collpool); kargs...)
+            batchcollisions(qtrees, inds2, collist=empty!(collpool); kargs...)
             step_inds!(qtrees, collpool, optimiser)
             if ni2 > 2length(collpool) break end
         end
@@ -194,7 +194,7 @@ trainepoch_EM2!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM2!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
     collpool=Vector{QTrees.ColItemType}(), kargs...)
-    batchcollision(qtrees, collist=empty!(collpool); kargs...)
+    batchcollisions(qtrees, collist=empty!(collpool); kargs...)
     nc = length(collpool)
     if nc == 0 return nc end
     step_inds!(qtrees, collpool, optimiser)
@@ -203,20 +203,20 @@ function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
     push!.(memory, inds)
     inds = take(memory, length(inds) * 4)
     for ni in 1:2length(qtrees) ÷ length(inds)
-        batchcollision(qtrees, inds, collist=empty!(collpool); kargs...)
+        batchcollisions(qtrees, inds, collist=empty!(collpool); kargs...)
         step_inds!(qtrees, collpool, optimiser)
         if ni > 2length(collpool) break end
         inds2 = first.(collpool) |> Iterators.flatten |> Set
         push!.(memory, inds2)
         inds2 = take(memory, length(inds2) * 2)
         for ni2 in 1:2length(inds) ÷ length(inds2)
-            batchcollision(qtrees, inds2, collist=empty!(collpool); kargs...)
+            batchcollisions(qtrees, inds2, collist=empty!(collpool); kargs...)
             step_inds!(qtrees, collpool, optimiser)
             if ni2 > 2length(collpool) break end
             inds3 = first.(collpool) |> Iterators.flatten |> Set
 #             @show length(qtrees),length(inds),length(inds2),length(inds3)
             for ni3 in 1:2length(inds2) ÷ length(inds3)
-                batchcollision(qtrees, inds3, collist=empty!(collpool); kargs...)
+                batchcollisions(qtrees, inds3, collist=empty!(collpool); kargs...)
                 step_inds!(qtrees, collpool, optimiser)
                 if ni3 > 2length(collpool) break end
             end
@@ -230,7 +230,7 @@ trainepoch_EM3!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM3!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
     collpool=Vector{QTrees.ColItemType}(), kargs...)
-    batchcollision(qtrees, collist=empty!(collpool); kargs...)
+    batchcollisions(qtrees, collist=empty!(collpool); kargs...)
     nc = length(collpool)
     if nc == 0 return nc end
     step_inds!(qtrees, collpool, optimiser)
@@ -239,27 +239,27 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimis
     push!.(memory, inds)
     inds = take(memory, length(inds) * 8)
     for ni in 1:2length(qtrees) ÷ length(inds)
-        batchcollision(qtrees, inds, collist=empty!(collpool); kargs...)
+        batchcollisions(qtrees, inds, collist=empty!(collpool); kargs...)
         step_inds!(qtrees, collpool, optimiser)
         if ni > 2length(collpool) break end
         inds2 = first.(collpool) |> Iterators.flatten |> Set
         push!.(memory, inds2)
         inds2 = take(memory, length(inds2) * 4)
         for ni2 in 1:2length(inds) ÷ length(inds2)
-            batchcollision(qtrees, inds2, collist=empty!(collpool); kargs...)
+            batchcollisions(qtrees, inds2, collist=empty!(collpool); kargs...)
             step_inds!(qtrees, collpool, optimiser)
             if ni2 > 2length(collpool) break end
             inds3 = first.(collpool) |> Iterators.flatten |> Set
             push!.(memory, inds3)
             inds3 = take(memory, length(inds3) * 2)
             for ni3 in 1:2length(inds2) ÷ length(inds3)
-                batchcollision(qtrees, inds3, collist=empty!(collpool); kargs...)
+                batchcollisions(qtrees, inds3, collist=empty!(collpool); kargs...)
                 step_inds!(qtrees, collpool, optimiser)
                 if ni3 > 2length(collpool) break end
                 inds4 = first.(collpool) |> Iterators.flatten |> Set
 #             @show length(qtrees),length(inds),length(inds2),length(inds3)
                 for ni4 in 1:2length(inds3) ÷ length(inds4)
-                    batchcollision(qtrees, inds4, collist=empty!(collpool); kargs...)
+                    batchcollisions(qtrees, inds4, collist=empty!(collpool); kargs...)
                     step_inds!(qtrees, collpool, optimiser)
                     if ni4 > 2length(collpool) break end
                 end

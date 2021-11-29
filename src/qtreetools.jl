@@ -1,4 +1,4 @@
-########## batchcollision
+########## batchcollisions
 function collision_dfs(Q1::AbstractStackQtree, Q2::AbstractStackQtree, i=(levelnum(Q1), 1, 1))
     #     @show i
 #     @assert size(Q1) == size(Q2)
@@ -72,7 +72,7 @@ end
 ColItemType = Pair{Tuple{Int,Int},Tuple{Int,Int,Int}}
 ThreadQueueType = AbstractVector{<:AbstractVector{Tuple{Int,Int,Int}}}
 # assume inkernelbounds(qtree, at) is true
-function _batchcollision_native(qtrees::AbstractVector, indpairs; 
+function _batchcollisions_native(qtrees::AbstractVector, indpairs; 
         collist=Vector{ColItemType}(),
         queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
         at=(levelnum(qtrees[1]), 1, 1))
@@ -91,7 +91,7 @@ function _batchcollision_native(qtrees::AbstractVector, indpairs;
     end
     collist
 end
-function _batchcollision_native(qtrees::AbstractVector, 
+function _batchcollisions_native(qtrees::AbstractVector, 
     indpairs::Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int,Int}}}; collist=Vector{ColItemType}(),
     queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()])
     sl = Threads.SpinLock()
@@ -109,18 +109,18 @@ function _batchcollision_native(qtrees::AbstractVector,
     end
     collist
 end
-function _batchcollision_native(qtrees::AbstractVector, 
+function _batchcollisions_native(qtrees::AbstractVector, 
     inds::AbstractVector{<:Integer}=1:length(qtrees); kargs...)
     l = length(inds)
-    _batchcollision_native(qtrees, [(inds[i], inds[j]) for i in 1:l for j in l:-1:i + 1]; kargs...)
+    _batchcollisions_native(qtrees, [(inds[i], inds[j]) for i in 1:l for j in l:-1:i + 1]; kargs...)
 end
-function _batchcollision_native(qtrees::AbstractVector, inds::AbstractSet{<:Integer}; kargs...)
-    _batchcollision_native(qtrees, inds |> collect; kargs...)
+function _batchcollisions_native(qtrees::AbstractVector, inds::AbstractSet{<:Integer}; kargs...)
+    _batchcollisions_native(qtrees, inds |> collect; kargs...)
 end
-function batchcollision_native(qtrees::AbstractVector, inds=1:length(qtrees); kargs...)
+function batchcollisions_native(qtrees::AbstractVector, inds=1:length(qtrees); kargs...)
     l = levelnum(qtrees[1])
     inds = [i for i in inds if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
-    _batchcollision_native(qtrees, inds; kargs...)
+    _batchcollisions_native(qtrees, inds; kargs...)
 end
 function locate(qt::AbstractStackQtree, ind::Tuple{Int,Int,Int}=(levelnum(qt), 1, 1))
     if qt[ind] == EMPTY
@@ -216,7 +216,7 @@ function _outkernelcollision(qtrees, pos, inds, pinds, collist)
 end
 
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
-function batchcollision_qtree(qtrees::AbstractVector, loctree::QtreeNode;
+function batchcollisions_qtree(qtrees::AbstractVector, loctree::QtreeNode;
     collist=Vector{ColItemType}(),
     queue=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
     )
@@ -254,34 +254,34 @@ function batchcollision_qtree(qtrees::AbstractVector, loctree::QtreeNode;
             end
         end
     end
-    _batchcollision_native(qtrees, pairlist, collist=collist, queue=queue)
+    _batchcollisions_native(qtrees, pairlist, collist=collist, queue=queue)
 end
-function batchcollision_qtree(qtrees::AbstractVector; kargs...)
+function batchcollisions_qtree(qtrees::AbstractVector; kargs...)
     loctree = locate!(qtrees)
-    batchcollision_qtree(qtrees, loctree; kargs...)
+    batchcollisions_qtree(qtrees, loctree; kargs...)
 end
-function batchcollision_qtree(qtrees::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}; kargs...)
+function batchcollisions_qtree(qtrees::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}; kargs...)
     loctree = locate!(qtrees, inds)
-    batchcollision_qtree(qtrees, loctree; kargs...)
+    batchcollisions_qtree(qtrees, loctree; kargs...)
 end
 
 const QTREE_COLLISION_ENABLE_TH = round(Int, 15 + 10 * log2(Threads.nthreads()))
-function batchcollision(qtrees::AbstractVector; 
+function batchcollisions(qtrees::AbstractVector; 
     queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
     kargs...)
     if length(qtrees) > QTREE_COLLISION_ENABLE_TH
-        return batchcollision_qtree(qtrees; queue=queue, kargs...)
+        return batchcollisions_qtree(qtrees; queue=queue, kargs...)
     else
-        return batchcollision_native(qtrees; queue=queue, kargs...)
+        return batchcollisions_native(qtrees; queue=queue, kargs...)
     end
 end
-function batchcollision(qtrees::AbstractVector, inds; 
+function batchcollisions(qtrees::AbstractVector, inds; 
     queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
     kargs...)
     if length(inds) > QTREE_COLLISION_ENABLE_TH
-        return batchcollision_qtree(qtrees, inds; queue=queue, kargs...)
+        return batchcollisions_qtree(qtrees, inds; queue=queue, kargs...)
     else
-        return _batchcollision_native(qtrees, inds; queue=queue, kargs...)
+        return _batchcollisions_native(qtrees, inds; queue=queue, kargs...)
     end
 end
 

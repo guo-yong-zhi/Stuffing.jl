@@ -1,7 +1,7 @@
 module QTrees
 export AbstractStackQtree, StackQtree, ShiftedQtree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
-    collision, collision_dfs, collision_randbfs, batchcollision,
+    collision, collision_dfs, collision_randbfs, batchcollisions,
     findroom_uniform, findroom_gathering, levelnum, outofbounds, outofkernelbounds, 
     kernelsize, place!, overlap, overlap!, decode, charimage
 
