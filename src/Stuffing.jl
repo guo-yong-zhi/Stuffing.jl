@@ -4,7 +4,7 @@ export QTrees, getshift, getcenter, setshift!, setcenter!, outofbounds, outofker
     batchcollisions, collision, findroom_uniform, findroom_gathering
 export Trainer, train!, fit!, Momentum
 include("qtrees.jl")
-include("train.jl")
+include("fit.jl")
 using .QTrees
 using .Trainer
 include("utils.jl")

@@ -1,4 +1,4 @@
-@testset "train.jl" begin
+@testset "fit.jl" begin
     x = rand(Float64, 1000) * 1000;
     @test sum(floor.(Int, log2.(x))) == sum(Trainer.intlog2.(x))
 
