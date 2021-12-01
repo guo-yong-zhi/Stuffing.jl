@@ -266,22 +266,13 @@ function batchcollisions_region(qtrees::AbstractVector, inds::Union{AbstractVect
 end
 
 const QTREE_COLLISION_ENABLE_TH = round(Int, 15 + 10 * log2(Threads.nthreads()))
-function batchcollisions(qtrees::AbstractVector; 
+function batchcollisions(qtrees::AbstractVector, args...; 
     queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
     kargs...)
     if length(qtrees) > QTREE_COLLISION_ENABLE_TH
-        return batchcollisions_region(qtrees; queue=queue, kargs...)
+        return batchcollisions_region(qtrees, args...; queue=queue, kargs...)
     else
-        return batchcollisions_native(qtrees; queue=queue, kargs...)
-    end
-end
-function batchcollisions(qtrees::AbstractVector, inds; 
-    queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
-    kargs...)
-    if length(inds) > QTREE_COLLISION_ENABLE_TH
-        return batchcollisions_region(qtrees, inds; queue=queue, kargs...)
-    else
-        return _batchcollisions_native(qtrees, inds; queue=queue, kargs...)
+        return batchcollisions_native(qtrees, args...; queue=queue, kargs...)
     end
 end
 
