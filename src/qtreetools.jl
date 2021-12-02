@@ -139,17 +139,15 @@ function locate(qt::AbstractStackQtree, ind::Index=(levelnum(qt), 1, 1))
     end
     return locate(qt, unempty)
 end
-NodeValue = Pair{Index, Vector}
-IntNodeValue = Pair{Index, Vector{Int}}
-RegionQtree = QtreeNode{NodeValue}
-IntRegionQtree = QtreeNode{IntNodeValue}
-const NULLNODE = RegionQtree()
-const INTNULLNODE = QtreeNode{IntNodeValue}()
-nullnode(n::RegionQtree) = NULLNODE
-nullnode(n::IntRegionQtree) = INTNULLNODE
-region_qtree(ind::Index, parent=NULLNODE) = RegionQtree(ind => [], parent, [NULLNODE, NULLNODE, NULLNODE, NULLNODE])
-int_region_qtree(ind::Index, parent=INTNULLNODE) = IntRegionQtree(ind => Vector{Int}(), parent, 
-    [INTNULLNODE,INTNULLNODE,INTNULLNODE,INTNULLNODE])
+
+RegionQtree{T} = QtreeNode{Pair{Index, Vector{T}}}
+const NULL_NODE = RegionQtree{Any}()
+const INT_NULL_NODE = RegionQtree{Int}()
+nullnode(n::RegionQtree) = NULL_NODE
+nullnode(n::RegionQtree{Int}) = INT_NULL_NODE
+region_qtree(ind::Index, parent=NULL_NODE) = RegionQtree{Any}(ind => [], parent, [NULL_NODE, NULL_NODE, NULL_NODE, NULL_NODE])
+int_region_qtree(ind::Index, parent=INT_NULL_NODE) = RegionQtree{Int}(ind => Vector{Int}(), parent, 
+    [INT_NULL_NODE,INT_NULL_NODE,INT_NULL_NODE,INT_NULL_NODE])
 function locate!(qt::AbstractStackQtree, regtree::QtreeNode=region_qtree((levelnum(qt), 1, 1)),
     ind::Index=(levelnum(qt), 1, 1); label=qt, newnode=region_qtree)
     if qt[ind] == EMPTY
