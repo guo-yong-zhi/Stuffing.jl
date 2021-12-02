@@ -51,7 +51,7 @@
     for t in ts
         for te in tele
             place!(qts)
-            fit!(qts, trainer=t, teleporting=te)
+            fit!(qts, trainer=t, repositioning=te)
         end
     end
     place!(qts)

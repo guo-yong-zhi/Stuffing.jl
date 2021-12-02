@@ -12,10 +12,11 @@ const PERM4 = ((1, 2, 3, 4), (1, 2, 4, 3), (1, 3, 2, 4), (1, 3, 4, 2), (1, 4, 2,
 (3, 2, 4, 1), (3, 4, 1, 2), (3, 4, 2, 1), (4, 1, 2, 3), (4, 1, 3, 2), (4, 2, 1, 3), (4, 2, 3, 1), (4, 3, 1, 2), (4, 3, 2, 1))
 @assert length(PERM4) == 24
 @inline shuffle4() = @inbounds PERM4[rand(1:24)]
-@inline function child(ind::Tuple{Int,Int,Int}, n::Int)
+Index = Tuple{Int, Int, Int}
+@inline function child(ind::Index, n::Int)
     @inbounds (ind[1] - 1, 2ind[2] - n & 0x01, 2ind[3] - (n & 0x02) >> 1)
 end
-@inline parent(ind::Tuple{Int,Int,Int}) = @inbounds (ind[1] + 1, (ind[2] + 1) ÷ 2, (ind[3] + 1) ÷ 2)
+@inline parent(ind::Index) = @inbounds (ind[1] + 1, (ind[2] + 1) ÷ 2, (ind[3] + 1) ÷ 2)
 indexcenter(l::Integer, a::Integer, b::Integer) = l == 1 ? (a, b) : (2^(l - 1) * (a - 1) + 2^(l - 2), 2^(l - 1) * (b - 1) + 2^(l - 2))
 indexcenter(ind) = indexcenter(ind...)
 function indexrange(l::Integer, a::Integer, b::Integer)
@@ -34,9 +35,9 @@ const FULL = 0x02; EMPTY = 0x01; MIX = 0x03
 abstract type AbstractStackQtree end
 function Base.getindex(t::AbstractStackQtree, l::Integer) end
 Base.getindex(t::AbstractStackQtree, l, r, c) = t[l][r, c]
-Base.getindex(t::AbstractStackQtree, inds::Tuple{Int,Int,Int}) = t[inds...]
+Base.getindex(t::AbstractStackQtree, inds::Index) = t[inds...]
 Base.setindex!(t::AbstractStackQtree, v, l, r, c) =  t[l][r, c] = v
-Base.setindex!(t::AbstractStackQtree, v, inds::Tuple{Int,Int,Int}) = t[inds...] = v
+Base.setindex!(t::AbstractStackQtree, v, inds::Index) = t[inds...] = v
 @inline _getindex(t::AbstractStackQtree, inds) = _getindex(t, inds...)
 @inline _getindex(t::AbstractStackQtree, l, r, c) = @inbounds _getindex(t[l], r, c)
 @inline _setindex!(t::AbstractStackQtree, v, inds) = _setindex!(t, v, inds...)

@@ -69,12 +69,13 @@ function collision(Q1::AbstractStackQtree, Q2::AbstractStackQtree)
     end
 end
 # thcc = [0 for i = 1:Threads.nthreads()]
-ColItemType = Pair{Tuple{Int,Int},Tuple{Int,Int,Int}}
-ThreadQueueType = AbstractVector{<:AbstractVector{Tuple{Int,Int,Int}}}
+CoItem = Pair{Tuple{Int,Int}, Index}
+AbstractThreadQueue = AbstractVector{<:AbstractVector{Index}}
+thread_queue() = [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()]
 # assume inkernelbounds(qtree, at) is true
 function _batchcollisions_native(qtrees::AbstractVector, indpairs; 
-        collist=Vector{ColItemType}(),
-        queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
+        colist=Vector{CoItem}(),
+        queue::AbstractThreadQueue=thread_queue(),
         at=(levelnum(qtrees[1]), 1, 1))
     sl = Threads.SpinLock()
     Threads.@threads for (i1, i2) in indpairs
@@ -85,15 +86,14 @@ function _batchcollisions_native(qtrees::AbstractVector, indpairs;
         cp = collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
             lock(sl) do
-                push!(collist, (i1, i2) => cp)
+                push!(colist, (i1, i2) => cp)
             end
         end
     end
-    collist
+    colist
 end
-function _batchcollisions_native(qtrees::AbstractVector, 
-    indpairs::Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int,Int}}}; collist=Vector{ColItemType}(),
-    queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()])
+function _batchcollisions_native(qtrees::AbstractVector, indpairs::Vector{CoItem}; 
+    colist=Vector{CoItem}(), queue::AbstractThreadQueue=thread_queue())
     sl = Threads.SpinLock()
     Threads.@threads for ((i1, i2), at) in indpairs
 #         thcc[Threads.threadid()] += 1
@@ -103,11 +103,11 @@ function _batchcollisions_native(qtrees::AbstractVector,
         cp = collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
             lock(sl) do
-                push!(collist, (i1, i2) => cp)
+                push!(colist, (i1, i2) => cp)
             end
         end
     end
-    collist
+    colist
 end
 function _batchcollisions_native(qtrees::AbstractVector, 
     inds::AbstractVector{<:Integer}=1:length(qtrees); kargs...)
@@ -122,7 +122,7 @@ function batchcollisions_native(qtrees::AbstractVector, inds=1:length(qtrees); k
     inds = [i for i in inds if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
     _batchcollisions_native(qtrees, inds; kargs...)
 end
-function locate(qt::AbstractStackQtree, ind::Tuple{Int,Int,Int}=(levelnum(qt), 1, 1))
+function locate(qt::AbstractStackQtree, ind::Index=(levelnum(qt), 1, 1))
     if qt[ind] == EMPTY
         return ind
     end
@@ -139,27 +139,26 @@ function locate(qt::AbstractStackQtree, ind::Tuple{Int,Int,Int}=(levelnum(qt), 1
     end
     return locate(qt, unempty)
 end
-IndType = Tuple{Int,Int,Int}
-NodeValueType = Pair{IndType,Array{Any,1}}
-IntNodeValueType = Pair{IndType,Array{Int,1}}
-RegionQtreeType = QtreeNode{NodeValueType}
-IntRegionQtreeType = QtreeNode{IntNodeValueType}
-const NULLNODE = RegionQtreeType()
-const INTNULLNODE = QtreeNode{IntNodeValueType}()
-nullnode(n::RegionQtreeType) = NULLNODE
-nullnode(n::IntRegionQtreeType) = INTNULLNODE
-RegionQtree(ind::IndType, parent=NULLNODE) = RegionQtreeType(ind => [], parent, [NULLNODE, NULLNODE, NULLNODE, NULLNODE])
-IntRegionQtree(ind::IndType, parent=INTNULLNODE) = IntRegionQtreeType(ind => Vector{Int}(), parent, 
+NodeValue = Pair{Index, Vector}
+IntNodeValue = Pair{Index, Vector{Int}}
+RegionQtree = QtreeNode{NodeValue}
+IntRegionQtree = QtreeNode{IntNodeValue}
+const NULLNODE = RegionQtree()
+const INTNULLNODE = QtreeNode{IntNodeValue}()
+nullnode(n::RegionQtree) = NULLNODE
+nullnode(n::IntRegionQtree) = INTNULLNODE
+region_qtree(ind::Index, parent=NULLNODE) = RegionQtree(ind => [], parent, [NULLNODE, NULLNODE, NULLNODE, NULLNODE])
+int_region_qtree(ind::Index, parent=INTNULLNODE) = IntRegionQtree(ind => Vector{Int}(), parent, 
     [INTNULLNODE,INTNULLNODE,INTNULLNODE,INTNULLNODE])
-function locate!(qt::AbstractStackQtree, regtree::QtreeNode=RegionQtree((levelnum(qt), 1, 1)),
-    ind::Tuple{Int,Int,Int}=(levelnum(qt), 1, 1); label=qt, newnode=RegionQtree)
+function locate!(qt::AbstractStackQtree, regtree::QtreeNode=region_qtree((levelnum(qt), 1, 1)),
+    ind::Index=(levelnum(qt), 1, 1); label=qt, newnode=region_qtree)
     if qt[ind] == EMPTY
         return regtree
     end
     locate_core!(qt, regtree, ind, label, newnode)
 end
 function locate_core!(qt::AbstractStackQtree, regtree::QtreeNode,
-    ind::Tuple{Int,Int,Int}, label, newnode)
+    ind::Index, label, newnode)
     if ind[1] == 1
         push!(regtree.value.second, label)
         return regtree
@@ -183,23 +182,23 @@ function locate_core!(qt::AbstractStackQtree, regtree::QtreeNode,
     end
     locate_core!(qt, regtree.children[unemptyci], unempty, label, newnode)
 end
-function locate!(qts::AbstractVector, regtree::QtreeNode=IntRegionQtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
+function locate!(qts::AbstractVector, regtree::QtreeNode=int_region_qtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
     for (i, qt) in enumerate(qts)
-        locate!(qt, regtree, label=i, newnode=IntRegionQtree)
+        locate!(qt, regtree, label=i, newnode=int_region_qtree)
     end
     regtree
 end
 function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}, 
-        regtree::QtreeNode=IntRegionQtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
+        regtree::QtreeNode=int_region_qtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
     for i in inds
-        locate!(qts[i], regtree, label=i, newnode=IntRegionQtree)
+        locate!(qts[i], regtree, label=i, newnode=int_region_qtree)
     end
     regtree
 end
 
-function _outkernelcollision(qtrees, pos, inds, pinds, collist)
+function _outkernelcollision(qtrees, pos, inds, acinds, colist)
     ininds = Int[]
-    for pind in pinds
+    for pind in acinds
         # check here because there are no bounds checking in collision_randbfs
         if inkernelbounds(@inbounds(qtrees[pind][pos[1]]), pos[2], pos[3])
             push!(ininds, pind)
@@ -207,7 +206,7 @@ function _outkernelcollision(qtrees, pos, inds, pinds, collist)
             for cind in inds
                 if @inbounds(qtrees[cind][pos]) != QTrees.EMPTY
                     # @show (cind, pind)=>pos
-                    push!(collist, (cind, pind) => pos)
+                    push!(colist, (cind, pind) => pos)
                 end
             end
         end
@@ -216,34 +215,30 @@ function _outkernelcollision(qtrees, pos, inds, pinds, collist)
 end
 
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
-function batchcollisions_region(qtrees::AbstractVector, regtree::QtreeNode;
-    collist=Vector{ColItemType}(),
-    queue=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
-    )
+function batchcollisions_region(qtrees::AbstractVector, regtree::QtreeNode; colist=Vector{CoItem}(), kargs...)
     # @assert regtree !== nullnode(regtree)
     nodequeue = [regtree]
-    pairlist = Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int,Int}}}()
+    pairlist = Vector{CoItem}()
     while !isempty(nodequeue)
         N = popfirst!(nodequeue)
         pos, inds = N.value
-        linds = length(inds) 
-        if linds > 1
-            for i in 1:linds
-                for j in linds:-1:i+1
-                    push!(pairlist, ((@inbounds inds[i], @inbounds inds[j]), pos))
+        indslen = length(inds) 
+        if indslen > 1
+            for i in 1:indslen
+                for j in indslen:-1:i+1
+                    push!(pairlist, (@inbounds inds[i], @inbounds inds[j]) => pos)
                 end
             end
         end
         p = N.parent
-        if linds > 0
+        if indslen > 0
             while p !== nullnode(regtree)
-                pinds = p.value.second
-                pinds = _outkernelcollision(qtrees, pos, inds, pinds, collist)
-                lpinds = length(pinds)
-                if lpinds > 0
-                    # append!(pairlist, (((i, pi), pos) for i in inds for pi in pinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢
-                    # append!(pairlist, [((i, pi), pos) for i in inds for pi in pinds]) 
-                    append!(pairlist, ((p, pos) for p in Iterators.product(inds, pinds)))
+                acinds = p.value.second
+                acinds = _outkernelcollision(qtrees, pos, inds, acinds, colist)
+                if length(acinds) > 0
+                    # append!(pairlist, (((i, pi), pos) for i in inds for pi in acinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢
+                    # append!(pairlist, [((i, pi), pos) for i in inds for pi in acinds]) 
+                    append!(pairlist, ((p => pos) for p in Iterators.product(inds, acinds)))
                 end
                 p = p.parent
             end
@@ -254,7 +249,7 @@ function batchcollisions_region(qtrees::AbstractVector, regtree::QtreeNode;
             end
         end
     end
-    _batchcollisions_native(qtrees, pairlist, collist=collist, queue=queue)
+    _batchcollisions_native(qtrees, pairlist; colist=colist, kargs...)
 end
 function batchcollisions_region(qtrees::AbstractVector; kargs...)
     regtree = locate!(qtrees)
@@ -266,13 +261,11 @@ function batchcollisions_region(qtrees::AbstractVector, inds::Union{AbstractVect
 end
 
 const QTREE_COLLISION_ENABLE_TH = round(Int, 15 + 10 * log2(Threads.nthreads()))
-function batchcollisions(qtrees::AbstractVector, args...; 
-    queue::ThreadQueueType=[Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()],
-    kargs...)
+function batchcollisions(qtrees::AbstractVector, args...; kargs...)
     if length(qtrees) > QTREE_COLLISION_ENABLE_TH
-        return batchcollisions_region(qtrees, args...; queue=queue, kargs...)
+        return batchcollisions_region(qtrees, args...; kargs...)
     else
-        return batchcollisions_native(qtrees, args...; queue=queue, kargs...)
+        return batchcollisions_native(qtrees, args...; kargs...)
     end
 end
 
@@ -369,7 +362,7 @@ function overlap2!(tree1::ShiftedQtree, tree2::ShiftedQtree)
     tree1 |> buildqtree!
 end
 
-function overlap!(tree1::ShiftedQtree, tree2::ShiftedQtree, ind::Tuple{Int,Int,Int})
+function overlap!(tree1::ShiftedQtree, tree2::ShiftedQtree, ind::Index)
     if !(tree1[ind] == FULL || tree2[ind] == EMPTY)
         if ind[1] == 1
             tree1[ind] = FULL
