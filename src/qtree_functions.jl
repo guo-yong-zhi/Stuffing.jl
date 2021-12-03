@@ -1,5 +1,5 @@
 ########## batchcollisions
-function collision_dfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, i=(levelnum(Q1), 1, 1)) #faster than _collision_randbfs (6:7)
+function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(levelnum(Q1), 1, 1)) #faster than _collision_randbfs (6:7)
 #     @assert size(Q1) == size(Q2)
     n1 = Q1[i]
     n2 = Q2[i]
@@ -17,7 +17,7 @@ function collision_dfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, i=(leveln
     end
     return r # no collision
 end
-function _collision_randbfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, q::AbstractVector{Index}=[(levelnum(Q1), 1, 1)])
+function _collision_randbfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, q::AbstractVector{Index}=[(levelnum(Q1), 1, 1)])
 #     @assert size(Q1) == size(Q2)
     if isempty(q)
         push!(q, (levelnum(Q1), 1, 1))
@@ -51,7 +51,7 @@ function _collision_randbfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, q::A
     end
     return -i[1], i[2], i[3] # no collision
 end
-function collision(Q1::AbstractStackQTree, Q2::AbstractStackQTree)
+function collision(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree)
     l = levelnum(Q1)
     @assert l == levelnum(Q2)
     if inkernelbounds(Q1, l, 1, 1) && inkernelbounds(Q2, l, 1, 1)
@@ -120,14 +120,14 @@ nullnode(n::RegionQTree{Int}) = INT_NULL_NODE
 region_qtree(ind::Index, parent=NULL_NODE) = RegionQTree{Any}(ind => [], parent, [NULL_NODE, NULL_NODE, NULL_NODE, NULL_NODE])
 int_region_qtree(ind::Index, parent=INT_NULL_NODE) = RegionQTree{Int}(ind => Vector{Int}(), parent, 
     [INT_NULL_NODE,INT_NULL_NODE,INT_NULL_NODE,INT_NULL_NODE])
-function locate!(qt::AbstractStackQTree, regtree::QTreeNode=region_qtree((levelnum(qt), 1, 1)),
+function locate!(qt::AbstractStackedQTree, regtree::QTreeNode=region_qtree((levelnum(qt), 1, 1)),
     ind::Index=(levelnum(qt), 1, 1); label=qt, newnode=region_qtree)
     if qt[ind] == EMPTY
         return ind
     end
     locate_core!(qt, regtree, ind, label, newnode)
 end
-function locate_core!(qt::AbstractStackQTree, regtree::QTreeNode,
+function locate_core!(qt::AbstractStackedQTree, regtree::QTreeNode,
     ind::Index, label, newnode)
     if ind[1] == 1
         push!(regtree.value.second, label)

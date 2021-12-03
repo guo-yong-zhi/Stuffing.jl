@@ -1,12 +1,11 @@
 ShiftedQTree = QTrees.ShiftedQTree
 buildqtree! = QTrees.buildqtree!
-EMPTY = QTrees.EMPTY
 testqtree = Stuffing.testqtree
 
 @testset "qtrees.jl" begin
     qt = ShiftedQTree(rand((0, 0, 1), rand(50:300), rand(50:300))) |> buildqtree!
-    @test qt[1][-10,-15] == EMPTY
-    @test_throws  BoundsError qt[1][-10,-15] = EMPTY
+    @test qt[1][-10,-15] == QTrees.EMPTY
+    @test_throws  BoundsError qt[1][-10,-15] = QTrees.EMPTY
     qt2 = ShiftedQTree(rand((0, 0, 1), size(qt[1]))) |> buildqtree!
     testqtree(qt)
     QTrees.shift!(qt, 3, 2, 5)

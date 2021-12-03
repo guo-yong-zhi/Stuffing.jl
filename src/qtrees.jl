@@ -1,5 +1,5 @@
 module QTrees
-export AbstractStackQTree, StackQTree, ShiftedQTree, buildqtree!,
+export AbstractStackedQTree, StackedQTree, ShiftedQTree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
     collision, collision_dfs, batchcollisions,
     findroom_uniform, findroom_gathering, levelnum, outofbounds, outofkernelbounds, 
@@ -32,24 +32,24 @@ decode(c) = (0., 1., 0.5)[c]
 
 const FULL = 0x02; EMPTY = 0x01; MIX = 0x03
 
-abstract type AbstractStackQTree end
-Base.@propagate_inbounds function Base.getindex(t::AbstractStackQTree, l::Integer) end
-Base.@propagate_inbounds Base.getindex(t::AbstractStackQTree, l, r, c) = t[l][r, c]
-Base.@propagate_inbounds Base.getindex(t::AbstractStackQTree, inds) = t[inds...]
-Base.@propagate_inbounds Base.setindex!(t::AbstractStackQTree, v, l, r, c) =  t[l][r, c] = v
-Base.@propagate_inbounds Base.setindex!(t::AbstractStackQTree, v, inds) = setindex!(t, v, inds...)
-function levelnum(t::AbstractStackQTree) end
-Base.lastindex(t::AbstractStackQTree) = levelnum(t)
-Base.size(t::AbstractStackQTree) = levelnum(t) > 0 ? size(t[1]) : (0,)
-Base.broadcastable(t::AbstractStackQTree) = Ref(t)
+abstract type AbstractStackedQTree end
+Base.@propagate_inbounds function Base.getindex(t::AbstractStackedQTree, l::Integer) end
+Base.@propagate_inbounds Base.getindex(t::AbstractStackedQTree, l, r, c) = t[l][r, c]
+Base.@propagate_inbounds Base.getindex(t::AbstractStackedQTree, inds) = t[inds...]
+Base.@propagate_inbounds Base.setindex!(t::AbstractStackedQTree, v, l, r, c) =  t[l][r, c] = v
+Base.@propagate_inbounds Base.setindex!(t::AbstractStackedQTree, v, inds) = setindex!(t, v, inds...)
+function levelnum(t::AbstractStackedQTree) end
+Base.lastindex(t::AbstractStackedQTree) = levelnum(t)
+Base.size(t::AbstractStackedQTree) = levelnum(t) > 0 ? size(t[1]) : (0,)
+Base.broadcastable(t::AbstractStackedQTree) = Ref(t)
 
-################ StackQTree
-struct StackQTree{T <: AbstractVector{<:AbstractMatrix{UInt8}}} <: AbstractStackQTree
+################ StackedQTree
+struct StackedQTree{T <: AbstractVector{<:AbstractMatrix{UInt8}}} <: AbstractStackedQTree
     layers::T
 end
 
-StackQTree(l::T) where T = StackQTree{T}(l)
-function StackQTree(pic::AbstractMatrix{UInt8})
+StackedQTree(l::T) where T = StackedQTree{T}(l)
+function StackedQTree(pic::AbstractMatrix{UInt8})
     m, n = size(pic)
     @assert m == n
     @assert isinteger(log2(m))
@@ -60,18 +60,18 @@ function StackQTree(pic::AbstractMatrix{UInt8})
         m, n = size(l[end])
         push!(l, similar(pic, (m + 1) ÷ 2, (n + 1) ÷ 2))
     end
-    StackQTree(l)
+    StackedQTree(l)
 end
 
-function StackQTree(pic::AbstractMatrix)
+function StackedQTree(pic::AbstractMatrix)
     pic = map(x -> x == 0 ? EMPTY : FULL, pic)
-    StackQTree(pic)
+    StackedQTree(pic)
 end
 
-Base.@propagate_inbounds Base.getindex(t::StackQTree, l::Integer) = t.layers[l]
-levelnum(t::StackQTree) = length(t.layers)
+Base.@propagate_inbounds Base.getindex(t::StackedQTree, l::Integer) = t.layers[l]
+levelnum(t::StackedQTree) = length(t.layers)
 
-function buildqtree!(t::AbstractStackQTree, layer=2)
+function buildqtree!(t::AbstractStackedQTree, layer=2)
     for l in layer:levelnum(t)
         for r in 1:size(t[l], 1)
             for c in 1:size(t[l], 2)
@@ -144,7 +144,7 @@ end
 
 Base.size(l::PaddedMat) = l.size
 
-struct ShiftedQTree{T <: AbstractVector{<:PaddedMat}} <: AbstractStackQTree
+struct ShiftedQTree{T <: AbstractVector{<:PaddedMat}} <: AbstractStackedQTree
     layers::T
 end
 
