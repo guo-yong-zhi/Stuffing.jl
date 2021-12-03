@@ -1,5 +1,5 @@
 ########## batchcollisions
-function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(levelnum(Q1), 1, 1)) #faster than _collision_randbfs (6:7)
+function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(length(Q1), 1, 1)) #faster than _collision_randbfs (6:7)
 #     @assert size(Q1) == size(Q2)
     n1 = Q1[i]
     n2 = Q2[i]
@@ -17,10 +17,10 @@ function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(le
     end
     return r # no collision
 end
-function _collision_randbfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, q::AbstractVector{Index}=[(levelnum(Q1), 1, 1)])
+function _collision_randbfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, q::AbstractVector{Index}=[(length(Q1), 1, 1)])
 #     @assert size(Q1) == size(Q2)
     if isempty(q)
-        push!(q, (levelnum(Q1), 1, 1))
+        push!(q, (length(Q1), 1, 1))
     end
     i = @inbounds q[1]
     while !isempty(q)
@@ -52,8 +52,8 @@ function _collision_randbfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, 
     return -i[1], i[2], i[3] # no collision
 end
 function collision(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree)
-    l = levelnum(Q1)
-    @assert l == levelnum(Q2)
+    l = length(Q1)
+    @assert l == length(Q2)
     if inkernelbounds(Q1, l, 1, 1) && inkernelbounds(Q2, l, 1, 1)
         return _collision_randbfs(Q1, Q2, [(l, 1, 1)])
     else
@@ -67,7 +67,7 @@ thread_queue() = [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()]
 function _batchcollisions_native(qtrees::AbstractVector, indpairs; 
         colist=Vector{CoItem}(),
         queue::AbstractThreadQueue=thread_queue(),
-        at=(levelnum(qtrees[1]), 1, 1))
+        at=(length(qtrees[1]), 1, 1))
     sl = Threads.SpinLock()
     Threads.@threads for (i1, i2) in indpairs
         que = @inbounds queue[Threads.threadid()]
@@ -107,7 +107,7 @@ function _batchcollisions_native(qtrees::AbstractVector, inds::AbstractSet{<:Int
     _batchcollisions_native(qtrees, inds |> collect; kargs...)
 end
 function batchcollisions_native(qtrees::AbstractVector, inds=1:length(qtrees); kargs...)
-    l = levelnum(qtrees[1])
+    l = length(qtrees[1])
     inds = [i for i in inds if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
     _batchcollisions_native(qtrees, inds; kargs...)
 end
@@ -120,8 +120,8 @@ nullnode(n::RegionQTree{Int}) = INT_NULL_NODE
 region_qtree(ind::Index, parent=NULL_NODE) = RegionQTree{Any}(ind => [], parent, [NULL_NODE, NULL_NODE, NULL_NODE, NULL_NODE])
 int_region_qtree(ind::Index, parent=INT_NULL_NODE) = RegionQTree{Int}(ind => Vector{Int}(), parent, 
     [INT_NULL_NODE,INT_NULL_NODE,INT_NULL_NODE,INT_NULL_NODE])
-function locate!(qt::AbstractStackedQTree, regtree::QTreeNode=region_qtree((levelnum(qt), 1, 1)),
-    ind::Index=(levelnum(qt), 1, 1); label=qt, newnode=region_qtree)
+function locate!(qt::AbstractStackedQTree, regtree::QTreeNode=region_qtree((length(qt), 1, 1)),
+    ind::Index=(length(qt), 1, 1); label=qt, newnode=region_qtree)
     if qt[ind] == EMPTY
         return ind
     end
@@ -152,14 +152,14 @@ function locate_core!(qt::AbstractStackedQTree, regtree::QTreeNode,
     end
     locate_core!(qt, regtree.children[unemptyci], unempty, label, newnode)
 end
-function locate!(qts::AbstractVector, regtree::QTreeNode=int_region_qtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
+function locate!(qts::AbstractVector, regtree::QTreeNode=int_region_qtree((length(qts[1]), 1, 1))) # must have same length
     for (i, qt) in enumerate(qts)
         locate!(qt, regtree, label=i, newnode=int_region_qtree)
     end
     regtree
 end
 function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}, 
-        regtree::QTreeNode=int_region_qtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
+        regtree::QTreeNode=int_region_qtree((length(qts[1]), 1, 1))) # must have same length
     for i in inds
         locate!(qts[i], regtree, label=i, newnode=int_region_qtree)
     end
@@ -240,9 +240,9 @@ function batchcollisions(qtrees::AbstractVector, args...; kargs...)
 end
 
 ########## place!
-function findroom_uniform(ground, q=[(levelnum(ground), 1, 1)])
+function findroom_uniform(ground, q=[(length(ground), 1, 1)])
     if isempty(q)
-        push!(q, (levelnum(ground), 1, 1))
+        push!(q, (length(ground), 1, 1))
     end
     while !isempty(q)
         i = popfirst!(q)
@@ -268,7 +268,7 @@ function findroom_uniform(ground, q=[(levelnum(ground), 1, 1)])
 end
 function findroom_gathering(ground, q=[]; level=5, p=2)
     if isempty(q)
-        l = max(1, levelnum(ground) - level)
+        l = max(1, length(ground) - level)
         s = size(ground[l], 1)
         append!(q, ((l, i, j) for i in 1:s for j in 1:s if ground[l, i, j] != FULL))
     end

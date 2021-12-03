@@ -2,7 +2,7 @@ module QTrees
 export AbstractStackedQTree, StackedQTree, ShiftedQTree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
     collision, collision_dfs, batchcollisions,
-    findroom_uniform, findroom_gathering, levelnum, outofbounds, outofkernelbounds, 
+    findroom_uniform, findroom_gathering, outofbounds, outofkernelbounds, 
     kernelsize, place!, overlap, overlap!, decode, charimage
 
 using Random
@@ -38,9 +38,9 @@ Base.@propagate_inbounds Base.getindex(t::AbstractStackedQTree, l, r, c) = t[l][
 Base.@propagate_inbounds Base.getindex(t::AbstractStackedQTree, inds) = t[inds...]
 Base.@propagate_inbounds Base.setindex!(t::AbstractStackedQTree, v, l, r, c) =  t[l][r, c] = v
 Base.@propagate_inbounds Base.setindex!(t::AbstractStackedQTree, v, inds) = setindex!(t, v, inds...)
-function levelnum(t::AbstractStackedQTree) end
-Base.lastindex(t::AbstractStackedQTree) = levelnum(t)
-Base.size(t::AbstractStackedQTree) = levelnum(t) > 0 ? size(t[1]) : (0,)
+function Base.length(t::AbstractStackedQTree) end
+Base.lastindex(t::AbstractStackedQTree) = length(t)
+Base.size(t::AbstractStackedQTree) = length(t) > 0 ? size(t[1]) : (0,)
 Base.broadcastable(t::AbstractStackedQTree) = Ref(t)
 
 ################ StackedQTree
@@ -69,10 +69,10 @@ function StackedQTree(pic::AbstractMatrix)
 end
 
 Base.@propagate_inbounds Base.getindex(t::StackedQTree, l::Integer) = t.layers[l]
-levelnum(t::StackedQTree) = length(t.layers)
+Base.length(t::StackedQTree) = length(t.layers)
 
 function buildqtree!(t::AbstractStackedQTree, layer=2)
-    for l in layer:levelnum(t)
+    for l in layer:length(t)
         for r in 1:size(t[l], 1)
             for c in 1:size(t[l], 2)
                 @inbounds qcode!(t, (l, r, c))
@@ -176,11 +176,11 @@ function ShiftedQTree(pic::AbstractMatrix, args...; kargs...)
     ShiftedQTree(pic, args...; kargs...)
 end
 Base.@propagate_inbounds Base.getindex(t::ShiftedQTree, l::Integer) = t.layers[l]
-levelnum(t::ShiftedQTree) = length(t.layers)
+Base.length(t::ShiftedQTree) = length(t.layers)
 inkernelbounds(t::ShiftedQTree, l, a, b) = inkernelbounds(t[l], a, b)
 inkernelbounds(t::ShiftedQTree, ind) = inkernelbounds(t, ind...)
 function buildqtree!(t::ShiftedQTree, layer=2)
-    for l in layer:levelnum(t)
+    for l in layer:length(t)
         m = rshift(t[l - 1])
         n = cshift(t[l - 1])
         m2 = floor(Int, m / 2)
@@ -303,8 +303,8 @@ charimage(qt::ShiftedQTree; maxlen=49) = charimage(qt[max(1, ceil(Int, log2(size
 Base.show(io::IO, m::MIME"text/plain", mat::PaddedMat) = print(io, "PaddedMat $(size(mat)):\n", charimage(mat))
 function Base.show(io::IO, m::MIME"text/plain", qt::ShiftedQTree)
     showlevel = max(1, ceil(Int, log2(size(qt[1], 1) / 49)) + 1)
-    print(io, "ShiftedQTree{", levelnum(qt))
-    if levelnum(qt) > 0
+    print(io, "ShiftedQTree{", length(qt))
+    if length(qt) > 0
         print(io, "-", size(qt[1]), "}  @level-", showlevel, ":\n", charimage(qt[showlevel], maxlen=49))
     else
         print(io, "} {}")

@@ -290,7 +290,7 @@ trainepoch_P!(;inputs) = Dict(:colist => Vector{Tuple{Int,Int}}(),
                             :queue => QTrees.thread_queue(),
                             :nearlist => Vector{Tuple{Int,Int}}())
 trainepoch_P!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 100), s, nothing)
-function trainepoch_P!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, nearlevel=-levelnum(qtrees[1]) / 2, 
+function trainepoch_P!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, nearlevel=-length(qtrees[1]) / 2, 
     nearlist=Vector{Tuple{Int,Int}}(), colist=Vector{Tuple{Int,Int}}(), kargs...)
     nearlevel = min(-1, nearlevel)
     indpairs = [(i, j) for i in 1:length(qtrees) for j in i+1:length(qtrees)]
@@ -320,8 +320,8 @@ trainepoch_P2!(;inputs) = Dict(:colist => Vector{Tuple{Int,Int}}(),
                             :nearlist2 => Vector{Tuple{Int,Int}}())
 trainepoch_P2!(s::Symbol) = get(Dict(:patient => 2, :nepoch => 100), s, nothing)
 function trainepoch_P2!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, 
-    nearlevel1=-levelnum(qtrees[1]) * 0.75, 
-    nearlevel2=-levelnum(qtrees[1]) * 0.5, 
+    nearlevel1=-length(qtrees[1]) * 0.75, 
+    nearlevel2=-length(qtrees[1]) * 0.5, 
     nearlist1=Vector{Tuple{Int,Int}}(), 
     nearlist2=Vector{Tuple{Int,Int}}(), 
     colist=Vector{Tuple{Int,Int}}(),
@@ -357,7 +357,7 @@ function trainepoch_P2!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ
     nc
 end
 
-function levelpools(qtrees, levels=[-levelnum(qtrees[1]):3:-3..., -1])
+function levelpools(qtrees, levels=[-length(qtrees[1]):3:-3..., -1])
     pools = [i => Vector{Tuple{Int,Int}}() for i in levels]
 #     @show typeof(pools)
     l = length(qtrees)
@@ -384,7 +384,7 @@ function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree};
     for niter in 1:typemax(Int)
         if outpool !== nothing empty!(outpool) end
         nc = filttrain!(qtrees, inpool, outpool, outlevel, optimiser=optimiser; kargs...)
-        if first(levelpools[1]) < -levelnum(qtrees[1]) + 2
+        if first(levelpools[1]) < -length(qtrees[1]) + 2
             r = outpool !== nothing ? length(outpool) / length(inpool) : 1
             @info string(niter, "#"^(-first(levelpools[1])), "$(first(levelpools[1])) pool:$(length(inpool))($r) nc:$nc ")
         end

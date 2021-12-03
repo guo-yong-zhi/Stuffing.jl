@@ -15,15 +15,15 @@ testqtree = Stuffing.testqtree
     QTrees.overlap!(qt2, qt)
     testqtree(qt2)
     qt = ShiftedQTree(rand((0, 0, 1), 1, 1)) |> buildqtree!
-    @test QTrees.levelnum(qt) == 1
+    @test QTrees.length(qt) == 1
     qt = ShiftedQTree(rand((0, 0, 1), 1, 2)) |> buildqtree!
-    @test QTrees.levelnum(qt) == 2
+    @test QTrees.length(qt) == 2
     @test_throws  AssertionError qt = ShiftedQTree(rand((0, 0, 1), 0, 0)) |> buildqtree!
 
     qt = ShiftedQTree(rand((0, 0, 0, 1), rand(50:300), rand(50:300)), 512) |> buildqtree!
     li = QTrees.locate!(qt)
     @test qt[li] != QTrees.EMPTY
-    for l in QTrees.levelnum(qt)
+    for l in QTrees.length(qt)
         if l >= li[1]
             @test sum(qt[li[1]] .!= QTrees.EMPTY) <= 1
         else
