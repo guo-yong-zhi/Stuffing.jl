@@ -294,8 +294,16 @@ function charmat(mat; maxlen=49)
     if m <= maxlen && n <= maxlen
         return map(x -> 0 < x < 4 ? ("░", "▓", "▒")[x] : "▞", mat)
     elseif m > maxlen
+        _n = min(maxlen, n) - 5
+        if _n > 0
+            _n2 = _n-_n÷2
+            vsp = vcat(["⋮"], repeat([" "], _n2÷2), ["⋮"], repeat([" "], _n2-_n2÷2), ["⋱"], 
+            repeat([" "], _n÷4), ["⋮"], repeat([" "], _n÷2-_n÷4), ["⋮"])
+        else
+            vsp = repeat(["⋮"], min(maxlen, n))
+        end
         return vcat(charmat(@view(mat[1:half, :]), maxlen=maxlen),
-            reshape(repeat([" ⋮"], min(maxlen, n)), 1, min(maxlen, n)),
+            reshape(vsp, 1, min(maxlen, n)),
             charmat(@view(mat[end - half + 1:end, :]), maxlen=maxlen))
     else
         return hcat(charmat(@view(mat[:, 1:half]), maxlen=maxlen),
