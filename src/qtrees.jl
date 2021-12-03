@@ -1,7 +1,7 @@
 module QTrees
 export AbstractStackQTree, StackQTree, ShiftedQTree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
-    collision, collision_dfs, collision_randbfs, batchcollisions,
+    collision, collision_dfs, batchcollisions,
     findroom_uniform, findroom_gathering, levelnum, outofbounds, outofkernelbounds, 
     kernelsize, place!, overlap, overlap!, decode, charimage
 
@@ -24,10 +24,10 @@ function indexrange(l::Integer, a::Integer, b::Integer)
     r * (a - 1) + 1:r * a, r * (b - 1) + 1:r * b
 end
 indexrange(ind) = indexrange(ind...)
-@inline function qcode(Q, i)
-    @inbounds (Q[child(i, 1)] | Q[child(i, 2)] | Q[child(i, 3)] | Q[child(i, 4)])
+Base.@propagate_inbounds function qcode(Q, i)
+    (Q[child(i, 1)] | Q[child(i, 2)] | Q[child(i, 3)] | Q[child(i, 4)])
 end
-@inline qcode!(Q, i) = @inbounds Q[i] = qcode(Q, i)
+Base.@propagate_inbounds qcode!(Q, i) = Q[i] = qcode(Q, i)
 decode(c) = (0., 1., 0.5)[c]
 
 const FULL = 0x02; EMPTY = 0x01; MIX = 0x03
@@ -75,7 +75,7 @@ function buildqtree!(t::AbstractStackQTree, layer=2)
     for l in layer:levelnum(t)
         for r in 1:size(t[l], 1)
             for c in 1:size(t[l], 2)
-                qcode!(t, (l, r, c))
+                @inbounds qcode!(t, (l, r, c))
             end
         end
     end
@@ -98,13 +98,11 @@ function PaddedMat(l::T, sz::Tuple{Int,Int}=size(l), rshift=0, cshift=0; default
 end
 function PaddedMat{T}(kernelsz::Tuple{Int,Int}, sz::Tuple{Int,Int}=size(l), 
     rshift=0, cshift=0; default=0x00) where {T <: AbstractMatrix{UInt8}}
-    k = similar(T, kernelsz .+ 3)
+    k = similar(T, kernelsz .+ 3) # +3 to keep top-down getindex in _collision_randbfs within the kernel bounds
     k[[1, end - 1, end], :] .= default
     k[:, [1, end - 1, end]] .= default
     PaddedMat(k, sz, rshift, cshift, default)
 end
-# PaddedMat{T}(l::T, sz::Tuple{Int,Int}=size(l).-2, rshift=0, 
-# cshift=0; default=0x00) where {T <: AbstractMatrix{UInt8}} = PaddedMat(l, sz, rshift, cshift; default=default)
 
 rshift!(l::PaddedMat, v) = l.rshift += v
 cshift!(l::PaddedMat, v) = l.cshift += v
@@ -134,7 +132,8 @@ kernelsize(l::PaddedMat, i) = size(l.kernel, i) - 3
 kernel(l::PaddedMat) = l.kernel
 function Base.checkbounds(l::PaddedMat, I...) end # 关闭边界检查，允许负索引、超界索引
 Base.@propagate_inbounds function Base.getindex(l::PaddedMat, r, c)
-    @boundscheck if !inkernelbounds(l, r, c)
+    #if this function is called with @inbounds, that assume not only `inbounds` but also `inkernelbounds`
+    @boundscheck if !inkernelbounds(l, r, c) 
         return l.default
     end
     return @inbounds l.kernel[r - l.rshift + 1, c - l.cshift + 1]
@@ -159,7 +158,6 @@ function ShiftedQTree(pic::PaddedMat{T}) where T
     while sz != 1
         sz ÷= 2
         m, n = m ÷ 2 + 1, n ÷ 2 + 1
-#         @show m,n
         push!(l, PaddedMat{T}((m, n), (sz, sz), default=getdefault(pic)))
     end
     ShiftedQTree(l)
@@ -192,7 +190,7 @@ function buildqtree!(t::ShiftedQTree, layer=2)
         for r in 1:kernelsize(t[l])[1]
             for c in 1:kernelsize(t[l])[2]
 #                 @show (l,m2+r,n2+c)
-                qcode!(t, (l, m2 + r, n2 + c))
+                @inbounds qcode!(t, (l, m2 + r, n2 + c))
             end
         end
     end
@@ -253,8 +251,8 @@ kernelsize(t::ShiftedQTree, l::Integer=1) = kernelsize(t[l])
 getcenter(t::ShiftedQTree) = getshift(t) .+ kernelsize(t) .÷ 2
 getcenter(l::Integer, a::Integer, b::Integer) = indexcenter(l, a, b)
 getcenter(ind::Tuple{Integer,Integer,Integer}) = getcenter(ind...)
-callefttop(t::ShiftedQTree, center) = center .- kernelsize(t) .÷  2
-setcenter!(t::ShiftedQTree, center) = setshift!(t, callefttop(t, center))
+center2lefttop(t::ShiftedQTree, center) = center .- kernelsize(t) .÷  2
+setcenter!(t::ShiftedQTree, center) = setshift!(t, center2lefttop(t, center))
 function inbounds(bgqt::ShiftedQTree, qt::ShiftedQTree)
     inbounds(bgqt[1], getcenter(qt)...)
 end

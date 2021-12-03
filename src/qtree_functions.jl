@@ -1,5 +1,5 @@
 ########## batchcollisions
-function collision_dfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, i=(levelnum(Q1), 1, 1))
+function collision_dfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, i=(levelnum(Q1), 1, 1)) #faster than _collision_randbfs (6:7)
 #     @assert size(Q1) == size(Q2)
     n1 = Q1[i]
     n2 = Q2[i]
@@ -17,7 +17,7 @@ function collision_dfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, i=(leveln
     end
     return r # no collision
 end
-function collision_randbfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, q::AbstractVector{Index}=[(levelnum(Q1), 1, 1)])
+function _collision_randbfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, q::AbstractVector{Index}=[(levelnum(Q1), 1, 1)])
 #     @assert size(Q1) == size(Q2)
     if isempty(q)
         push!(q, (levelnum(Q1), 1, 1))
@@ -55,7 +55,7 @@ function collision(Q1::AbstractStackQTree, Q2::AbstractStackQTree)
     l = levelnum(Q1)
     @assert l == levelnum(Q2)
     if inkernelbounds(Q1, l, 1, 1) && inkernelbounds(Q2, l, 1, 1)
-        return collision_randbfs(Q1, Q2, [(l, 1, 1)])
+        return _collision_randbfs(Q1, Q2, [(l, 1, 1)])
     else
         return -l, 1, 1
     end
@@ -73,7 +73,7 @@ function _batchcollisions_native(qtrees::AbstractVector, indpairs;
         que = @inbounds queue[Threads.threadid()]
         empty!(que)
         push!(que, at)
-        cp = @inbounds collision_randbfs(qtrees[i1], qtrees[i2], que)
+        cp = @inbounds _collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
             lock(sl) do
                 push!(colist, (i1, i2) => cp)
@@ -89,7 +89,7 @@ function _batchcollisions_native(qtrees::AbstractVector, indpairs::Vector{CoItem
         que = @inbounds queue[Threads.threadid()]
         empty!(que)
         push!(que, at)
-        cp = @inbounds collision_randbfs(qtrees[i1], qtrees[i2], que)
+        cp = @inbounds _collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
             lock(sl) do
                 push!(colist, (i1, i2) => cp)
@@ -123,7 +123,7 @@ int_region_qtree(ind::Index, parent=INT_NULL_NODE) = RegionQTree{Int}(ind => Vec
 function locate!(qt::AbstractStackQTree, regtree::QTreeNode=region_qtree((levelnum(qt), 1, 1)),
     ind::Index=(levelnum(qt), 1, 1); label=qt, newnode=region_qtree)
     if qt[ind] == EMPTY
-        return regtree
+        return ind
     end
     locate_core!(qt, regtree, ind, label, newnode)
 end
@@ -131,7 +131,7 @@ function locate_core!(qt::AbstractStackQTree, regtree::QTreeNode,
     ind::Index, label, newnode)
     if ind[1] == 1
         push!(regtree.value.second, label)
-        return regtree
+        return ind
     end
     unempty = (-1, -1, -1)
     unemptyci = -1
@@ -143,7 +143,7 @@ function locate_core!(qt::AbstractStackQTree, regtree::QTreeNode,
                 unemptyci = ci
             else
                 push!(regtree.value.second, label)
-                return regtree # multiple empty child
+                return ind # multiple empty child
             end
         end
     end
@@ -166,10 +166,10 @@ function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSe
     regtree
 end
 
-function _outkernelcollision(qtrees, pos, inds, acinds, colist)
+function outkernelcollision(qtrees, pos, inds, acinds, colist)
     ininds = Int[]
     for pind in acinds
-        # check here because there are no bounds checking in collision_randbfs
+        # check here because there are no bounds checking in _collision_randbfs
         if inkernelbounds(@inbounds(qtrees[pind][pos[1]]), pos[2], pos[3])
             push!(ininds, pind)
         elseif getdefault(@inbounds(qtrees[pind][1])) == QTrees.FULL
@@ -204,7 +204,7 @@ function batchcollisions_region(qtrees::AbstractVector, regtree::QTreeNode; coli
         if indslen > 0
             while p !== nullnode(regtree)
                 acinds = p.value.second
-                acinds = _outkernelcollision(qtrees, pos, inds, acinds, colist)
+                acinds = outkernelcollision(qtrees, pos, inds, acinds, colist)
                 if length(acinds) > 0
                     # append!(pairlist, (((i, pi), pos) for i in inds for pi in acinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢
                     # append!(pairlist, [((i, pi), pos) for i in inds for pi in acinds]) 
@@ -254,7 +254,7 @@ function findroom_uniform(ground, q=[(levelnum(ground), 1, 1)])
                 ci = child(i, cn)
                 if ground[ci] == EMPTY
                     if rand() < 0.7 # 避免每次都是局部最优
-                        return ci 
+                        return ci
                     else
                         push!(q, ci)
                     end
@@ -321,7 +321,7 @@ function overlap!(p1::PaddedMat, p2::PaddedMat)
     rs, cs = getshift(p2)
     for i in 1:kernelsize(p2)[1]
         for j in 1:kernelsize(p2)[2]
-            p1[rs + i, cs + j] = overlap(p1[rs + i, cs + j], p2[rs + i, cs + j])
+            @inbounds (p1[rs + i, cs + j] = overlap(p1[rs + i, cs + j], p2[rs + i, cs + j]))
         end
     end
     return p1
@@ -332,15 +332,15 @@ function overlap2!(tree1::ShiftedQTree, tree2::ShiftedQTree)
     tree1 |> buildqtree!
 end
 
-function overlap!(tree1::ShiftedQTree, tree2::ShiftedQTree, ind::Index)
-    if !(tree1[ind] == FULL || tree2[ind] == EMPTY)
+function _overlap!(tree1::ShiftedQTree, tree2::ShiftedQTree, ind::Index)
+    if @inbounds !(tree1[ind] == FULL || tree2[ind] == EMPTY)
         if ind[1] == 1
-            tree1[ind] = FULL
+            @inbounds tree1[ind] = FULL
         else
             for ci in 1:4
-                overlap!(tree1, tree2, child(ind, ci))
+                _overlap!(tree1, tree2, child(ind, ci))
             end
-            qcode!(tree1, ind)
+            @inbounds qcode!(tree1, ind)
         end
     end
     tree1
@@ -349,7 +349,7 @@ end
 function overlap!(tree1::ShiftedQTree, tree2::ShiftedQTree)
     @assert lastindex(tree1) == lastindex(tree2)
     @assert size(tree1[end]) == size(tree2[end]) == (1, 1)
-    overlap!(tree1, tree2, (lastindex(tree1), 1, 1))
+    _overlap!(tree1, tree2, (lastindex(tree1), 1, 1))
 end
 
 function overlap!(tree::ShiftedQTree, trees::AbstractVector)

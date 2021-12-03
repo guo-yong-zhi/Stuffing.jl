@@ -22,7 +22,7 @@ testqtree = Stuffing.testqtree
     @test_throws  AssertionError qt = ShiftedQTree(rand((0, 0, 1), 0, 0)) |> buildqtree!
 
     qt = ShiftedQTree(rand((0, 0, 0, 1), rand(50:300), rand(50:300)), 512) |> buildqtree!
-    li = QTrees.locate(qt)
+    li = QTrees.locate!(qt)
     @test qt[li] != QTrees.EMPTY
     for l in QTrees.levelnum(qt)
         if l >= li[1]

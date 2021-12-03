@@ -266,7 +266,7 @@ function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser,
     sl2 = Threads.SpinLock()
     Threads.@threads for (i1, i2) in inpool |> shuffle!
         que = queue[Threads.threadid()]
-        cp = collision_randbfs(qtrees[i1], qtrees[i2], empty!(que))
+        cp = QTrees._collision_randbfs(qtrees[i1], qtrees[i2], empty!(que))
         if cp[1] >= nearlevel2
             if outpool !== nothing
                 lock(sl1) do
