@@ -13,7 +13,7 @@ include("utils.jl")
 
 function qtree(pic::AbstractArray{Bool,2}, args...)
     pic = map(x -> ifelse(x, QTrees.FULL, QTrees.EMPTY), pic)
-    qt = ShiftedQtree(pic, args..., default=QTrees.EMPTY) |> buildqtree!
+    qt = ShiftedQTree(pic, args..., default=QTrees.EMPTY) |> buildqtree!
 #     @show size(pic),m,s
     return qt
 end
@@ -26,7 +26,7 @@ function maskqtree(pic::AbstractArray{Bool,2})
     ms = max(size(pic)...)
     b = max(ms * 0.024, 20)
     s = 2^ceil(Int, log2(ms + b))
-    qt = ShiftedQtree(pic, s, default=QTrees.FULL)
+    qt = ShiftedQTree(pic, s, default=QTrees.FULL)
 #     @show size(pic),m,s
     a, b = size(pic)
     setrshift!(qt[1], (s - a) ÷ 2)
@@ -38,7 +38,7 @@ function maskqtree(pic::AbstractMatrix; background=pic[1])
 end
 # appointment: the first one is mask
 function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
-    ts = Vector{Stuffing.QTrees.ShiftedQtree}()
+    ts = Vector{Stuffing.QTrees.ShiftedQTree}()
     if mask !== nothing
         mq = maskbackground == :auto ? maskqtree(mask) : maskqtree(mask; background=maskbackground)
         push!(ts, mq)
@@ -54,30 +54,30 @@ function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
 end
 qtrees(mask, pics; kargs...) = qtrees(pics; mask=mask, kargs...)
 
-function QTrees.place!(qtrees::AbstractVector{<:ShiftedQtree}; karg...)
+function QTrees.place!(qtrees::AbstractVector{<:ShiftedQTree}; karg...)
     ind = QTrees.place!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
     if ind === nothing error("no room for placement") end
     qtrees
 end
-function QTrees.place!(qtrees::AbstractVector{<:ShiftedQtree}, inds; karg...)
+function QTrees.place!(qtrees::AbstractVector{<:ShiftedQTree}, inds; karg...)
     ind = QTrees.place!(deepcopy(qtrees[1]), qtrees[2:end], inds .- 1; karg...)
     if ind === nothing error("no room for placement") end
     qtrees
 end
-QTrees.overlap!(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTrees.overlap!(qtrees[1], qtrees[2:end]; karg...)
-QTrees.overlap(qtrees::AbstractVector{<:ShiftedQtree}; karg...) = QTrees.overlap!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
+QTrees.overlap!(qtrees::AbstractVector{<:ShiftedQTree}; karg...) = QTrees.overlap!(qtrees[1], qtrees[2:end]; karg...)
+QTrees.overlap(qtrees::AbstractVector{<:ShiftedQTree}; karg...) = QTrees.overlap!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
 
-function getpositions(mask::ShiftedQtree, qtrees::AbstractVector, inds=:; type=getshift)
+function getpositions(mask::ShiftedQTree, qtrees::AbstractVector, inds=:; type=getshift)
     msy, msx = getshift(mask)
     pos = type.(qtrees[inds])
     pos = eltype(pos) <: Number ? Ref(pos) : pos
     Broadcast.broadcast(p -> (p[2] - msx + 1, p[1] - msy + 1), pos) # 左上角重合时返回(1,1)
 end
-function getpositions(qtrees::AbstractVector{<:ShiftedQtree}, inds=:; type=getshift)
+function getpositions(qtrees::AbstractVector{<:ShiftedQTree}, inds=:; type=getshift)
     @assert length(qtrees) >= 1
     getpositions(qtrees[1], @view(qtrees[2:end]), inds, type=type)
 end
-function setpositions!(mask::ShiftedQtree, qtrees::AbstractVector, inds, x_y; type=setshift!)
+function setpositions!(mask::ShiftedQTree, qtrees::AbstractVector, inds, x_y; type=setshift!)
     msy, msx = getshift(mask)
     x_y = eltype(x_y) <: Number ? Ref(x_y) : x_y
     Broadcast.broadcast(qtrees[inds], x_y) do qt, p
@@ -85,7 +85,7 @@ function setpositions!(mask::ShiftedQtree, qtrees::AbstractVector, inds, x_y; ty
     end
     x_y
 end
-function setpositions!(qtrees::AbstractVector{<:ShiftedQtree}, inds, x_y; type=setshift!)
+function setpositions!(qtrees::AbstractVector{<:ShiftedQTree}, inds, x_y; type=setshift!)
     @assert length(qtrees) >= 1
     setpositions!(qtrees[1], @view(qtrees[2:end]), inds, x_y, type=type)
 end

@@ -1,5 +1,5 @@
 ########## batchcollisions
-function collision_dfs(Q1::AbstractStackQtree, Q2::AbstractStackQtree, i=(levelnum(Q1), 1, 1))
+function collision_dfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, i=(levelnum(Q1), 1, 1))
     #     @show i
 #     @assert size(Q1) == size(Q2)
     n1 = Q1[i]
@@ -22,7 +22,7 @@ function collision_dfs(Q1::AbstractStackQtree, Q2::AbstractStackQtree, i=(leveln
 end
 # q1cc = [0,0,0]
 # q2cc = [0,0,0]
-function collision_randbfs(Q1::AbstractStackQtree, Q2::AbstractStackQtree, q=[(levelnum(Q1), 1, 1)])
+function collision_randbfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, q=[(levelnum(Q1), 1, 1)])
 #     @assert size(Q1) == size(Q2)
     if isempty(q)
         push!(q, (levelnum(Q1), 1, 1))
@@ -59,7 +59,7 @@ function collision_randbfs(Q1::AbstractStackQtree, Q2::AbstractStackQtree, q=[(l
     end
     return -i[1], i[2], i[3] # no collision
 end
-function collision(Q1::AbstractStackQtree, Q2::AbstractStackQtree)
+function collision(Q1::AbstractStackQTree, Q2::AbstractStackQTree)
     l = levelnum(Q1)
     @assert l == levelnum(Q2)
     if inkernelbounds(Q1, l, 1, 1) && inkernelbounds(Q2, l, 1, 1)
@@ -122,7 +122,7 @@ function batchcollisions_native(qtrees::AbstractVector, inds=1:length(qtrees); k
     inds = [i for i in inds if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
     _batchcollisions_native(qtrees, inds; kargs...)
 end
-function locate(qt::AbstractStackQtree, ind::Index=(levelnum(qt), 1, 1))
+function locate(qt::AbstractStackQTree, ind::Index=(levelnum(qt), 1, 1))
     if qt[ind] == EMPTY
         return ind
     end
@@ -140,22 +140,22 @@ function locate(qt::AbstractStackQtree, ind::Index=(levelnum(qt), 1, 1))
     return locate(qt, unempty)
 end
 
-RegionQtree{T} = QtreeNode{Pair{Index, Vector{T}}}
-const NULL_NODE = RegionQtree{Any}()
-const INT_NULL_NODE = RegionQtree{Int}()
-nullnode(n::RegionQtree) = NULL_NODE
-nullnode(n::RegionQtree{Int}) = INT_NULL_NODE
-region_qtree(ind::Index, parent=NULL_NODE) = RegionQtree{Any}(ind => [], parent, [NULL_NODE, NULL_NODE, NULL_NODE, NULL_NODE])
-int_region_qtree(ind::Index, parent=INT_NULL_NODE) = RegionQtree{Int}(ind => Vector{Int}(), parent, 
+RegionQTree{T} = QTreeNode{Pair{Index, Vector{T}}}
+const NULL_NODE = RegionQTree{Any}()
+const INT_NULL_NODE = RegionQTree{Int}()
+nullnode(n::RegionQTree) = NULL_NODE
+nullnode(n::RegionQTree{Int}) = INT_NULL_NODE
+region_qtree(ind::Index, parent=NULL_NODE) = RegionQTree{Any}(ind => [], parent, [NULL_NODE, NULL_NODE, NULL_NODE, NULL_NODE])
+int_region_qtree(ind::Index, parent=INT_NULL_NODE) = RegionQTree{Int}(ind => Vector{Int}(), parent, 
     [INT_NULL_NODE,INT_NULL_NODE,INT_NULL_NODE,INT_NULL_NODE])
-function locate!(qt::AbstractStackQtree, regtree::QtreeNode=region_qtree((levelnum(qt), 1, 1)),
+function locate!(qt::AbstractStackQTree, regtree::QTreeNode=region_qtree((levelnum(qt), 1, 1)),
     ind::Index=(levelnum(qt), 1, 1); label=qt, newnode=region_qtree)
     if qt[ind] == EMPTY
         return regtree
     end
     locate_core!(qt, regtree, ind, label, newnode)
 end
-function locate_core!(qt::AbstractStackQtree, regtree::QtreeNode,
+function locate_core!(qt::AbstractStackQTree, regtree::QTreeNode,
     ind::Index, label, newnode)
     if ind[1] == 1
         push!(regtree.value.second, label)
@@ -180,14 +180,14 @@ function locate_core!(qt::AbstractStackQtree, regtree::QtreeNode,
     end
     locate_core!(qt, regtree.children[unemptyci], unempty, label, newnode)
 end
-function locate!(qts::AbstractVector, regtree::QtreeNode=int_region_qtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
+function locate!(qts::AbstractVector, regtree::QTreeNode=int_region_qtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
     for (i, qt) in enumerate(qts)
         locate!(qt, regtree, label=i, newnode=int_region_qtree)
     end
     regtree
 end
 function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}, 
-        regtree::QtreeNode=int_region_qtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
+        regtree::QTreeNode=int_region_qtree((levelnum(qts[1]), 1, 1))) # must have same levelnum
     for i in inds
         locate!(qts[i], regtree, label=i, newnode=int_region_qtree)
     end
@@ -213,7 +213,7 @@ function _outkernelcollision(qtrees, pos, inds, acinds, colist)
 end
 
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
-function batchcollisions_region(qtrees::AbstractVector, regtree::QtreeNode; colist=Vector{CoItem}(), kargs...)
+function batchcollisions_region(qtrees::AbstractVector, regtree::QTreeNode; colist=Vector{CoItem}(), kargs...)
     # @assert regtree !== nullnode(regtree)
     nodequeue = [regtree]
     pairlist = Vector{CoItem}()
@@ -355,12 +355,12 @@ function overlap!(p1::PaddedMat, p2::PaddedMat)
     return p1
 end
 
-function overlap2!(tree1::ShiftedQtree, tree2::ShiftedQtree)
+function overlap2!(tree1::ShiftedQTree, tree2::ShiftedQTree)
     overlap!(tree1[1], tree2[1])
     tree1 |> buildqtree!
 end
 
-function overlap!(tree1::ShiftedQtree, tree2::ShiftedQtree, ind::Index)
+function overlap!(tree1::ShiftedQTree, tree2::ShiftedQTree, ind::Index)
     if !(tree1[ind] == FULL || tree2[ind] == EMPTY)
         if ind[1] == 1
             tree1[ind] = FULL
@@ -374,13 +374,13 @@ function overlap!(tree1::ShiftedQtree, tree2::ShiftedQtree, ind::Index)
     tree1
 end
 
-function overlap!(tree1::ShiftedQtree, tree2::ShiftedQtree)
+function overlap!(tree1::ShiftedQTree, tree2::ShiftedQTree)
     @assert lastindex(tree1) == lastindex(tree2)
     @assert size(tree1[end]) == size(tree2[end]) == (1, 1)
     overlap!(tree1, tree2, (lastindex(tree1), 1, 1))
 end
 
-function overlap!(tree::ShiftedQtree, trees::AbstractVector)
+function overlap!(tree::ShiftedQTree, trees::AbstractVector)
     for t in trees
         overlap!(tree, t)
     end
@@ -388,7 +388,7 @@ function overlap!(tree::ShiftedQtree, trees::AbstractVector)
 end
 
 "将sortedtrees依次叠加到ground上，同时修改sortedtrees的shift"
-function place!(ground::ShiftedQtree, sortedtrees::AbstractVector; kargs...)
+function place!(ground::ShiftedQTree, sortedtrees::AbstractVector; kargs...)
 #     pos = Vector{Tuple{Int, Int, Int}}()
     ind = nothing
     for t in sortedtrees
@@ -403,7 +403,7 @@ function place!(ground::ShiftedQtree, sortedtrees::AbstractVector; kargs...)
 #     return pos
 end
 
-function place!(ground::ShiftedQtree, qtree::ShiftedQtree; roomfinder=findroom_uniform, kargs...)
+function place!(ground::ShiftedQTree, qtree::ShiftedQTree; roomfinder=findroom_uniform, kargs...)
     ind = roomfinder(ground; kargs...)
     # @show ind
     if ind === nothing
@@ -413,7 +413,7 @@ function place!(ground::ShiftedQtree, qtree::ShiftedQtree; roomfinder=findroom_u
     return ind
 end
 
-function place!(ground::ShiftedQtree, sortedtrees::AbstractVector, index::Number; kargs...)
+function place!(ground::ShiftedQTree, sortedtrees::AbstractVector, index::Number; kargs...)
     for i in 1:length(sortedtrees)
         if i == index
             continue
@@ -422,7 +422,7 @@ function place!(ground::ShiftedQtree, sortedtrees::AbstractVector, index::Number
     end
     place!(ground, sortedtrees[index]; kargs...)
 end
-function place!(ground::ShiftedQtree, sortedtrees::AbstractVector, indexes; kargs...)
+function place!(ground::ShiftedQTree, sortedtrees::AbstractVector, indexes; kargs...)
     for i in 1:length(sortedtrees)
         if i in indexes
             continue

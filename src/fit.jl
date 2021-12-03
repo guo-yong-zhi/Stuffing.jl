@@ -37,9 +37,9 @@ Base.broadcastable(m::Momentum) = Ref(m)
 # near(m::AbstractMatrix, a::Integer, b::Integer, r=1) = @view m[near(a, b, r)...]
 # const KERNEL = collect.(Iterators.product(-1:1,-1:1))
 # gard2d(m::AbstractMatrix) = sum(KERNEL .* m)
-# gard2d(t::ShiftedQtree, l, a, b) = gard2d(decode2(near(t[l],a,b)))|>Tuple
+# gard2d(t::ShiftedQTree, l, a, b) = gard2d(decode2(near(t[l],a,b)))|>Tuple
 
-function gard2d(t::ShiftedQtree, l, a, b) # FULL is white, Positive directions are right & down 
+function gard2d(t::ShiftedQTree, l, a, b) # FULL is white, Positive directions are right & down 
     m = t[l]
     diag = -decode2(m[a - 1, b - 1]) + decode2(m[a + 1, b + 1])
     cdiag = -decode2(m[a - 1, b + 1]) + decode2(m[a + 1, b - 1])
@@ -133,7 +133,7 @@ end
 "element-wise trainer"
 trainepoch_E!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), :queue => QTrees.thread_queue())
 trainepoch_E!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
-function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ) -> Δ ./ 6, 
+function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, 
     colist=trainepoch_E!(:colist), kargs...)
     batchcollisions(qtrees, colist=empty!(colist); kargs...)
     nc = length(colist)
@@ -154,7 +154,7 @@ trainepoch_EM!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :queue => QTrees.thread_queue(), 
                             :memory => intlru(length(inputs)))
 trainepoch_EM!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
-function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
+function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
     colist=Vector{QTrees.CoItem}(), kargs...)
     batchcollisions(qtrees, colist=empty!(colist); kargs...)
     nc = length(colist)
@@ -181,7 +181,7 @@ end
 "element-wise trainer with LRU(more levels)"
 trainepoch_EM2!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM2!(s::Symbol) = trainepoch_EM!(s)
-function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
+function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
     colist=Vector{QTrees.CoItem}(), kargs...)
     batchcollisions(qtrees, colist=empty!(colist); kargs...)
     nc = length(colist)
@@ -217,7 +217,7 @@ end
 "element-wise trainer with LRU(more-more levels)"
 trainepoch_EM3!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM3!(s::Symbol) = trainepoch_EM!(s)
-function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
+function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
     colist=Vector{QTrees.CoItem}(), kargs...)
     batchcollisions(qtrees, colist=empty!(colist); kargs...)
     nc = length(colist)
@@ -290,7 +290,7 @@ trainepoch_P!(;inputs) = Dict(:colist => Vector{Tuple{Int,Int}}(),
                             :queue => QTrees.thread_queue(),
                             :nearlist => Vector{Tuple{Int,Int}}())
 trainepoch_P!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 100), s, nothing)
-function trainepoch_P!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ) -> Δ ./ 6, nearlevel=-levelnum(qtrees[1]) / 2, 
+function trainepoch_P!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, nearlevel=-levelnum(qtrees[1]) / 2, 
     nearlist=Vector{Tuple{Int,Int}}(), colist=Vector{Tuple{Int,Int}}(), kargs...)
     nearlevel = min(-1, nearlevel)
     indpairs = [(i, j) for i in 1:length(qtrees) for j in i+1:length(qtrees)]
@@ -319,7 +319,7 @@ trainepoch_P2!(;inputs) = Dict(:colist => Vector{Tuple{Int,Int}}(),
                             :nearlist1 => Vector{Tuple{Int,Int}}(),
                             :nearlist2 => Vector{Tuple{Int,Int}}())
 trainepoch_P2!(s::Symbol) = get(Dict(:patient => 2, :nepoch => 100), s, nothing)
-function trainepoch_P2!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ) -> Δ ./ 6, 
+function trainepoch_P2!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, 
     nearlevel1=-levelnum(qtrees[1]) * 0.75, 
     nearlevel2=-levelnum(qtrees[1]) * 0.5, 
     nearlist1=Vector{Tuple{Int,Int}}(), 
@@ -372,7 +372,7 @@ end
 trainepoch_Px!(;inputs) = Dict(:levelpools => levelpools(inputs),
                             :queue => QTrees.thread_queue())
 trainepoch_Px!(s::Symbol) = get(Dict(:patient => 1, :nepoch => 10), s, nothing)
-function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQtree}; 
+function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree}; 
     levelpools::AbstractVector{<:Pair{Int,<:AbstractVector{Tuple{Int,Int}}}}=levelpools(qtrees),
     optimiser=(t, Δ) -> Δ ./ 6, kargs...)
     # last_nc = typemax(Int)

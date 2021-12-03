@@ -1,5 +1,5 @@
 module QTrees
-export AbstractStackQtree, StackQtree, ShiftedQtree, buildqtree!,
+export AbstractStackQTree, StackQTree, ShiftedQTree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
     collision, collision_dfs, collision_randbfs, batchcollisions,
     findroom_uniform, findroom_gathering, levelnum, outofbounds, outofkernelbounds, 
@@ -32,30 +32,30 @@ decode(c) = (0., 1., 0.5)[c]
 
 const FULL = 0x02; EMPTY = 0x01; MIX = 0x03
 
-abstract type AbstractStackQtree end
-function Base.getindex(t::AbstractStackQtree, l::Integer) end
-Base.getindex(t::AbstractStackQtree, l, r, c) = t[l][r, c]
-Base.getindex(t::AbstractStackQtree, inds::Index) = t[inds...]
-Base.setindex!(t::AbstractStackQtree, v, l, r, c) =  t[l][r, c] = v
-Base.setindex!(t::AbstractStackQtree, v, inds::Index) = t[inds...] = v
-@inline _getindex(t::AbstractStackQtree, inds) = _getindex(t, inds...)
-@inline _getindex(t::AbstractStackQtree, l, r, c) = @inbounds _getindex(t[l], r, c)
-@inline _setindex!(t::AbstractStackQtree, v, inds) = _setindex!(t, v, inds...)
-@inline _setindex!(t::AbstractStackQtree, v, l, r, c) = @inbounds t[l][r, c] = v
+abstract type AbstractStackQTree end
+function Base.getindex(t::AbstractStackQTree, l::Integer) end
+Base.getindex(t::AbstractStackQTree, l, r, c) = t[l][r, c]
+Base.getindex(t::AbstractStackQTree, inds::Index) = t[inds...]
+Base.setindex!(t::AbstractStackQTree, v, l, r, c) =  t[l][r, c] = v
+Base.setindex!(t::AbstractStackQTree, v, inds::Index) = t[inds...] = v
+@inline _getindex(t::AbstractStackQTree, inds) = _getindex(t, inds...)
+@inline _getindex(t::AbstractStackQTree, l, r, c) = @inbounds _getindex(t[l], r, c)
+@inline _setindex!(t::AbstractStackQTree, v, inds) = _setindex!(t, v, inds...)
+@inline _setindex!(t::AbstractStackQTree, v, l, r, c) = @inbounds t[l][r, c] = v
 # Base.setindex!中调用@boundscheck时用@inline无法成功内联致@propagate_inbounds失效，
 # 无法传递上层的@inbounds，故专门实现一个inbounds版的_setindex!
-function levelnum(t::AbstractStackQtree) end
-Base.lastindex(t::AbstractStackQtree) = levelnum(t)
-Base.size(t::AbstractStackQtree) = levelnum(t) > 0 ? size(t[1]) : (0,)
-Base.broadcastable(t::AbstractStackQtree) = Ref(t)
+function levelnum(t::AbstractStackQTree) end
+Base.lastindex(t::AbstractStackQTree) = levelnum(t)
+Base.size(t::AbstractStackQTree) = levelnum(t) > 0 ? size(t[1]) : (0,)
+Base.broadcastable(t::AbstractStackQTree) = Ref(t)
 
-################ StackQtree
-struct StackQtree{T <: AbstractVector{<:AbstractMatrix{UInt8}}} <: AbstractStackQtree
+################ StackQTree
+struct StackQTree{T <: AbstractVector{<:AbstractMatrix{UInt8}}} <: AbstractStackQTree
     layers::T
 end
 
-StackQtree(l::T) where T = StackQtree{T}(l)
-function StackQtree(pic::AbstractMatrix{UInt8})
+StackQTree(l::T) where T = StackQTree{T}(l)
+function StackQTree(pic::AbstractMatrix{UInt8})
     m, n = size(pic)
     @assert m == n
     @assert isinteger(log2(m))
@@ -66,18 +66,18 @@ function StackQtree(pic::AbstractMatrix{UInt8})
         m, n = size(l[end])
         push!(l, similar(pic, (m + 1) ÷ 2, (n + 1) ÷ 2))
     end
-    StackQtree(l)
+    StackQTree(l)
 end
 
-function StackQtree(pic::AbstractMatrix)
+function StackQTree(pic::AbstractMatrix)
     pic = map(x -> x == 0 ? EMPTY : FULL, pic)
-    StackQtree(pic)
+    StackQTree(pic)
 end
 
-Base.getindex(t::StackQtree, l::Integer) = t.layers[l]
-levelnum(t::StackQtree) = length(t.layers)
+Base.getindex(t::StackQTree, l::Integer) = t.layers[l]
+levelnum(t::StackQTree) = length(t.layers)
 
-function buildqtree!(t::AbstractStackQtree, layer=2)
+function buildqtree!(t::AbstractStackQTree, layer=2)
     for l in layer:levelnum(t)
         for r in 1:size(t[l], 1)
             for c in 1:size(t[l], 2)
@@ -88,7 +88,7 @@ function buildqtree!(t::AbstractStackQtree, layer=2)
 end
 
 
-################ ShiftedQtree
+################ ShiftedQTree
 mutable struct PaddedMat{T <: AbstractMatrix{UInt8}} <: AbstractMatrix{UInt8}
     kernel::T
     size::Tuple{Int,Int}
@@ -154,12 +154,12 @@ end
 
 Base.size(l::PaddedMat) = l.size
 
-struct ShiftedQtree{T <: AbstractVector{<:PaddedMat}} <: AbstractStackQtree
+struct ShiftedQTree{T <: AbstractVector{<:PaddedMat}} <: AbstractStackQTree
     layers::T
 end
 
-ShiftedQtree(l::T) where T = ShiftedQtree{T}(l)
-function ShiftedQtree(pic::PaddedMat{T}) where T
+ShiftedQTree(l::T) where T = ShiftedQTree{T}(l)
+function ShiftedQTree(pic::PaddedMat{T}) where T
     sz = size(pic, 1)
     @assert size(pic, 1) == size(pic, 2)
     @assert isinteger(log2(sz))
@@ -171,26 +171,26 @@ function ShiftedQtree(pic::PaddedMat{T}) where T
 #         @show m,n
         push!(l, PaddedMat{T}((m, n), (sz, sz), default=getdefault(pic)))
     end
-    ShiftedQtree(l)
+    ShiftedQTree(l)
 end
-function ShiftedQtree(pic::AbstractMatrix{UInt8}, sz::Integer; default=EMPTY)
+function ShiftedQTree(pic::AbstractMatrix{UInt8}, sz::Integer; default=EMPTY)
     @assert isinteger(log2(sz))
-    ShiftedQtree(PaddedMat(pic, (sz, sz), default=default))
+    ShiftedQTree(PaddedMat(pic, (sz, sz), default=default))
 end
-function ShiftedQtree(pic::AbstractMatrix{UInt8}; default=EMPTY)
+function ShiftedQTree(pic::AbstractMatrix{UInt8}; default=EMPTY)
     m = max(size(pic)...)
-    ShiftedQtree(pic, 2^ceil(Int, log2(m)), default=default)
+    ShiftedQTree(pic, 2^ceil(Int, log2(m)), default=default)
 end
-function ShiftedQtree(pic::AbstractMatrix, args...; kargs...)
+function ShiftedQTree(pic::AbstractMatrix, args...; kargs...)
     @assert !isempty(pic)
     pic = map(x -> x == 0 ? EMPTY : FULL, pic)
-    ShiftedQtree(pic, args...; kargs...)
+    ShiftedQTree(pic, args...; kargs...)
 end
-Base.@propagate_inbounds Base.getindex(t::ShiftedQtree, l::Integer) = t.layers[l]
-levelnum(t::ShiftedQtree) = length(t.layers)
-inkernelbounds(t::ShiftedQtree, l, a, b) = inkernelbounds(t[l], a, b)
-inkernelbounds(t::ShiftedQtree, ind) = inkernelbounds(t, ind...)
-function buildqtree!(t::ShiftedQtree, layer=2)
+Base.@propagate_inbounds Base.getindex(t::ShiftedQTree, l::Integer) = t.layers[l]
+levelnum(t::ShiftedQTree) = length(t.layers)
+inkernelbounds(t::ShiftedQTree, l, a, b) = inkernelbounds(t[l], a, b)
+inkernelbounds(t::ShiftedQTree, ind) = inkernelbounds(t, ind...)
+function buildqtree!(t::ShiftedQTree, layer=2)
     for l in layer:levelnum(t)
         m = rshift(t[l - 1])
         n = cshift(t[l - 1])
@@ -207,28 +207,28 @@ function buildqtree!(t::ShiftedQtree, layer=2)
     end
     t
 end
-function rshift!(t::ShiftedQtree, l::Integer, st::Integer)
+function rshift!(t::ShiftedQTree, l::Integer, st::Integer)
     for i in l:-1:1
         rshift!(t[i], st)
         st *= 2
     end
     buildqtree!(t, l + 1)
 end
-function cshift!(t::ShiftedQtree, l::Integer, st::Integer)
+function cshift!(t::ShiftedQTree, l::Integer, st::Integer)
     for i in l:-1:1
         cshift!(t[i], st)
         st *= 2
     end
     buildqtree!(t, l + 1)
 end
-function setrshift!(t::ShiftedQtree, l::Integer, st::Integer)
+function setrshift!(t::ShiftedQTree, l::Integer, st::Integer)
     for i in l:-1:1
         setrshift!(t[i], st)
         st *= 2
     end
     buildqtree!(t, l + 1)
 end
-function setcshift!(t::ShiftedQtree, l::Integer, st::Integer)
+function setcshift!(t::ShiftedQTree, l::Integer, st::Integer)
     for i in l:-1:1
         setcshift!(t[i], st)
         st *= 2
@@ -236,7 +236,7 @@ function setcshift!(t::ShiftedQtree, l::Integer, st::Integer)
     buildqtree!(t, l + 1)
 end
 
-function shift!(t::ShiftedQtree, l::Integer, st1::Integer, st2::Integer)
+function shift!(t::ShiftedQTree, l::Integer, st1::Integer, st2::Integer)
     for i in l:-1:1
         rshift!(t[i], st1)
         cshift!(t[i], st2)
@@ -245,8 +245,8 @@ function shift!(t::ShiftedQtree, l::Integer, st1::Integer, st2::Integer)
     end
     buildqtree!(t, l + 1)
 end
-shift!(t::ShiftedQtree, l::Integer, st::Tuple{Integer,Integer}) = shift!(t, l, st...)
-function setshift!(t::ShiftedQtree, l::Integer, st1::Integer, st2::Integer)
+shift!(t::ShiftedQTree, l::Integer, st::Tuple{Integer,Integer}) = shift!(t, l, st...)
+function setshift!(t::ShiftedQTree, l::Integer, st1::Integer, st2::Integer)
     for i in l:-1:1
         setrshift!(t[i], st1)
         setcshift!(t[i], st2)
@@ -255,39 +255,39 @@ function setshift!(t::ShiftedQtree, l::Integer, st1::Integer, st2::Integer)
     end
     buildqtree!(t, l + 1)
 end
-setshift!(t::ShiftedQtree, l::Integer, st::Tuple{Integer,Integer}) = setshift!(t, l, st...)
-setshift!(t::ShiftedQtree, st::Tuple{Integer,Integer}) = setshift!(t, 1, st)
-getshift(t::ShiftedQtree, l::Integer=1) = getshift(t[l])
-kernelsize(t::ShiftedQtree, l::Integer=1) = kernelsize(t[l])
-getcenter(t::ShiftedQtree) = getshift(t) .+ kernelsize(t) .÷ 2
+setshift!(t::ShiftedQTree, l::Integer, st::Tuple{Integer,Integer}) = setshift!(t, l, st...)
+setshift!(t::ShiftedQTree, st::Tuple{Integer,Integer}) = setshift!(t, 1, st)
+getshift(t::ShiftedQTree, l::Integer=1) = getshift(t[l])
+kernelsize(t::ShiftedQTree, l::Integer=1) = kernelsize(t[l])
+getcenter(t::ShiftedQTree) = getshift(t) .+ kernelsize(t) .÷ 2
 getcenter(l::Integer, a::Integer, b::Integer) = indexcenter(l, a, b)
 getcenter(ind::Tuple{Integer,Integer,Integer}) = getcenter(ind...)
-callefttop(t::ShiftedQtree, center) = center .- kernelsize(t) .÷  2
-setcenter!(t::ShiftedQtree, center) = setshift!(t, callefttop(t, center))
-function inbounds(bgqt::ShiftedQtree, qt::ShiftedQtree)
+callefttop(t::ShiftedQTree, center) = center .- kernelsize(t) .÷  2
+setcenter!(t::ShiftedQTree, center) = setshift!(t, callefttop(t, center))
+function inbounds(bgqt::ShiftedQTree, qt::ShiftedQTree)
     inbounds(bgqt[1], getcenter(qt)...)
 end
-function inkernelbounds(bgqt::ShiftedQtree, qt::ShiftedQtree)
+function inkernelbounds(bgqt::ShiftedQTree, qt::ShiftedQTree)
     inkernelbounds(bgqt[1], getcenter(qt)...)
 end
-function outofbounds(bgqt::ShiftedQtree, qts)
+function outofbounds(bgqt::ShiftedQTree, qts)
     [i for (i, t) in enumerate(qts) if !inbounds(bgqt, t)]
 end
-function outofkernelbounds(bgqt::ShiftedQtree, qts)
+function outofkernelbounds(bgqt::ShiftedQTree, qts)
     [i for (i, t) in enumerate(qts) if !inkernelbounds(bgqt, t)]
 end
 
-################ LinkedQtree
+################ LinkedQTree
 
-struct QtreeNode{T}
+struct QTreeNode{T}
     value::T
-    parent::QtreeNode{T}
-    children::Vector{QtreeNode{T}}
-    QtreeNode{T}() where T = new{T}()
-    QtreeNode{T}(v, p, c) where T = new{T}(v, p, c)
+    parent::QTreeNode{T}
+    children::Vector{QTreeNode{T}}
+    QTreeNode{T}() where T = new{T}()
+    QTreeNode{T}(v, p, c) where T = new{T}(v, p, c)
 end
 
-QtreeNode(value::T, parent, children) where T = QtreeNode{T}(value, parent, children)
+QTreeNode(value::T, parent, children) where T = QTreeNode{T}(value, parent, children)
 
 include("qtree_functions.jl")
 
@@ -310,11 +310,11 @@ function charmat(mat; maxlen=49)
 end
         
 charimage(mat; kargs...) = join([join(l) * "\n" for l in eachrow(charmat(mat; kargs...))])
-charimage(qt::ShiftedQtree; maxlen=49) = charimage(qt[max(1, ceil(Int, log2(size(qt[1], 1) / maxlen)) + 1)], maxlen=maxlen)
+charimage(qt::ShiftedQTree; maxlen=49) = charimage(qt[max(1, ceil(Int, log2(size(qt[1], 1) / maxlen)) + 1)], maxlen=maxlen)
 Base.show(io::IO, m::MIME"text/plain", mat::PaddedMat) = print(io, "PaddedMat $(size(mat)):\n", charimage(mat))
-function Base.show(io::IO, m::MIME"text/plain", qt::ShiftedQtree)
+function Base.show(io::IO, m::MIME"text/plain", qt::ShiftedQTree)
     showlevel = max(1, ceil(Int, log2(size(qt[1], 1) / 49)) + 1)
-    print(io, "ShiftedQtree{", levelnum(qt))
+    print(io, "ShiftedQTree{", levelnum(qt))
     if levelnum(qt) > 0
         print(io, "-", size(qt[1]), "}  @level-", showlevel, ":\n", charimage(qt[showlevel], maxlen=49))
     else
