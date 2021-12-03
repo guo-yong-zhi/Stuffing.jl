@@ -114,31 +114,31 @@ getrshift(l::PaddedMat) = l.rshift
 getcshift(l::PaddedMat) = l.cshift
 getshift(l::PaddedMat) = l.rshift, l.cshift
 getdefault(l::PaddedMat) = l.default
-function inkernelbounds(l::PaddedMat, r, c)
-    r -= l.rshift
-    c -= l.cshift
-    if r <= 0 || c <= 0
+function inkernelbounds(l::PaddedMat, r::Integer, c::Integer)
+    if r <= l.rshift || c <= l.cshift
         return false
     end
     m, n = kernelsize(l)
-    if r > m || c > n
+    if r > m+l.rshift || c > n+l.cshift
         return false
     end
     true
 end
+
 inbounds(l::PaddedMat, r, c) = 0 < r <= size(l, 1) && 0 < c  <= size(l, 2)
 kernelsize(l::PaddedMat) = size(l.kernel) .- 3
 kernelsize(l::PaddedMat, i) = size(l.kernel, i) - 3
 kernel(l::PaddedMat) = l.kernel
 function Base.checkbounds(l::PaddedMat, I...) end # 关闭边界检查，允许负索引、超界索引
-Base.@propagate_inbounds function Base.getindex(l::PaddedMat, r, c)
-    #if this function is called with @inbounds, that assume not only `inbounds` but also `inkernelbounds`
-    @boundscheck if !inkernelbounds(l, r, c) 
+Base.@propagate_inbounds function Base.getindex(l::PaddedMat, r::Integer, c::Integer)
+    if inkernelbounds(l, r, c) 
+        return @inbounds l.kernel[r - l.rshift + 1, c - l.cshift + 1]
+    else
         return l.default
     end
-    return @inbounds l.kernel[r - l.rshift + 1, c - l.cshift + 1]
 end
-Base.@propagate_inbounds function Base.setindex!(l::PaddedMat, v, r, c)
+Base.@propagate_inbounds _getindex(l::PaddedMat, r::Integer, c::Integer) = l.kernel[r - l.rshift + 1, c - l.cshift + 1] #assume inkernelbounds
+Base.@propagate_inbounds function Base.setindex!(l::PaddedMat, v, r::Integer, c::Integer)
     l.kernel[r - l.rshift + 1, c - l.cshift + 1] = v # kernel自身有边界检查
 end
 
@@ -176,6 +176,12 @@ function ShiftedQTree(pic::AbstractMatrix, args...; kargs...)
     ShiftedQTree(pic, args...; kargs...)
 end
 Base.@propagate_inbounds Base.getindex(t::ShiftedQTree, l::Integer) = t.layers[l]
+Base.@propagate_inbounds function Base.getindex(t::ShiftedQTree, l, r, c)
+    #if this function is called with @inbounds, that assume not only `inbounds` but also `inkernelbounds`
+    @boundscheck return t[l][r, c]
+    return @inbounds _getindex(t[l], r, c)
+end
+
 Base.length(t::ShiftedQTree) = length(t.layers)
 inkernelbounds(t::ShiftedQTree, l, a, b) = inkernelbounds(t[l], a, b)
 inkernelbounds(t::ShiftedQTree, ind) = inkernelbounds(t, ind...)
