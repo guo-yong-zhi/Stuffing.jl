@@ -5,7 +5,7 @@ export trainepoch_E!, trainepoch_EM!, trainepoch_EM2!, trainepoch_EM3!, trainepo
 using Random
 using ..QTrees
 
-include("traintools.jl")
+include("fit_helper.jl")
 mutable struct Momentum
     eta::Float64
     rho::Float64
@@ -54,17 +54,6 @@ function gard2d(t::ShiftedQtree, l, a, b) # FULL is white, Positive directions a
     - decode2(m[a, b - 1])
     + decode2(m[a, b + 1])
     ) # (h, w)
-end
-# function intlog2(x::Float64) #not safe, x can't be nan or inf
-#     #Float64 符号位(S)，编号63；阶码位，编号62 ~52
-#     b64 = reinterpret(UInt64, x)
-#     m = UInt64(0x01)<<63 #符号位mask
-#     Int(1-((b64&m)>>62)), Int((b64&(~m)) >> 52 - 1023) #符号位:1-2S (1->-1、0->1)，指数位 - 1023
-# end
-function intlog2(x::Float64) # not safe, x>0 and x can't be nan or inf
-    # Float64 符号位(S)，编号63；阶码位，编号62 ~52
-    b64 = reinterpret(Int64, x)
-    (b64 >> 52 - 1023) # 符号位:1-2S (1->-1、0->1)，指数位 - 1023
 end
 
 function move!(qt, ws)
@@ -142,49 +131,49 @@ function step_inds!(qtrees, colist::Vector{QTrees.CoItem}, optimiser)
 end
 
 "element-wise trainer"
-trainepoch_E!(;inputs) = Dict(:copool => Vector{QTrees.CoItem}(), :queue => QTrees.thread_queue())
+trainepoch_E!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), :queue => QTrees.thread_queue())
 trainepoch_E!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ) -> Δ ./ 6, 
-    copool=trainepoch_E!(:copool), kargs...)
-    batchcollisions(qtrees, colist=empty!(copool); kargs...)
-    nc = length(copool)
+    colist=trainepoch_E!(:colist), kargs...)
+    batchcollisions(qtrees, colist=empty!(colist); kargs...)
+    nc = length(colist)
     if nc == 0 return nc end
-    step_inds!(qtrees, copool, optimiser)
-    inds = first.(copool) |> Iterators.flatten |> Set
+    step_inds!(qtrees, colist, optimiser)
+    inds = first.(colist) |> Iterators.flatten |> Set
 #     @show length(qtrees),length(inds)
     for ni in 1:length(qtrees) ÷ length(inds)
-        batchcollisions(qtrees, inds, colist=empty!(copool); kargs...)
-        step_inds!(qtrees, copool, optimiser)
-        if ni > 8length(copool) break end
+        batchcollisions(qtrees, inds, colist=empty!(colist); kargs...)
+        step_inds!(qtrees, colist, optimiser)
+        if ni > 8length(colist) break end
     end
     nc
 end
 
 "element-wise trainer with LRU"
-trainepoch_EM!(;inputs) = Dict(:copool => Vector{QTrees.CoItem}(), 
+trainepoch_EM!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
                             :queue => QTrees.thread_queue(), 
                             :memory => intlru(length(inputs)))
 trainepoch_EM!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    copool=Vector{QTrees.CoItem}(), kargs...)
-    batchcollisions(qtrees, colist=empty!(copool); kargs...)
-    nc = length(copool)
+    colist=Vector{QTrees.CoItem}(), kargs...)
+    batchcollisions(qtrees, colist=empty!(colist); kargs...)
+    nc = length(colist)
     if nc == 0 return nc end
-    step_inds!(qtrees, copool, optimiser)
-    inds = first.(copool) |> Iterators.flatten |> Set
+    step_inds!(qtrees, colist, optimiser)
+    inds = first.(colist) |> Iterators.flatten |> Set
 #     @show length(inds)
     push!.(memory, inds)
     inds = take(memory, length(inds) * 2)
     for ni in 1:2length(qtrees) ÷ length(inds)
-        batchcollisions(qtrees, inds, colist=empty!(copool); kargs...)
-        step_inds!(qtrees, copool, optimiser)
-        if ni > 2length(copool) break end
-        inds2 = first.(copool) |> Iterators.flatten |> Set
+        batchcollisions(qtrees, inds, colist=empty!(colist); kargs...)
+        step_inds!(qtrees, colist, optimiser)
+        if ni > 2length(colist) break end
+        inds2 = first.(colist) |> Iterators.flatten |> Set
 #         @show length(qtrees),length(inds),length(inds2)
         for ni2 in 1:2length(inds) ÷ length(inds2)
-            batchcollisions(qtrees, inds2, colist=empty!(copool); kargs...)
-            step_inds!(qtrees, copool, optimiser)
-            if ni2 > 2length(copool) break end
+            batchcollisions(qtrees, inds2, colist=empty!(colist); kargs...)
+            step_inds!(qtrees, colist, optimiser)
+            if ni2 > 2length(colist) break end
         end
     end
     nc
@@ -193,32 +182,32 @@ end
 trainepoch_EM2!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM2!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    copool=Vector{QTrees.CoItem}(), kargs...)
-    batchcollisions(qtrees, colist=empty!(copool); kargs...)
-    nc = length(copool)
+    colist=Vector{QTrees.CoItem}(), kargs...)
+    batchcollisions(qtrees, colist=empty!(colist); kargs...)
+    nc = length(colist)
     if nc == 0 return nc end
-    step_inds!(qtrees, copool, optimiser)
-    inds = first.(copool) |> Iterators.flatten |> Set
+    step_inds!(qtrees, colist, optimiser)
+    inds = first.(colist) |> Iterators.flatten |> Set
 #     @show length(inds)
     push!.(memory, inds)
     inds = take(memory, length(inds) * 4)
     for ni in 1:2length(qtrees) ÷ length(inds)
-        batchcollisions(qtrees, inds, colist=empty!(copool); kargs...)
-        step_inds!(qtrees, copool, optimiser)
-        if ni > 2length(copool) break end
-        inds2 = first.(copool) |> Iterators.flatten |> Set
+        batchcollisions(qtrees, inds, colist=empty!(colist); kargs...)
+        step_inds!(qtrees, colist, optimiser)
+        if ni > 2length(colist) break end
+        inds2 = first.(colist) |> Iterators.flatten |> Set
         push!.(memory, inds2)
         inds2 = take(memory, length(inds2) * 2)
         for ni2 in 1:2length(inds) ÷ length(inds2)
-            batchcollisions(qtrees, inds2, colist=empty!(copool); kargs...)
-            step_inds!(qtrees, copool, optimiser)
-            if ni2 > 2length(copool) break end
-            inds3 = first.(copool) |> Iterators.flatten |> Set
+            batchcollisions(qtrees, inds2, colist=empty!(colist); kargs...)
+            step_inds!(qtrees, colist, optimiser)
+            if ni2 > 2length(colist) break end
+            inds3 = first.(colist) |> Iterators.flatten |> Set
 #             @show length(qtrees),length(inds),length(inds2),length(inds3)
             for ni3 in 1:2length(inds2) ÷ length(inds3)
-                batchcollisions(qtrees, inds3, colist=empty!(copool); kargs...)
-                step_inds!(qtrees, copool, optimiser)
-                if ni3 > 2length(copool) break end
+                batchcollisions(qtrees, inds3, colist=empty!(colist); kargs...)
+                step_inds!(qtrees, colist, optimiser)
+                if ni3 > 2length(colist) break end
             end
         end
     end
@@ -229,39 +218,39 @@ end
 trainepoch_EM3!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM3!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQtree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    copool=Vector{QTrees.CoItem}(), kargs...)
-    batchcollisions(qtrees, colist=empty!(copool); kargs...)
-    nc = length(copool)
+    colist=Vector{QTrees.CoItem}(), kargs...)
+    batchcollisions(qtrees, colist=empty!(colist); kargs...)
+    nc = length(colist)
     if nc == 0 return nc end
-    step_inds!(qtrees, copool, optimiser)
-    inds = first.(copool) |> Iterators.flatten |> Set
+    step_inds!(qtrees, colist, optimiser)
+    inds = first.(colist) |> Iterators.flatten |> Set
 #     @show length(inds)
     push!.(memory, inds)
     inds = take(memory, length(inds) * 8)
     for ni in 1:2length(qtrees) ÷ length(inds)
-        batchcollisions(qtrees, inds, colist=empty!(copool); kargs...)
-        step_inds!(qtrees, copool, optimiser)
-        if ni > 2length(copool) break end
-        inds2 = first.(copool) |> Iterators.flatten |> Set
+        batchcollisions(qtrees, inds, colist=empty!(colist); kargs...)
+        step_inds!(qtrees, colist, optimiser)
+        if ni > 2length(colist) break end
+        inds2 = first.(colist) |> Iterators.flatten |> Set
         push!.(memory, inds2)
         inds2 = take(memory, length(inds2) * 4)
         for ni2 in 1:2length(inds) ÷ length(inds2)
-            batchcollisions(qtrees, inds2, colist=empty!(copool); kargs...)
-            step_inds!(qtrees, copool, optimiser)
-            if ni2 > 2length(copool) break end
-            inds3 = first.(copool) |> Iterators.flatten |> Set
+            batchcollisions(qtrees, inds2, colist=empty!(colist); kargs...)
+            step_inds!(qtrees, colist, optimiser)
+            if ni2 > 2length(colist) break end
+            inds3 = first.(colist) |> Iterators.flatten |> Set
             push!.(memory, inds3)
             inds3 = take(memory, length(inds3) * 2)
             for ni3 in 1:2length(inds2) ÷ length(inds3)
-                batchcollisions(qtrees, inds3, colist=empty!(copool); kargs...)
-                step_inds!(qtrees, copool, optimiser)
-                if ni3 > 2length(copool) break end
-                inds4 = first.(copool) |> Iterators.flatten |> Set
+                batchcollisions(qtrees, inds3, colist=empty!(colist); kargs...)
+                step_inds!(qtrees, colist, optimiser)
+                if ni3 > 2length(colist) break end
+                inds4 = first.(colist) |> Iterators.flatten |> Set
 #             @show length(qtrees),length(inds),length(inds2),length(inds3)
                 for ni4 in 1:2length(inds3) ÷ length(inds4)
-                    batchcollisions(qtrees, inds4, colist=empty!(copool); kargs...)
-                    step_inds!(qtrees, copool, optimiser)
-                    if ni4 > 2length(copool) break end
+                    batchcollisions(qtrees, inds4, colist=empty!(colist); kargs...)
+                    step_inds!(qtrees, colist, optimiser)
+                    if ni4 > 2length(colist) break end
                 end
             end
         end
@@ -271,7 +260,7 @@ end
 
 function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser, 
     queue::QTrees.AbstractThreadQueue=QTrees.thread_queue())
-    nsp1 = 0
+    nc1 = 0
     colist = Vector{QTrees.CoItem}()
     sl1 = Threads.SpinLock()
     sl2 = Threads.SpinLock()
@@ -288,88 +277,84 @@ function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser,
                 lock(sl2) do
                     push!(colist, (i1, i2) => cp)
                 end
-                nsp1 += 1
+                nc1 += 1
             end
         end
     end
     step_inds!(qtrees, colist, optimiser)
-    nsp1
+    nc1
 end
 
 "pairwise trainer"
-trainepoch_P!(;inputs) = Dict(:copool => Vector{Tuple{Int,Int}}(),
+trainepoch_P!(;inputs) = Dict(:colist => Vector{Tuple{Int,Int}}(),
                             :queue => QTrees.thread_queue(),
-                            :nearpool => Vector{Tuple{Int,Int}}())
+                            :nearlist => Vector{Tuple{Int,Int}}())
 trainepoch_P!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 100), s, nothing)
 function trainepoch_P!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ) -> Δ ./ 6, nearlevel=-levelnum(qtrees[1]) / 2, 
-    nearpool=Vector{Tuple{Int,Int}}(), copool=Vector{Tuple{Int,Int}}(), kargs...)
+    nearlist=Vector{Tuple{Int,Int}}(), colist=Vector{Tuple{Int,Int}}(), kargs...)
     nearlevel = min(-1, nearlevel)
-    indpairs = [(i, j) for i in 1:length(qtrees) for j in i + 1:length(qtrees)]
-    # @time 
-    nsp = filttrain!(qtrees, indpairs, empty!(nearpool), nearlevel, optimiser=optimiser; kargs...)
-    # @show nsp
-    if nsp == 0 return 0 end 
-    # @show "###",length(indpairs), length(nearpool), length(nearpool)/length(indpairs)
+    indpairs = [(i, j) for i in 1:length(qtrees) for j in i+1:length(qtrees)]
+    nc = filttrain!(qtrees, indpairs, empty!(nearlist), nearlevel, optimiser=optimiser; kargs...)
+    # @show nc
+    if nc == 0 return 0 end 
+    # @show "###",length(indpairs), length(nearlist), length(nearlist)/length(indpairs)
 
-    # @time 
-    for ni in 1:length(indpairs) ÷ length(nearpool) # the loop cost should not exceed length(indpairs)
-        nsp1 = filttrain!(qtrees, nearpool, empty!(copool), 0, optimiser=optimiser; kargs...)
-        # @show nsp, nsp1
-        if ni > 8nsp1 break end # loop only when there are enough collisions
+    for ni in 1:length(indpairs) ÷ length(nearlist) # the loop cost should not exceed length(indpairs)
+        nc1 = filttrain!(qtrees, nearlist, empty!(colist), 0, optimiser=optimiser; kargs...)
+        # @show nc, nc1
+        if ni > 8nc1 break end # loop only when there are enough collisions
 
-        for ci in 1:length(nearpool) ÷ length(copool) # the loop cost should not exceed length(nearpool)
-            nsp2 = filttrain!(qtrees, copool, nothing, 0, optimiser=optimiser; kargs...)
-            if ci > 4nsp2 break end # loop only when there are enough collisions
+        for ci in 1:length(nearlist) ÷ length(colist) # the loop cost should not exceed length(nearlist)
+            nc2 = filttrain!(qtrees, colist, nothing, 0, optimiser=optimiser; kargs...)
+            if ci > 4nc2 break end # loop only when there are enough collisions
         end
-        # @show length(indpairs),length(nearpool),copool
+        # @show length(indpairs),length(nearlist),colist
     end
-    nsp
+    nc
 end
 
 "pairwise trainer(more level)"
-trainepoch_P2!(;inputs) = Dict(:copool => Vector{Tuple{Int,Int}}(),
+trainepoch_P2!(;inputs) = Dict(:colist => Vector{Tuple{Int,Int}}(),
                             :queue => QTrees.thread_queue(),
-                            :nearpool1 => Vector{Tuple{Int,Int}}(),
-                            :nearpool2 => Vector{Tuple{Int,Int}}())
+                            :nearlist1 => Vector{Tuple{Int,Int}}(),
+                            :nearlist2 => Vector{Tuple{Int,Int}}())
 trainepoch_P2!(s::Symbol) = get(Dict(:patient => 2, :nepoch => 100), s, nothing)
 function trainepoch_P2!(qtrees::AbstractVector{<:ShiftedQtree}; optimiser=(t, Δ) -> Δ ./ 6, 
     nearlevel1=-levelnum(qtrees[1]) * 0.75, 
     nearlevel2=-levelnum(qtrees[1]) * 0.5, 
-    nearpool1=Vector{Tuple{Int,Int}}(), 
-    nearpool2=Vector{Tuple{Int,Int}}(), 
-    copool=Vector{Tuple{Int,Int}}(),
+    nearlist1=Vector{Tuple{Int,Int}}(), 
+    nearlist2=Vector{Tuple{Int,Int}}(), 
+    colist=Vector{Tuple{Int,Int}}(),
     kargs...
     )
     nearlevel1 = min(-1, nearlevel1)
     nearlevel2 = min(-1, nearlevel2)
 
-    indpairs = [(i, j) for i in 1:length(qtrees) for j in i + 1:length(qtrees)]
-    nsp = filttrain!(qtrees, indpairs, empty!(nearpool1), nearlevel1, optimiser=optimiser; kargs...)
-    # @show nsp
-    if nsp == 0 return 0 end 
-    # @show "###", length(nearpool1), length(nearpool1)/length(indpairs)
+    indpairs = [(i, j) for i in 1:length(qtrees) for j in i+1:length(qtrees)]
+    nc = filttrain!(qtrees, indpairs, empty!(nearlist1), nearlevel1, optimiser=optimiser; kargs...)
+    # @show nc
+    if nc == 0 return 0 end 
+    # @show "###", length(nearlist1), length(nearlist1)/length(indpairs)
 
-    # @time 
-    for ni1 in 1:length(indpairs) ÷ length(nearpool1) # the loop cost should not exceed length(indpairs)
-        nsp1 = filttrain!(qtrees, nearpool1, empty!(nearpool2), nearlevel2, optimiser=optimiser; kargs...)
-        if ni1 > nsp1 break end # loop only when there are enough collisions
-        # @show nsp, nsp1
-        # @show "####", length(nearpool2), length(nearpool2)/length(nearpool1)
+    for ni1 in 1:length(indpairs) ÷ length(nearlist1) # the loop cost should not exceed length(indpairs)
+        nc1 = filttrain!(qtrees, nearlist1, empty!(nearlist2), nearlevel2, optimiser=optimiser; kargs...)
+        if ni1 > nc1 break end # loop only when there are enough collisions
+        # @show nc, nc1
+        # @show "####", length(nearlist2), length(nearlist2)/length(nearlist1)
 
-        # @time
-        for ni2 in 1:length(nearpool1) ÷ length(nearpool2) # the loop cost should not exceed length(indpairs)
-            nsp2 = filttrain!(qtrees, nearpool2, empty!(copool), 0, optimiser=optimiser; kargs...)
-            # @show nsp2# length(copool)/length(nearpool2)
-            if nsp2 == 0 || ni2 > 4 + nsp2 break end # loop only when there are enough collisions
+        for ni2 in 1:length(nearlist1) ÷ length(nearlist2) # the loop cost should not exceed length(indpairs)
+            nc2 = filttrain!(qtrees, nearlist2, empty!(colist), 0, optimiser=optimiser; kargs...)
+            # @show nc2# length(colist)/length(nearlist2)
+            if nc2 == 0 || ni2 > 4 + nc2 break end # loop only when there are enough collisions
 
-            for ci in 1:length(nearpool2) ÷ length(copool) # the loop cost should not exceed length(nearpool)
-                nsp3 = filttrain!(qtrees, copool, nothing, 0, optimiser=optimiser; kargs...)
-                if ci > 4nsp3 break end # loop only when there are enough collisions
+            for ci in 1:length(nearlist2) ÷ length(colist) # the loop cost should not exceed length(nearlist)
+                nc3 = filttrain!(qtrees, colist, nothing, 0, optimiser=optimiser; kargs...)
+                if ci > 4nc3 break end # loop only when there are enough collisions
             end
-            # @show length(indpairs),length(nearpool),copool
+            # @show length(indpairs),length(nearlist),colist
         end
     end
-    nsp
+    nc
 end
 
 function levelpools(qtrees, levels=[-levelnum(qtrees[1]):3:-3..., -1])
@@ -377,7 +362,7 @@ function levelpools(qtrees, levels=[-levelnum(qtrees[1]):3:-3..., -1])
 #     @show typeof(pools)
     l = length(qtrees)
     for i1 in 1:l
-        for i2 in i1 + 1:l
+        for i2 in i1+1:l
             push!(last(pools[1]), (i1, i2))
         end
     end
@@ -413,17 +398,17 @@ function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQtree};
     nc
 end
 
-function select_coinds(qtrees, copool::Vector{Tuple{Int,Int}}; on=i -> true)
+function select_coinds(qtrees, colist::Vector{Tuple{Int,Int}}; from=i->true)
     selected = Vector{Int}()
-    l = length(copool)
+    l = length(colist)
     if l == 0
         return selected
     end
     keep = (l ./ 8 .* randexp(l)) .> 1:l # 约保留1/8
-    sort!(copool, by=maximum, rev=true)
-    for (i, j) in @view copool[keep]
+    sort!(colist, by=maximum, rev=true)
+    for (i, j) in @view colist[keep]
         mij = max(i, j)
-        if mij in selected || !on(mij - 1) # use index without counting mask
+        if mij in selected || !from(mij - 1) # use index without counting mask
             continue
         end
         cp = collision_dfs(qtrees[i], qtrees[j])
@@ -432,9 +417,9 @@ function select_coinds(qtrees, copool::Vector{Tuple{Int,Int}}; on=i -> true)
         end
     end
     if length(selected) == 0
-        for (i, j) in @view copool[.!keep]
+        for (i, j) in @view colist[.!keep]
             mij = max(i, j)
-            if !on(mij - 1)
+            if !from(mij - 1)
                 continue
             end
             cp = collision_dfs(qtrees[i], qtrees[j])
@@ -446,19 +431,19 @@ function select_coinds(qtrees, copool::Vector{Tuple{Int,Int}}; on=i -> true)
     end
     return selected
 end
-function select_coinds(qtrees, copool::Vector{QTrees.CoItem}; kargs...)
-    select_coinds(qtrees, first.(copool); kargs...)
+function select_coinds(qtrees, colist::Vector{QTrees.CoItem}; kargs...)
+    select_coinds(qtrees, first.(colist); kargs...)
 end
 
-function reposition!(ts, copool=nothing, args...; kargs...)
+function reposition!(ts, colist=nothing, args...; kargs...)
     maskqt = ts[1]
     outinds = outofkernelbounds(maskqt, ts[2:end]) .+ 1
     if !isempty(outinds)
         place!(deepcopy(maskqt), ts, outinds)
         return outinds
     end
-    if copool !== nothing
-        selected = select_coinds(ts, copool, args...; kargs...)
+    if colist !== nothing
+        selected = select_coinds(ts, colist, args...; kargs...)
         if selected !== nothing && length(selected) > 0
             place!(deepcopy(maskqt), ts, selected)
         end
@@ -469,23 +454,23 @@ end
 
 function train!(ts, nepoch::Number=-1, args...; 
     trainer=trainepoch_EM2!, patient::Number=trainer(:patient), optimiser=Momentum(η=1 / 4, ρ=0.5), 
-    callbackstep=1, callbackfun=x -> x, repositioning=i -> true, resource=trainer(inputs=ts), kargs...)
+    callbackstep=1, callbackfun=x -> x, reposition=i -> true, resource=trainer(inputs=ts), kargs...)
     reposition_flag = true
-    if repositioning isa Function
-        on = repositioning
-    elseif repositioning isa Bool
-        on = i -> repositioning
-        reposition_flag = repositioning
-    elseif repositioning isa AbstractFloat
-        @assert 0 <= repositioning <= 1
-        th = (length(ts) - 1) * (1 - repositioning)
-        on = i -> i >= th
-    elseif repositioning isa Int
-        @assert repositioning >= 0
-        on = i -> i >= repositioning
+    if reposition isa Function
+        from = reposition
+    elseif reposition isa Bool
+        from = i -> reposition
+        reposition_flag = reposition
+    elseif reposition isa AbstractFloat
+        @assert 0 <= reposition <= 1
+        th = (length(ts) - 1) * (1 - reposition)
+        from = i -> i >= th
+    elseif reposition isa Int
+        @assert reposition >= 0
+        from = i -> i >= reposition
     else
-        repositioning = repositioning isa AbstractSet ? repositioning : Set(repositioning)
-        on = i -> i in repositioning
+        reposition = reposition isa AbstractSet ? reposition : Set(reposition)
+        from = i -> i in reposition
     end
     ep = 0
     nc = 0
@@ -495,34 +480,30 @@ function train!(ts, nepoch::Number=-1, args...;
     nc_min_g = typemax(Int)
     reposition_count = 0.
     last_repositioned = nothing
-    copool = nothing
-    if :copool in keys(resource)
-        copool = resource[:copool]
+    colist = nothing
+    if :colist in keys(resource)
+        colist = resource[:colist]
     else
-        copool = resource[:levelpools][end] |> last
+        colist = resource[:levelpools][end] |> last
     end
     nepoch = nepoch >= 0 ? nepoch : trainer(:nepoch)
-    @info "nepoch: $nepoch, " * (reposition_flag ? "patient: $patient" : "repositioning off")
-    # curve = []
+    @info "nepoch: $nepoch, " * (reposition_flag ? "patient: $patient" : "reposition off")
     while ep < nepoch
         nc = trainer(ts, args...; resource..., optimiser=optimiser, kargs...)
         ep += 1
         count_r += 1
         count_g += 1
         if nc < nc_min_r
-            # println("   *", nc_min_r,"->",nc, " ", count_r)
             count_r = 0
             nc_min_r = nc
         end
         if nc < nc_min_g
-            # println(nc_min_g,"=>",nc, " ", count_g)
             count_g = 0
             nc_min_g = nc
-            # push!(curve, (ep, nc))
         end
-        if nc != 0 && reposition_flag && length(ts) / 20 > length(copool) > 0 && patient > 0 && (count_r >= patient || count_r > length(copool)) # 超出耐心或少数几个碰撞
-            repositioned = reposition!(ts, copool, on=on)
-            @info "@epoch $ep(+$count_r), $nc($(length(copool))) collisions, reposition " * 
+        if nc != 0 && reposition_flag && length(ts) / 20 > length(colist) > 0 && patient > 0 && (count_r >= patient || count_r > length(colist)) # 超出耐心或少数几个碰撞
+            repositioned = reposition!(ts, colist, from=from)
+            @info "@epoch $ep(+$count_r), $nc($(length(colist))) collisions, reposition " * 
             (length(repositioned) > 0 ? "$repositioned to $(getshift.(ts[repositioned]))" : "nothing")
             if length(repositioned) > 0
                 nc_min_r = typemax(nc_min_r)
@@ -558,7 +539,6 @@ function train!(ts, nepoch::Number=-1, args...;
             break
         end
     end
-    # println(curve) #nc = a*exp(-b*ep)
     ep, nc
 end
 fit! = train!

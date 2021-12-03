@@ -3,7 +3,7 @@ using Test
 using Random
 
 include("test_qtrees.jl")
-include("test_trainer.jl")
+include("test_fit.jl")
 @testset "Stuffing.jl" begin
     qt = qtree(fill(true, 3, 4), 16)
     @test qt[1][1,1] == QTrees.FULL

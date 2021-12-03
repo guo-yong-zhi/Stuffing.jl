@@ -289,7 +289,7 @@ end
 
 QtreeNode(value::T, parent, children) where T = QtreeNode{T}(value, parent, children)
 
-include("qtreetools.jl")
+include("qtree_functions.jl")
 
 ################ show
 function charmat(mat; maxlen=49)

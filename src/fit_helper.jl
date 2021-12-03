@@ -1,3 +1,14 @@
+# function intlog2(x::Float64) #not safe, x can't be nan or inf
+#     #Float64 符号位(S)，编号63；阶码位，编号62 ~52
+#     b64 = reinterpret(UInt64, x)
+#     m = UInt64(0x01)<<63 #符号位mask
+#     Int(1-((b64&m)>>62)), Int((b64&(~m)) >> 52 - 1023) #符号位:1-2S (1->-1、0->1)，指数位 - 1023
+# end
+function intlog2(x::Float64) # not safe, x>0 and x can't be nan or inf
+    # Float64 符号位(S)，编号63；阶码位，编号62 ~52
+    b64 = reinterpret(Int64, x)
+    (b64 >> 52 - 1023) # 符号位:1-2S (1->-1、0->1)，指数位 - 1023
+end
 mutable struct ListNode{T}
     value::T
     prev::ListNode
