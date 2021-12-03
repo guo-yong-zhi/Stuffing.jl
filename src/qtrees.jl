@@ -25,25 +25,19 @@ function indexrange(l::Integer, a::Integer, b::Integer)
 end
 indexrange(ind) = indexrange(ind...)
 @inline function qcode(Q, i)
-    _getindex(Q, child(i, 1)) | _getindex(Q, child(i, 2)) | _getindex(Q, child(i, 3)) | _getindex(Q, child(i, 4))
+    @inbounds (Q[child(i, 1)] | Q[child(i, 2)] | Q[child(i, 3)] | Q[child(i, 4)])
 end
-@inline qcode!(Q, i) = _setindex!(Q, qcode(Q, i), i)
+@inline qcode!(Q, i) = @inbounds Q[i] = qcode(Q, i)
 decode(c) = (0., 1., 0.5)[c]
 
 const FULL = 0x02; EMPTY = 0x01; MIX = 0x03
 
 abstract type AbstractStackQTree end
-function Base.getindex(t::AbstractStackQTree, l::Integer) end
-Base.getindex(t::AbstractStackQTree, l, r, c) = t[l][r, c]
-Base.getindex(t::AbstractStackQTree, inds::Index) = t[inds...]
-Base.setindex!(t::AbstractStackQTree, v, l, r, c) =  t[l][r, c] = v
-Base.setindex!(t::AbstractStackQTree, v, inds::Index) = t[inds...] = v
-@inline _getindex(t::AbstractStackQTree, inds) = _getindex(t, inds...)
-@inline _getindex(t::AbstractStackQTree, l, r, c) = @inbounds _getindex(t[l], r, c)
-@inline _setindex!(t::AbstractStackQTree, v, inds) = _setindex!(t, v, inds...)
-@inline _setindex!(t::AbstractStackQTree, v, l, r, c) = @inbounds t[l][r, c] = v
-# Base.setindex!中调用@boundscheck时用@inline无法成功内联致@propagate_inbounds失效，
-# 无法传递上层的@inbounds，故专门实现一个inbounds版的_setindex!
+Base.@propagate_inbounds function Base.getindex(t::AbstractStackQTree, l::Integer) end
+Base.@propagate_inbounds Base.getindex(t::AbstractStackQTree, l, r, c) = t[l][r, c]
+Base.@propagate_inbounds Base.getindex(t::AbstractStackQTree, inds) = t[inds...]
+Base.@propagate_inbounds Base.setindex!(t::AbstractStackQTree, v, l, r, c) =  t[l][r, c] = v
+Base.@propagate_inbounds Base.setindex!(t::AbstractStackQTree, v, inds) = setindex!(t, v, inds...)
 function levelnum(t::AbstractStackQTree) end
 Base.lastindex(t::AbstractStackQTree) = levelnum(t)
 Base.size(t::AbstractStackQTree) = levelnum(t) > 0 ? size(t[1]) : (0,)
@@ -74,7 +68,7 @@ function StackQTree(pic::AbstractMatrix)
     StackQTree(pic)
 end
 
-Base.getindex(t::StackQTree, l::Integer) = t.layers[l]
+Base.@propagate_inbounds Base.getindex(t::StackQTree, l::Integer) = t.layers[l]
 levelnum(t::StackQTree) = length(t.layers)
 
 function buildqtree!(t::AbstractStackQTree, layer=2)
@@ -139,13 +133,10 @@ kernelsize(l::PaddedMat) = size(l.kernel) .- 3
 kernelsize(l::PaddedMat, i) = size(l.kernel, i) - 3
 kernel(l::PaddedMat) = l.kernel
 function Base.checkbounds(l::PaddedMat, I...) end # 关闭边界检查，允许负索引、超界索引
-function Base.getindex(l::PaddedMat, r, c)
-    if inkernelbounds(l, r, c)
-        return @inbounds l.kernel[r - l.rshift + 1, c - l.cshift + 1]
+Base.@propagate_inbounds function Base.getindex(l::PaddedMat, r, c)
+    @boundscheck if !inkernelbounds(l, r, c)
+        return l.default
     end
-    return l.default
-end
-function _getindex(l::PaddedMat, r, c)
     return @inbounds l.kernel[r - l.rshift + 1, c - l.cshift + 1]
 end
 Base.@propagate_inbounds function Base.setindex!(l::PaddedMat, v, r, c)

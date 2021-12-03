@@ -1,6 +1,5 @@
 ########## batchcollisions
 function collision_dfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, i=(levelnum(Q1), 1, 1))
-    #     @show i
 #     @assert size(Q1) == size(Q2)
     n1 = Q1[i]
     n2 = Q2[i]
@@ -13,16 +12,12 @@ function collision_dfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, i=(leveln
     r = -i[1], i[2], i[3]
     for cn in 1:4 # MIX
         ci = child(i, cn)
-    #         @show cn,ci
-    #         @show Q1[ci],Q2[ci]
         r = collision_dfs(Q1, Q2, ci)
         if r[1] > 0 return r end 
     end
     return r # no collision
 end
-# q1cc = [0,0,0]
-# q2cc = [0,0,0]
-function collision_randbfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, q=[(levelnum(Q1), 1, 1)])
+function collision_randbfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, q::AbstractVector{Index}=[(levelnum(Q1), 1, 1)])
 #     @assert size(Q1) == size(Q2)
     if isempty(q)
         push!(q, (levelnum(Q1), 1, 1))
@@ -32,14 +27,11 @@ function collision_randbfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, q=[(l
         i = popfirst!(q)
         for cn in shuffle4()
             ci = child(i, cn)
-            q2 = _getindex(Q2, ci)
-#             q1 = getindex(Q1, ci)
-#             q1cc[q1] += 1 #result ratio [1.1, 0.04, 1.0] EMPTY > MIX > FULL
-#             q2cc[q2] += 1 #result ratio [1.8, 0.07, 1.0]
+            q2 = @inbounds Q2[ci]
             if q2 == EMPTY # assume q2 is more empty
                 continue
             elseif q2 == MIX
-                q1 = _getindex(Q1, ci)
+                q1 = @inbounds Q1[ci]
                 if q1 == EMPTY
                     continue
                 elseif q1 == MIX
@@ -49,7 +41,7 @@ function collision_randbfs(Q1::AbstractStackQTree, Q2::AbstractStackQTree, q=[(l
                     return ci
                 end
             else
-                q1 = _getindex(Q1, ci)
+                q1 = @inbounds Q1[ci]
                 if q1 == EMPTY
                     continue
                 end
@@ -68,7 +60,6 @@ function collision(Q1::AbstractStackQTree, Q2::AbstractStackQTree)
         return -l, 1, 1
     end
 end
-# thcc = [0 for i = 1:Threads.nthreads()]
 CoItem = Pair{Tuple{Int,Int}, Index}
 AbstractThreadQueue = AbstractVector{<:AbstractVector{Index}}
 thread_queue() = [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()]
@@ -79,11 +70,10 @@ function _batchcollisions_native(qtrees::AbstractVector, indpairs;
         at=(levelnum(qtrees[1]), 1, 1))
     sl = Threads.SpinLock()
     Threads.@threads for (i1, i2) in indpairs
-#         thcc[Threads.threadid()] += 1
-        que = queue[Threads.threadid()]
+        que = @inbounds queue[Threads.threadid()]
         empty!(que)
         push!(que, at)
-        cp = collision_randbfs(qtrees[i1], qtrees[i2], que)
+        cp = @inbounds collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
             lock(sl) do
                 push!(colist, (i1, i2) => cp)
@@ -96,11 +86,10 @@ function _batchcollisions_native(qtrees::AbstractVector, indpairs::Vector{CoItem
     colist=Vector{CoItem}(), queue::AbstractThreadQueue=thread_queue())
     sl = Threads.SpinLock()
     Threads.@threads for ((i1, i2), at) in indpairs
-#         thcc[Threads.threadid()] += 1
-        que = queue[Threads.threadid()]
+        que = @inbounds queue[Threads.threadid()]
         empty!(que)
         push!(que, at)
-        cp = collision_randbfs(qtrees[i1], qtrees[i2], que)
+        cp = @inbounds collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
             lock(sl) do
                 push!(colist, (i1, i2) => cp)
@@ -112,7 +101,7 @@ end
 function _batchcollisions_native(qtrees::AbstractVector, 
     inds::AbstractVector{<:Integer}=1:length(qtrees); kargs...)
     l = length(inds)
-    _batchcollisions_native(qtrees, [(inds[i], inds[j]) for i in 1:l for j in l:-1:i + 1]; kargs...)
+    _batchcollisions_native(qtrees, [@inbounds (inds[i], inds[j]) for i in 1:l for j in l:-1:i + 1]; kargs...)
 end
 function _batchcollisions_native(qtrees::AbstractVector, inds::AbstractSet{<:Integer}; kargs...)
     _batchcollisions_native(qtrees, inds |> collect; kargs...)
@@ -121,23 +110,6 @@ function batchcollisions_native(qtrees::AbstractVector, inds=1:length(qtrees); k
     l = levelnum(qtrees[1])
     inds = [i for i in inds if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
     _batchcollisions_native(qtrees, inds; kargs...)
-end
-function locate(qt::AbstractStackQTree, ind::Index=(levelnum(qt), 1, 1))
-    if qt[ind] == EMPTY
-        return ind
-    end
-    unempty = (-1, -1, -1)
-    for ci in 1:4
-        c = child(ind, ci)
-        if qt[c] != EMPTY
-            if unempty[1] == -1 # only one empty child
-                unempty = c
-            else
-                return ind # multiple empty child
-            end
-        end
-    end
-    return locate(qt, unempty)
 end
 
 RegionQTree{T} = QTreeNode{Pair{Index, Vector{T}}}
@@ -165,7 +137,7 @@ function locate_core!(qt::AbstractStackQTree, regtree::QTreeNode,
     unemptyci = -1
     for ci in 1:4
         c = child(ind, ci)
-        if _getindex(qt, c) != EMPTY
+        if @inbounds qt[c] != EMPTY
             if unemptyci == -1 # only one empty child
                 unempty = c
                 unemptyci = ci
