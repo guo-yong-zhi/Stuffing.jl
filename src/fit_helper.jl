@@ -110,21 +110,3 @@ Base.getindex(im::IntMap, ind...) = getindex(im.map, ind...)
 Base.setindex!(im::IntMap, v, ind...) = setindex!(im.map, v, ind...)
 
 intlru(n) = LRU{Int}(IntMap{Int}(n))
-
-mutable struct MemSet
-    mem::Vector{Set{Int}}
-    shift::Int
-end
-
-MemSet(n::Int) = MemSet([Set{Int}() for i in 1:n], 0)
-getmem(ms::MemSet, g=1) = ms.mem[((g - 1) + ms.shift) % length(ms.mem) + 1]
-function Base.push!(ms::MemSet, mem)
-    m = getmem(ms, 1)
-    empty!(m)
-    for e in mem
-        push!(m, e)
-    end
-    ms.shift += 1
-end
-
-take(ms::MemSet) = union(ms.mem...)
