@@ -454,7 +454,7 @@ end
 
 function train!(ts, nepoch::Number=-1, args...; 
     trainer=trainepoch_EM2!, patient::Number=trainer(:patient), optimiser=Momentum(η=1 / 4, ρ=0.5), 
-    callbackstep=1, callbackfun=x -> x, reposition=i -> true, resource=trainer(inputs=ts), kargs...)
+    callback=x -> x, reposition=i -> true, resource=trainer(inputs=ts), kargs...)
     reposition_flag = true
     if reposition isa Function
         from = reposition
@@ -469,7 +469,7 @@ function train!(ts, nepoch::Number=-1, args...;
         @assert reposition >= 0
         from = i -> i >= reposition
     else
-        reposition = reposition isa AbstractSet ? reposition : Set(reposition)
+        reposition isa AbstractSet || (reposition = Set(reposition))
         from = i -> i in reposition
     end
     ep = 0
@@ -486,7 +486,7 @@ function train!(ts, nepoch::Number=-1, args...;
     else
         colist = resource[:levelpools][end] |> last
     end
-    nepoch = nepoch >= 0 ? nepoch : trainer(:nepoch)
+    nepoch >= 0 || (nepoch = trainer(:nepoch))
     @info "nepoch: $nepoch, " * (reposition_flag ? "patient: $patient" : "reposition off")
     while ep < nepoch
         nc = trainer(ts, args...; resource..., optimiser=optimiser, kargs...)
@@ -517,9 +517,7 @@ function train!(ts, nepoch::Number=-1, args...;
             end
             last_repositioned = repositioned_set
         end
-        if ep % callbackstep == 0
-            callbackfun(ep)
-        end
+        callback(ep)
         if nc == 0
             outinds = reposition!(ts)
             outlen = length(outinds)

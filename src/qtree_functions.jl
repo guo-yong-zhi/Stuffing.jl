@@ -378,8 +378,7 @@ function place!(ground::ShiftedQTree, sortedtrees::AbstractVector, index::Number
     end
     place!(ground, sortedtrees[index]; kargs...)
 end
-function place!(ground::ShiftedQTree, sortedtrees::AbstractVector, indexes; 
-    callbackstep=1, callbackfun=x -> x, kargs...)
+function place!(ground::ShiftedQTree, sortedtrees::AbstractVector, indexes; callback=x -> x, kargs...)
     for i in 1:length(sortedtrees)
         if i in indexes continue end
         overlap!(ground, sortedtrees[i])
@@ -389,20 +388,19 @@ function place!(ground::ShiftedQTree, sortedtrees::AbstractVector, indexes;
         ind = place!(ground, sortedtrees[i]; kargs...)
         if ind === nothing return ind end
         overlap!(ground, sortedtrees[i])
-        if i % callbackstep == 0 callbackfun(i) end
+        callback(i)
     end
     ind
 end
 
 "将sortedtrees依次叠加到ground上，同时修改sortedtrees的shift"
-function place!(ground::ShiftedQTree, sortedtrees::AbstractVector; 
-    callbackstep=1, callbackfun=x -> x, kargs...)
+function place!(ground::ShiftedQTree, sortedtrees::AbstractVector; callback=x -> x, kargs...)
     ind = nothing
     for (i, t) in enumerate(sortedtrees)
         ind = place!(ground, t; kargs...)
         if ind === nothing return ind end
         overlap!(ground, t)
-        if i % callbackstep == 0 callbackfun(i) end
+        callback(i)
     end
     ind
 end

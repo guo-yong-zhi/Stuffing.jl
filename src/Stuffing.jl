@@ -70,7 +70,7 @@ QTrees.overlap(qtrees::AbstractVector{<:ShiftedQTree}; karg...) = QTrees.overlap
 function getpositions(mask::ShiftedQTree, qtrees::AbstractVector, inds=:; type=getshift)
     msy, msx = getshift(mask)
     pos = type.(qtrees[inds])
-    pos = eltype(pos) <: Number ? Ref(pos) : pos
+    eltype(pos) <: Number && (pos = Ref(pos))
     Broadcast.broadcast(p -> (p[2] - msx + 1, p[1] - msy + 1), pos) # 左上角重合时返回(1,1)
 end
 function getpositions(qtrees::AbstractVector{<:ShiftedQTree}, inds=:; type=getshift)
@@ -79,7 +79,7 @@ function getpositions(qtrees::AbstractVector{<:ShiftedQTree}, inds=:; type=getsh
 end
 function setpositions!(mask::ShiftedQTree, qtrees::AbstractVector, inds, x_y; type=setshift!)
     msy, msx = getshift(mask)
-    x_y = eltype(x_y) <: Number ? Ref(x_y) : x_y
+    eltype(x_y) <: Number && (x_y = Ref(x_y))
     Broadcast.broadcast(qtrees[inds], x_y) do qt, p
         type(qt, (p[2] - 1 + msy, p[1] - 1 + msx))
     end
