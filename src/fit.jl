@@ -72,9 +72,9 @@ end
 
 function step!(t1, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser=(t, Δ) -> Δ ./ 6)
     ks1 = kernelsize(t1[1])
-    ks1 = (ks1[1] + ks1[2]) ^ 2
+    ks1 = (ks1[1] + ks1[2]) ^ 3 #1阶抵消碰撞发生概率，2阶是惯性
     ks2 = kernelsize(t2[1])
-    ks2 = (ks2[1] + ks2[2]) ^ 2
+    ks2 = (ks2[1] + ks2[2]) ^ 3
     l = collisionpoint[1]
     ll = 2^(l - 1)
     # @show collisionpoint
