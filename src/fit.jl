@@ -89,13 +89,13 @@ function step!(t1, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser
     move2 = rand() < ks1 / ks2
     if move1
         if !move2
-            ws1 = ws1 .- ws2
+            ws1 = 2 .* ws1
         end
         move!(t1, ws1)
     end
     if move2
         if !move1
-            ws2 = ws2 .- ws1
+            ws2 = 2 .* ws2
         end
         move!(t2, ws2)
     end
