@@ -56,63 +56,63 @@ function gard2d(t::ShiftedQTree, l, a, b) # FULL is white, Positive directions a
     ) # (h, w)
 end
 
-function move!(qt, ws)
+function move!(qt, delta)
     if rand() < 0.1 # 破坏周期运动
-        ws = ws .+ rand(((1., -1.), (-1., 1.), (-1., -1.), (1., 1.)))
+        delta = delta .+ rand(((1., -1.), (-1., 1.), (-1., -1.), (1., 1.)))
     end
-    if (-1 < ws[1] < 1 && -1 < ws[2] < 1) # 避免静止
-        ws = rand(((1., -1.), (-1., 1.), (-1., -1.), (1., 1.)))
+    if (-1 < delta[1] < 1 && -1 < delta[2] < 1) # 避免静止
+        delta = rand(((1., -1.), (-1., 1.), (-1., -1.), (1., 1.)))
     end
-    wm = max(abs.(ws)...)
-    # @assert wm >= 1
-    u = intlog2(wm)
-    # @assert u == floor(Int, log2(wm))
-    shift!(qt, 1 + u, (trunc.(Int, ws) .÷ 2^u)...) # 舍尾，保留最高二进制位
+    delta_m = max(abs.(delta)...)
+    # @assert delta_m >= 1
+    u = intlog2(delta_m)
+    # @assert u == floor(Int, log2(delta_m))
+    shift!(qt, 1 + u, (trunc.(Int, delta) .÷ 2^u)...) # 舍尾，保留最高二进制位
 end
 
 function step!(t1, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser=(t, Δ) -> Δ ./ 6)
     ks1 = kernelsize(t1[1])
-    ks1 = ks1[1] * ks1[2]
+    ks1 = (ks1[1] + ks1[2]) ^ 2
     ks2 = kernelsize(t2[1])
-    ks2 = ks2[1] * ks2[2]
+    ks2 = (ks2[1] + ks2[2]) ^ 2
     l = collisionpoint[1]
     ll = 2^(l - 1)
-#     @show collisionpoint
-    ws1 = ll .* gard2d(t1, collisionpoint...)
-    ws2 = ll .* gard2d(t2, collisionpoint...)
+    # @show collisionpoint
+    delta1 = ll .* gard2d(t1, collisionpoint...)
+    delta2 = ll .* gard2d(t2, collisionpoint...)
     # @assert gard2d(t1, collisionpoint...)==gard2d2(t1, collisionpoint...)
-    #     @show ws1,collisionpoint,gard2d(t1, collisionpoint...)
-    ws1 = optimiser(t1, ws1)
-#     @show ws1
-    ws2 = optimiser(t2, ws2)
+    # @show delta1,collisionpoint,gard2d(t1, collisionpoint...)
+    delta1 = optimiser(t1, delta1)
+    # @show delta1
+    delta2 = optimiser(t2, delta2)
     move1 = rand() < ks2 / ks1 # ks1越大移动概率越小，ks1<=ks2时必然移动（质量越大，惯性越大运动越少）
     move2 = rand() < ks1 / ks2
     if move1
         if !move2
-            ws1 = 2 .* ws1
+            delta1 = 2 .* delta1
         end
-        move!(t1, ws1)
+        move!(t1, delta1)
     end
     if move2
         if !move1
-            ws2 = 2 .* ws2
+            delta2 = 2 .* delta2
         end
-        move!(t2, ws2)
+        move!(t2, delta2)
     end
 end
 function step_mask!(mask, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser=(t, Δ) -> Δ ./ 6)
     l = collisionpoint[1]
     ll = 2^(l - 1)
-    ws1 = ll .* gard2d(mask, collisionpoint...)
-    ws2 = ll .* gard2d(t2, collisionpoint...)
-    ws1 = optimiser(mask, ws1)
-    ws2 = optimiser(t2, ws2)
-    ws2 = (ws2 .- ws1) ./ 2
-    move!(t2, ws2)
+    delta1 = ll .* gard2d(mask, collisionpoint...)
+    delta2 = ll .* gard2d(t2, collisionpoint...)
+    delta1 = optimiser(mask, delta1)
+    delta2 = optimiser(t2, delta2)
+    delta2 = (delta2 .- delta1) ./ 2
+    move!(t2, delta2)
 end
 
 function step_ind!(qtrees, i1, i2, collisionpoint, optimiser)
-#     @show i1, i2, collisionpoint
+    # @show i1, i2, collisionpoint
     if i1 == 1
         step_mask!(qtrees[i1], qtrees[i2], collisionpoint, optimiser)
     elseif i2 == 1
@@ -124,7 +124,7 @@ end
 
 function step_inds!(qtrees, colist::Vector{QTrees.CoItem}, optimiser)
     for ((i1, i2), cp) in shuffle!(colist)
-#         @show cp
+        # @show cp
         # @assert cp[1] > 0
         step_ind!(qtrees, i1, i2, cp, optimiser)
     end
@@ -140,7 +140,7 @@ function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ)
     if nc == 0 return nc end
     step_inds!(qtrees, colist, optimiser)
     inds = first.(colist) |> Iterators.flatten |> Set
-#     @show length(qtrees),length(inds)
+    # @show length(qtrees),length(inds)
     for ni in 1:length(qtrees) ÷ length(inds)
         batchcollisions(qtrees, inds, colist=empty!(colist); kargs...)
         step_inds!(qtrees, colist, optimiser)
@@ -161,7 +161,7 @@ function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimise
     if nc == 0 return nc end
     step_inds!(qtrees, colist, optimiser)
     inds = first.(colist) |> Iterators.flatten |> Set
-#     @show length(inds)
+    # @show length(inds)
     push!.(memory, inds)
     inds = take(memory, length(inds) * 2)
     for ni in 1:2length(qtrees) ÷ length(inds)
@@ -169,7 +169,7 @@ function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimise
         step_inds!(qtrees, colist, optimiser)
         if ni > 2length(colist) break end
         inds2 = first.(colist) |> Iterators.flatten |> Set
-#         @show length(qtrees),length(inds),length(inds2)
+        # @show length(qtrees),length(inds),length(inds2)
         for ni2 in 1:2length(inds) ÷ length(inds2)
             batchcollisions(qtrees, inds2, colist=empty!(colist); kargs...)
             step_inds!(qtrees, colist, optimiser)
@@ -188,7 +188,7 @@ function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimis
     if nc == 0 return nc end
     step_inds!(qtrees, colist, optimiser)
     inds = first.(colist) |> Iterators.flatten |> Set
-#     @show length(inds)
+    # @show length(inds)
     push!.(memory, inds)
     inds = take(memory, length(inds) * 4)
     for ni in 1:2length(qtrees) ÷ length(inds)
@@ -203,7 +203,7 @@ function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimis
             step_inds!(qtrees, colist, optimiser)
             if ni2 > 2length(colist) break end
             inds3 = first.(colist) |> Iterators.flatten |> Set
-#             @show length(qtrees),length(inds),length(inds2),length(inds3)
+            # @show length(qtrees),length(inds),length(inds2),length(inds3)
             for ni3 in 1:2length(inds2) ÷ length(inds3)
                 batchcollisions(qtrees, inds3, colist=empty!(colist); kargs...)
                 step_inds!(qtrees, colist, optimiser)
@@ -224,7 +224,7 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimis
     if nc == 0 return nc end
     step_inds!(qtrees, colist, optimiser)
     inds = first.(colist) |> Iterators.flatten |> Set
-#     @show length(inds)
+    # @show length(inds)
     push!.(memory, inds)
     inds = take(memory, length(inds) * 8)
     for ni in 1:2length(qtrees) ÷ length(inds)
@@ -246,7 +246,7 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimis
                 step_inds!(qtrees, colist, optimiser)
                 if ni3 > 2length(colist) break end
                 inds4 = first.(colist) |> Iterators.flatten |> Set
-#             @show length(qtrees),length(inds),length(inds2),length(inds3)
+            # @show length(qtrees),length(inds),length(inds2),length(inds3)
                 for ni4 in 1:2length(inds3) ÷ length(inds4)
                     batchcollisions(qtrees, inds4, colist=empty!(colist); kargs...)
                     step_inds!(qtrees, colist, optimiser)
@@ -359,7 +359,6 @@ end
 
 function levelpools(qtrees, levels=[-length(qtrees[1]):3:-3..., -1])
     pools = [i => Vector{Tuple{Int,Int}}() for i in levels]
-#     @show typeof(pools)
     l = length(qtrees)
     for i1 in 1:l
         for i2 in i1+1:l
@@ -389,7 +388,7 @@ function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree};
             @info string(niter, "#"^(-first(levelpools[1])), "$(first(levelpools[1])) pool:$(length(inpool))($r) nc:$nc ")
         end
         if (nc == 0) break end
-#         if (nc < last_nc) last_nc = nc else break end
+        # if (nc < last_nc) last_nc = nc else break end
         if (niter > nc) break end
         if length(levelpools) >= 2
             trainepoch_Px!(qtrees, levelpools=levelpools[2:end], optimiser=optimiser; kargs...)
