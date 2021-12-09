@@ -75,9 +75,7 @@ function _batchcollisions_native(qtrees::AbstractVector, indpairs;
         push!(que, at)
         cp = @inbounds _collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
-            lock(sl) do
-                push!(colist, (i1, i2) => cp)
-            end
+            @Base.lock sl push!(colist, (i1, i2) => cp)
         end
     end
     colist
@@ -91,9 +89,7 @@ function _batchcollisions_native(qtrees::AbstractVector, indpairs::Vector{CoItem
         push!(que, at)
         cp = @inbounds _collision_randbfs(qtrees[i1], qtrees[i2], que)
         if cp[1] >= 0
-            lock(sl) do
-                push!(colist, (i1, i2) => cp)
-            end
+            @Base.lock sl push!(colist, (i1, i2) => cp)
         end
     end
     colist

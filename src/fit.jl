@@ -269,14 +269,10 @@ function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser,
         cp = QTrees._collision_randbfs(qtrees[i1], qtrees[i2], empty!(que))
         if cp[1] >= nearlevel2
             if outpool !== nothing
-                lock(sl1) do
-                    push!(outpool, (i1, i2))
-                end
+                @Base.lock sl1 push!(outpool, (i1, i2))
             end
             if cp[1] > 0
-                lock(sl2) do
-                    push!(colist, (i1, i2) => cp)
-                end
+                @Base.lock sl2 push!(colist, (i1, i2) => cp)
                 nc1 += 1
             end
         end
