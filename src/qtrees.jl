@@ -30,7 +30,7 @@ end
 Base.@propagate_inbounds qcode!(Q, i) = Q[i] = qcode(Q, i)
 decode(c) = (0., 1., 0.5)[c]
 
-const FULL = 0x02; EMPTY = 0x01; MIX = 0x03
+const FULL = 0x02; const EMPTY = 0x01; const MIX = 0x03
 
 abstract type AbstractStackedQTree end
 Base.@propagate_inbounds function Base.getindex(t::AbstractStackedQTree, l::Integer) end
