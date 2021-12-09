@@ -147,7 +147,7 @@ Base.size(l::PaddedMat) = l.size
 struct ShiftedQTree{T <: AbstractVector{<:PaddedMat}} <: AbstractStackedQTree
     layers::T
 end
-
+const U8SQTree = ShiftedQTree{Vector{PaddedMat{Matrix{UInt8}}}}
 ShiftedQTree(l::T) where T = ShiftedQTree{T}(l)
 function ShiftedQTree(pic::PaddedMat{T}) where T
     sz = size(pic, 1)
@@ -173,7 +173,7 @@ end
 function ShiftedQTree(pic::AbstractMatrix, args...; kargs...)
     @assert !isempty(pic)
     pic = map(x -> x == 0 ? EMPTY : FULL, pic)
-    ShiftedQTree(pic, args...; kargs...)
+    ShiftedQTree(pic, args...; kargs...)::U8SQTree
 end
 Base.@propagate_inbounds Base.getindex(t::ShiftedQTree, l::Integer) = t.layers[l]
 Base.@propagate_inbounds function Base.getindex(t::ShiftedQTree, l, r, c)

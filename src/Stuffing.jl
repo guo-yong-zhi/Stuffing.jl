@@ -38,7 +38,7 @@ function maskqtree(pic::AbstractMatrix; background=pic[1])
 end
 # appointment: the first one is mask
 function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
-    ts = Vector{Stuffing.QTrees.ShiftedQTree}()
+    ts = Vector{Stuffing.QTrees.U8SQTree}()
     if mask !== nothing
         mq = maskbackground == :auto ? maskqtree(mask) : maskqtree(mask; background=maskbackground)
         push!(ts, mq)

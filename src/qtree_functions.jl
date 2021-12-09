@@ -60,8 +60,8 @@ function collision(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree)
         return -l, 1, 1
     end
 end
-CoItem = Pair{Tuple{Int,Int}, Index}
-AbstractThreadQueue = AbstractVector{<:AbstractVector{Index}}
+const CoItem = Pair{Tuple{Int,Int}, Index}
+const AbstractThreadQueue = AbstractVector{<:AbstractVector{Index}}
 thread_queue() = [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()]
 # assume inkernelbounds(qtree, at) is true
 function _batchcollisions_native(qtrees::AbstractVector, indpairs; 
@@ -108,7 +108,7 @@ function batchcollisions_native(qtrees::AbstractVector, inds=1:length(qtrees); k
     _batchcollisions_native(qtrees, inds; kargs...)
 end
 
-RegionQTree{T} = QTreeNode{Pair{Index, Vector{T}}}
+const RegionQTree{T} = QTreeNode{Pair{Index, Vector{T}}}
 const NULL_NODE = RegionQTree{Any}()
 const INT_NULL_NODE = RegionQTree{Int}()
 nullnode(n::RegionQTree) = NULL_NODE
