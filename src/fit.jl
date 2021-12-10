@@ -26,8 +26,12 @@ function apply!(o::Momentum, x, Δ)
     Δ .= apply(o, x, Δ)
 end
 (opt::Momentum)(x, Δ) = apply(opt::Momentum, x, Δ)
-reset!(o::Momentum, x) =  pop!(o.velocity, x)  
+reset!(o::Momentum, x) =  pop!(o.velocity, x)
+eta(o::Momentum) = o.eta
+eta!(o::Momentum, e) = o.eta = e
 reset!(o, x) = nothing
+eta(o) = NaN
+eta!(o, e) = NaN
 Base.broadcastable(m::Momentum) = Ref(m)
 @assert QTrees.EMPTY == 1 && QTrees.FULL == 2 && QTrees.MIX == 3
 @inline decode2(c) = @inbounds (0, 2, 1)[c]
@@ -448,7 +452,8 @@ function reposition!(ts, colist=nothing, args...; kargs...)
 end
 
 function train!(ts, nepoch::Number=-1, args...; 
-    trainer=trainepoch_EM2!, patient::Number=trainer(:patient), optimiser=Momentum(η=1 / 4, ρ=0.5), 
+    trainer=trainepoch_EM2!, patient::Number=trainer(:patient), 
+    optimiser=Momentum(η=0.3, ρ=0.5), scheduler=opt->eta!(opt, eta(opt)*0.8),
     callback=x -> x, reposition=i -> true, resource=trainer(inputs=ts), kargs...)
     reposition_flag = true
     if reposition isa Function
@@ -469,10 +474,9 @@ function train!(ts, nepoch::Number=-1, args...;
     end
     ep = 0
     nc = 0
-    count_r = 0 #for reposition
-    nc_min_r = typemax(Int) 
-    count_g = 0 #for global patient
-    nc_min_g = typemax(Int)
+    indi_r = MonotoneIndicator{Int}() #for reposition
+    indi_g = MonotoneIndicator{Int}() #for global patient
+    indi_s = MonotoneIndicator{Int}() #for lr scheduler
     reposition_count = 0.
     last_repositioned = nothing
     colist = nothing
@@ -486,22 +490,15 @@ function train!(ts, nepoch::Number=-1, args...;
     while ep < nepoch
         nc = trainer(ts, args...; resource..., optimiser=optimiser, kargs...)
         ep += 1
-        count_r += 1
-        count_g += 1
-        if nc < nc_min_r
-            count_r = 0
-            nc_min_r = nc
-        end
-        if nc < nc_min_g
-            count_g = 0
-            nc_min_g = nc
-        end
-        if nc != 0 && reposition_flag && length(ts) / 20 > length(colist) > 0 && patient > 0 && (count_r >= patient || count_r > length(colist)) # 超出耐心或少数几个碰撞
+        update!(indi_r, nc)
+        update!(indi_g, nc)
+        update!(indi_s, nc)
+        if nc != 0 && reposition_flag && length(ts) / 20 > length(colist) > 0 && patient > 0 && (indi_r.age >= patient || indi_r.age > length(colist)) # 超出耐心或少数几个碰撞
             repositioned = reposition!(ts, colist, from=from)
-            @info "@epoch $ep(+$count_r), $nc($(length(colist))) collisions, reposition " * 
+            @info "@epoch $ep(+$(indi_r.age)), $nc($(length(colist))) collisions, reposition " * 
             (length(repositioned) > 0 ? "$repositioned to $(getshift.(ts[repositioned]))" : "nothing")
             if length(repositioned) > 0
-                nc_min_r = typemax(nc_min_r)
+                reset!(indi_r)
                 reset!.(optimiser, ts[repositioned])
             end
             repositioned_set = Set(repositioned)
@@ -527,8 +524,13 @@ function train!(ts, nepoch::Number=-1, args...;
             @info "The repositioning strategy failed after $ep epochs"
             break
         end
-        if count_g > max(2, 2patient, nepoch / 50 * max(1, (length(ts) / nc_min_g)))
-            @info "training early break after $ep epochs (current $nc collisions, best $nc_min_g collisions, waited $count_g epochs)"
+        if indi_s.age > max(1, patient, nepoch / 200 * max(1, (length(ts) / indi_g.min)))
+            scheduler(optimiser)
+            @info "@epoch $ep(+$(indi_s.age)) η -> $(round(eta(optimiser), digits=3)) (current $nc collisions, best $(indi_s.min) collisions)"
+            reset!(indi_s)
+        end
+        if indi_g.age > max(2, 2patient, nepoch / 50 * max(1, (length(ts) / indi_g.min)))
+            @info "training early break after $ep(+$(indi_g.age)) epochs (current $nc collisions, best $(indi_g.min) collisions)"
             break
         end
     end

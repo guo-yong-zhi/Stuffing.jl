@@ -110,3 +110,21 @@ Base.getindex(im::IntMap, ind...) = getindex(im.map, ind...)
 Base.setindex!(im::IntMap, v, ind...) = setindex!(im.map, v, ind...)
 
 intlru(n) = LRU{Int}(IntMap{Int}(n))
+
+mutable struct MonotoneIndicator{T}
+    min::T
+    age::Int
+end
+MonotoneIndicator{T}() where T = MonotoneIndicator{T}(typemax(T), 0)
+function reset!(i::MonotoneIndicator{T}) where T
+    i.min = typemax(T)
+    i.age = 0
+end
+resetage!(i::MonotoneIndicator) = i.age = 0
+function update!(i::MonotoneIndicator{T}, v) where T
+    i.age += 1
+    if v < i.min
+        i.age = 0
+        i.min = v
+    end
+end
