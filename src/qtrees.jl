@@ -12,7 +12,7 @@ const PERM4 = ((1, 2, 3, 4), (1, 2, 4, 3), (1, 3, 2, 4), (1, 3, 4, 2), (1, 4, 2,
 (3, 2, 4, 1), (3, 4, 1, 2), (3, 4, 2, 1), (4, 1, 2, 3), (4, 1, 3, 2), (4, 2, 1, 3), (4, 2, 3, 1), (4, 3, 1, 2), (4, 3, 2, 1))
 @assert length(PERM4) == 24
 @inline shuffle4() = @inbounds PERM4[rand(1:24)]
-Index = Tuple{Int, Int, Int}
+const Index = Tuple{Int, Int, Int}
 @inline function child(ind::Index, n::Int)
     @inbounds (ind[1] - 1, 2ind[2] - n & 0x01, 2ind[3] - (n & 0x02) >> 1)
 end
