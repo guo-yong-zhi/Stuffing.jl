@@ -129,24 +129,24 @@ function locate_core!(qt::AbstractStackedQTree, regtree::QTreeNode,
         push!(regtree.value.second, label)
         return ind
     end
-    unempty = (-1, -1, -1)
-    unemptyci = -1
+    ue = Vector{Tuple{Index, Int}}()
     for ci in 1:4
         c = child(ind, ci)
         if @inbounds qt[c] != EMPTY
-            if unemptyci == -1 # only one empty child
-                unempty = c
-                unemptyci = ci
-            else
-                push!(regtree.value.second, label)
-                return ind # multiple empty child
-            end
+            push!(ue, (c, ci))
         end
     end
-    if regtree.children[unemptyci] === nullnode(regtree)
-        regtree.children[unemptyci] = newnode(unempty, regtree)
+    if length(ue) <= 2 # only one empty child
+        r = ind
+        for (unempty, unemptyci) in ue
+            regtree.children[unemptyci] === nullnode(regtree) && (regtree.children[unemptyci] = newnode(unempty, regtree))
+            r = locate_core!(qt, regtree.children[unemptyci], unempty, label, newnode)
+        end
+        return r
+    else
+        push!(regtree.value.second, label)
+        return ind # multiple empty child
     end
-    locate_core!(qt, regtree.children[unemptyci], unempty, label, newnode)
 end
 function locate!(qts::AbstractVector, regtree::QTreeNode=int_region_qtree((length(qts[1]), 1, 1))) # must have same length
     for (i, qt) in enumerate(qts)
@@ -167,7 +167,15 @@ function outkernelcollision(qtrees, pos, inds, acinds, colist)
     for pind in acinds
         # check here because there are no bounds checking in _collision_randbfs
         if inkernelbounds(@inbounds(qtrees[pind][pos[1]]), pos[2], pos[3])
-            push!(ininds, pind)
+            if pos[1] == 1
+                if @inbounds qtrees[pind][pos] == FULL
+                    for cind in inds
+                        @inbounds qtrees[cind][pos] == FULL && push!(colist, (cind, pind) => pos)
+                    end
+                end
+            else
+                push!(ininds, pind)
+            end
         elseif getdefault(@inbounds(qtrees[pind][1])) == QTrees.FULL
             for cind in inds
                 if @inbounds(qtrees[cind][pos]) != QTrees.EMPTY

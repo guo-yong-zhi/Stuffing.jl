@@ -22,14 +22,14 @@ testqtree = Stuffing.testqtree
 
     qt = ShiftedQTree(rand((0, 0, 0, 1), rand(50:300), rand(50:300)), 512) |> buildqtree!
     li = QTrees.locate!(qt)
-    @test qt[li] != QTrees.EMPTY
-    for l in QTrees.length(qt)
-        if l >= li[1]
-            @test sum(qt[li[1]] .!= QTrees.EMPTY) <= 1
-        else
-            @test sum(qt[li[1] - 1] .!= QTrees.EMPTY) > 1
-        end
-    end
+    # @test qt[li] != QTrees.EMPTY
+    # for l in QTrees.length(qt)
+    #     if l >= li[1]
+    #         @test sum(qt[li[1]] .!= QTrees.EMPTY) <= 1
+    #     else
+    #         @test sum(qt[li[1] - 1] .!= QTrees.EMPTY) > 1
+    #     end
+    # end
     
     objs = []
     for i in 1:15
