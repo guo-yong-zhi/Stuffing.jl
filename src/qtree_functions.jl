@@ -102,7 +102,7 @@ end
 function _batchcollisions_native(qtrees::AbstractVector, inds::AbstractSet{<:Integer}; kargs...)
     _batchcollisions_native(qtrees, inds |> collect; kargs...)
 end
-function batchcollisions_native(qtrees::AbstractVector, inds=1:length(qtrees); kargs...)
+function batchcollisions_native(qtrees::AbstractVector{U8SQTree}, inds=1:length(qtrees); kargs...)
     l = length(qtrees[1])
     inds = [i for i in inds if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
     _batchcollisions_native(qtrees, inds; kargs...)
@@ -217,17 +217,17 @@ function batchcollisions_region(qtrees::AbstractVector, regtree::QTreeNode; coli
     end
     _batchcollisions_native(qtrees, pairlist; colist=colist, kargs...)
 end
-function batchcollisions_region(qtrees::AbstractVector; kargs...)
+function batchcollisions_region(qtrees::AbstractVector{U8SQTree}; kargs...)
     regtree = locate!(qtrees)
     batchcollisions_region(qtrees, regtree; kargs...)
 end
-function batchcollisions_region(qtrees::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}; kargs...)
+function batchcollisions_region(qtrees::AbstractVector{U8SQTree}, inds::Union{AbstractVector{Int},AbstractSet{Int}}; kargs...)
     regtree = locate!(qtrees, inds)
     batchcollisions_region(qtrees, regtree; kargs...)
 end
 
 const QTREE_COLLISION_ENABLE_TH = round(Int, 15 + 10 * log2(Threads.nthreads()))
-function batchcollisions(qtrees::AbstractVector, args...; kargs...)
+function batchcollisions(qtrees::AbstractVector{U8SQTree}, args...; kargs...)
     if length(qtrees) > QTREE_COLLISION_ENABLE_TH
         return batchcollisions_region(qtrees, args...; kargs...)
     else
@@ -365,7 +365,7 @@ function place!(ground::ShiftedQTree, qtree::ShiftedQTree; roomfinder=findroom_u
     return ind
 end
 
-function place!(ground::ShiftedQTree, sortedtrees::AbstractVector, index::Number; kargs...)
+function place!(ground::ShiftedQTree, sortedtrees::AbstractVector{U8SQTree}, index::Number; kargs...)
     for i in 1:length(sortedtrees)
         if i == index
             continue
@@ -374,7 +374,7 @@ function place!(ground::ShiftedQTree, sortedtrees::AbstractVector, index::Number
     end
     place!(ground, sortedtrees[index]; kargs...)
 end
-function place!(ground::ShiftedQTree, sortedtrees::AbstractVector, indexes; callback=x -> x, kargs...)
+function place!(ground::ShiftedQTree, sortedtrees::AbstractVector{U8SQTree}, indexes; callback=x -> x, kargs...)
     for i in 1:length(sortedtrees)
         if i in indexes continue end
         overlap!(ground, sortedtrees[i])
@@ -390,7 +390,7 @@ function place!(ground::ShiftedQTree, sortedtrees::AbstractVector, indexes; call
 end
 
 "将sortedtrees依次叠加到ground上，同时修改sortedtrees的shift"
-function place!(ground::ShiftedQTree, sortedtrees::AbstractVector; callback=x -> x, kargs...)
+function place!(ground::ShiftedQTree, sortedtrees::AbstractVector{U8SQTree}; callback=x -> x, kargs...)
     ind = nothing
     for (i, t) in enumerate(sortedtrees)
         ind = place!(ground, t; kargs...)
