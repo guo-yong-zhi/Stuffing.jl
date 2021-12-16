@@ -108,56 +108,30 @@ function batchcollisions_native(qtrees::AbstractVector{U8SQTree}, inds=1:length(
     _batchcollisions_native(qtrees, inds; kargs...)
 end
 
-const RegionQTree{T} = QTreeNode{Pair{Index, Vector{T}}}
-const NULL_NODE = RegionQTree{Any}()
-const INT_NULL_NODE = RegionQTree{Int}()
-nullnode(n::RegionQTree) = NULL_NODE
-nullnode(n::RegionQTree{Int}) = INT_NULL_NODE
-region_qtree(ind::Index, parent=NULL_NODE) = RegionQTree{Any}(ind => [], parent, [NULL_NODE, NULL_NODE, NULL_NODE, NULL_NODE])
-int_region_qtree(ind::Index, parent=INT_NULL_NODE) = RegionQTree{Int}(ind => Vector{Int}(), parent, 
-    [INT_NULL_NODE,INT_NULL_NODE,INT_NULL_NODE,INT_NULL_NODE])
-function locate!(qt::AbstractStackedQTree, regtree::QTreeNode=region_qtree((length(qt), 1, 1)),
-    ind::Index=(length(qt), 1, 1); label=qt, newnode=region_qtree)
-    if qt[ind] == EMPTY
-        return ind
+const RegionQTree = Dict{Index, Vector{Int}}
+function locate!(qt::AbstractStackedQTree, regtree::RegionQTree, label::Int)
+    l = length(qt)
+    while kernelsize(@inbounds qt[l]) == (2, 2) && l >= 1
+        l -= 1
     end
-    locate_core!(qt, regtree, ind, label, newnode)
+    l = l + 1
+    @inbounds mat = qt[l]
+    rs, cs = getshift(mat)
+    @inbounds mat[rs+1, cs+1] != EMPTY && push!(get!(Vector{Int}, regtree, (l, rs+1, cs+1)), label)
+    @inbounds mat[rs+1, cs+2] != EMPTY && push!(get!(Vector{Int}, regtree, (l, rs+1, cs+2)), label)
+    @inbounds mat[rs+2, cs+1] != EMPTY && push!(get!(Vector{Int}, regtree, (l, rs+2, cs+1)), label)
+    @inbounds mat[rs+2, cs+2] != EMPTY && push!(get!(Vector{Int}, regtree, (l, rs+2, cs+2)), label)
+    nothing
 end
-function locate_core!(qt::AbstractStackedQTree, regtree::QTreeNode,
-    ind::Index, label, newnode)
-    if ind[1] == 1
-        push!(regtree.value.second, label)
-        return ind
-    end
-    ue = Vector{Tuple{Index, Int}}()
-    for ci in 1:4
-        c = child(ind, ci)
-        if @inbounds qt[c] != EMPTY
-            push!(ue, (c, ci))
-        end
-    end
-    if length(ue) <= 2 # only one empty child
-        r = ind
-        for (unempty, unemptyci) in ue
-            regtree.children[unemptyci] === nullnode(regtree) && (regtree.children[unemptyci] = newnode(unempty, regtree))
-            r = locate_core!(qt, regtree.children[unemptyci], unempty, label, newnode)
-        end
-        return r
-    else
-        push!(regtree.value.second, label)
-        return ind # multiple empty child
-    end
-end
-function locate!(qts::AbstractVector, regtree::QTreeNode=int_region_qtree((length(qts[1]), 1, 1))) # must have same length
+function locate!(qts::AbstractVector, regtree=RegionQTree())
     for (i, qt) in enumerate(qts)
-        locate!(qt, regtree, label=i, newnode=int_region_qtree)
+        locate!(qt, regtree, i)
     end
     regtree
 end
-function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}, 
-        regtree::QTreeNode=int_region_qtree((length(qts[1]), 1, 1))) # must have same length
+function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}, regtree=RegionQTree())
     for i in inds
-        locate!(qts[i], regtree, label=i, newnode=int_region_qtree)
+        locate!(qts[i], regtree, i)
     end
     regtree
 end
@@ -167,15 +141,7 @@ function outkernelcollision(qtrees, pos, inds, acinds, colist)
     for pind in acinds
         # check here because there are no bounds checking in _collision_randbfs
         if inkernelbounds(@inbounds(qtrees[pind][pos[1]]), pos[2], pos[3])
-            if pos[1] == 1
-                if @inbounds qtrees[pind][pos] == FULL
-                    for cind in inds
-                        @inbounds qtrees[cind][pos] == FULL && push!(colist, (cind, pind) => pos)
-                    end
-                end
-            else
-                push!(ininds, pind)
-            end
+            push!(ininds, pind)
         elseif getdefault(@inbounds(qtrees[pind][1])) == QTrees.FULL
             for cind in inds
                 if @inbounds(qtrees[cind][pos]) != QTrees.EMPTY
@@ -189,13 +155,10 @@ function outkernelcollision(qtrees, pos, inds, acinds, colist)
 end
 
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
-function batchcollisions_region(qtrees::AbstractVector, regtree::QTreeNode; colist=Vector{CoItem}(), kargs...)
-    # @assert regtree !== nullnode(regtree)
-    nodequeue = [regtree]
+function batchcollisions_region(qtrees::AbstractVector, regtree::RegionQTree; colist=Vector{CoItem}(), unique=true, kargs...)
+    nlevel = length(qtrees[1])
     pairlist = Vector{CoItem}()
-    while !isempty(nodequeue)
-        N = popfirst!(nodequeue)
-        pos, inds = N.value
+    for (pos, inds) in regtree
         indslen = length(inds) 
         if indslen > 1
             for i in 1:indslen
@@ -204,26 +167,20 @@ function batchcollisions_region(qtrees::AbstractVector, regtree::QTreeNode; coli
                 end
             end
         end
-        p = N.parent
-        if indslen > 0
-            while p !== nullnode(regtree)
-                acinds = p.value.second
-                acinds = outkernelcollision(qtrees, pos, inds, acinds, colist)
-                if length(acinds) > 0
-                    # append!(pairlist, (((i, pi), pos) for i in inds for pi in acinds)) #双for列表推导比Iterators.product慢，可能是长度未知append!慢
-                    # append!(pairlist, [((i, pi), pos) for i in inds for pi in acinds]) 
-                    append!(pairlist, ((p => pos) for p in Iterators.product(inds, acinds)))
-                end
-                p = p.parent
-            end
-        end
-        for c in N.children
-            if c !== nullnode(regtree)
-                push!(nodequeue, c)
+        ppos = pos
+        while true
+            ppos = parent(ppos)
+            (ppos[1] > nlevel) && break
+            if haskey(regtree, ppos)
+                pinds = regtree[ppos]
+                pinds = outkernelcollision(qtrees, pos, inds, pinds, colist)
+                append!(pairlist, ((p => pos) for p in Iterators.product(inds, pinds)))
             end
         end
     end
-    _batchcollisions_native(qtrees, pairlist; colist=colist, kargs...)
+    # @show length(pairlist), length(colist)
+    r = _batchcollisions_native(qtrees, pairlist; colist=colist, kargs...)
+    unique ? unique!(first, sort!(r)) : r
 end
 function batchcollisions_region(qtrees::AbstractVector{U8SQTree}; kargs...)
     regtree = locate!(qtrees)
@@ -235,9 +192,9 @@ function batchcollisions_region(qtrees::AbstractVector{U8SQTree}, inds::Union{Ab
 end
 
 const QTREE_COLLISION_ENABLE_TH = round(Int, 15 + 10 * log2(Threads.nthreads()))
-function batchcollisions(qtrees::AbstractVector{U8SQTree}, args...; kargs...)
+function batchcollisions(qtrees::AbstractVector{U8SQTree}, args...; unique=true, kargs...)
     if length(qtrees) > QTREE_COLLISION_ENABLE_TH
-        return batchcollisions_region(qtrees, args...; kargs...)
+        return batchcollisions_region(qtrees, args...; unique=unique, kargs...)
     else
         return batchcollisions_native(qtrees, args...; kargs...)
     end

@@ -263,7 +263,7 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimis
 end
 
 function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser, 
-    queue::QTrees.AbstractThreadQueue=QTrees.thread_queue())
+    queue::QTrees.AbstractThreadQueue=QTrees.thread_queue(), unique=true)
     nc1 = 0
     colist = Vector{QTrees.CoItem}()
     sl1 = Threads.SpinLock()
@@ -489,7 +489,7 @@ function train!(ts, nepoch::Number=-1, args...;
     nepoch >= 0 || (nepoch = trainer(:nepoch))
     @info "nepoch: $nepoch, " * (reposition_flag ? "patient: $patient" : "reposition off")
     while ep < nepoch
-        nc = trainer(ts, args...; resource..., optimiser=optimiser, kargs...)
+        nc = trainer(ts, args...; resource..., optimiser=optimiser, unique=false, kargs...)
         ep += 1
         update!(indi_r, nc)
         update!(indi_g, nc)

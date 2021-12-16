@@ -319,7 +319,7 @@ function Base.show(io::IO, m::MIME"text/plain", qt::ShiftedQTree)
     showlevel = max(1, ceil(Int, log2(size(qt[1], 1) / 49)) + 1)
     print(io, "ShiftedQTree{", length(qt))
     if length(qt) > 0
-        print(io, "-", size(qt[1]), "}  @level-", showlevel, ":\n", charimage(qt[showlevel], maxlen=49))
+        print(io, " - ", size(qt[1]), "}  @level ", showlevel, " - ", size(qt[showlevel]), ":\n", charimage(qt[showlevel], maxlen=49))
     else
         print(io, "} {}")
     end
