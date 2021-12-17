@@ -1,64 +1,11 @@
 module Trainer
-export Momentum, train!, fit!
+export Momentum, SGD, train!, fit!
 export trainepoch_E!, trainepoch_EM!, trainepoch_EM2!, trainepoch_EM3!, trainepoch_P!, trainepoch_P2!, trainepoch_Px!
 
 using Random
 using ..QTrees
 
 include("fit_helper.jl")
-mutable struct Momentum
-    eta::Float64
-    rho::Float64
-    velocity::IdDict
-end
-
-Momentum(η, ρ=0.9) = Momentum(η, ρ, IdDict())
-Momentum(;η=0.01, ρ=0.9) = Momentum(η, ρ, IdDict())
-
-function apply(o::Momentum, x, Δ)
-    η, ρ = o.eta, o.rho
-    Δ = collect(Float64, Δ)
-    v = get!(o.velocity, x, Δ)
-    @. v = ρ * v + (1 - ρ) * Δ
-    η .* v
-end
-function apply!(o::Momentum, x, Δ)
-    Δ .= apply(o, x, Δ)
-end
-(opt::Momentum)(x, Δ) = apply(opt::Momentum, x, Δ)
-reset!(o::Momentum, x) =  pop!(o.velocity, x)
-eta(o::Momentum) = o.eta
-eta!(o::Momentum, e) = o.eta = e
-reset!(o, x) = nothing
-eta(o) = NaN
-eta!(o, e) = NaN
-Base.broadcastable(m::Momentum) = Ref(m)
-@assert QTrees.EMPTY == 1 && QTrees.FULL == 2 && QTrees.MIX == 3
-@inline decode2(c) = @inbounds (0, 2, 1)[c]
-
-# const DECODETABLE = [0, 2, 1]
-# near(a::Integer, b::Integer, r=1) = a-r:a+r, b-r:b+r
-# near(m::AbstractMatrix, a::Integer, b::Integer, r=1) = @view m[near(a, b, r)...]
-# const KERNEL = collect.(Iterators.product(-1:1,-1:1))
-# gard2d(m::AbstractMatrix) = sum(KERNEL .* m)
-# gard2d(t::ShiftedQTree, l, a, b) = gard2d(decode2(near(t[l],a,b)))|>Tuple
-
-function gard2d(t::ShiftedQTree, l, a, b) # FULL is white, Positive directions are right & down 
-    m = t[l]
-    diag = -decode2(m[a - 1, b - 1]) + decode2(m[a + 1, b + 1])
-    cdiag = -decode2(m[a - 1, b + 1]) + decode2(m[a + 1, b - 1])
-    (
-    + diag
-    + cdiag
-    - decode2(m[a - 1, b])
-    + decode2(m[a + 1, b])
-    ), (
-    + diag
-    - cdiag
-    - decode2(m[a, b - 1])
-    + decode2(m[a, b + 1])
-    ) # (h, w)
-end
 
 function move!(qt, delta)
     if rand() < 0.1 # 破坏周期运动
@@ -453,7 +400,7 @@ end
 
 function train!(ts, nepoch::Number=-1, args...; 
     trainer=trainepoch_EM2!, patient::Number=trainer(:patient), 
-    optimiser=Momentum(η=1/4, ρ=0.5), scheduler=lr->lr*√0.5,
+    optimiser=Momentum(η=1/4), scheduler=lr->lr*√0.5,
     callback=x -> x, reposition=i -> true, resource=trainer(inputs=ts), kargs...)
     reposition_flag = true
     if reposition isa Function

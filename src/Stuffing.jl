@@ -2,7 +2,7 @@ module Stuffing
 export qtree, maskqtree, qtrees, place!, overlap!, overlap, getpositions, setpositions!, packing, packing!
 export QTrees, getshift, getcenter, setshift!, setcenter!, outofbounds, outofkernelbounds, 
     batchcollisions, collision, findroom_uniform, findroom_gathering
-export Trainer, train!, fit!, Momentum
+export Trainer, train!, fit!, Momentum, SGD
 include("qtrees.jl")
 include("fit.jl")
 using .QTrees

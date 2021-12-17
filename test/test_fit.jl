@@ -55,5 +55,7 @@
         end
     end
     place!(qts)
-    fit!(qts, 100, optimiser=(t, Δ) -> Δ ./ 6, patient=5)
+    fit!(qts, 100, optimiser=SGD(), patient=5)
+    place!(qts)
+    fit!(qts, 100, optimiser=Momentum(), patient=5)
 end

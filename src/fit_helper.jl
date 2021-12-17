@@ -1,3 +1,69 @@
+abstract type AbstractOptimiser end
+function apply(o::AbstractOptimiser, x, Δ) end
+function apply!(o::AbstractOptimiser, x, Δ)
+    Δ .= apply(o, x, Δ)
+end
+(opt::AbstractOptimiser)(x, Δ) = apply(opt::AbstractOptimiser, x, Δ)
+Base.broadcastable(o::AbstractOptimiser) = Ref(o)
+function reset!(o::AbstractOptimiser, x) end
+function eta(o::AbstractOptimiser) end
+function eta!(o::AbstractOptimiser, η) end
+
+mutable struct Momentum <: AbstractOptimiser
+    eta::Float64
+    rho::Float64
+    velocity::IdDict
+end
+Momentum(η, ρ=0.5) = Momentum(η, ρ, IdDict())
+Momentum(;η=0.25, ρ=0.5) = Momentum(η, ρ, IdDict())
+function apply(o::Momentum, x, Δ)
+    η, ρ = o.eta, o.rho
+    Δ = collect(Float64, Δ)
+    v = get!(o.velocity, x, Δ)
+    @. v = ρ * v + (1 - ρ) * Δ
+    η .* v
+end
+reset!(o::Momentum, x) =  pop!(o.velocity, x)
+eta(o::Momentum) = o.eta
+eta!(o::Momentum, e) = o.eta = e
+
+mutable struct SGD <: AbstractOptimiser
+    eta::Float64
+end
+SGD(;η=0.25) = SGD(η)
+apply(o::SGD, x, Δ) = o.eta .* Δ
+reset!(o::SGD, x) =  nothing
+eta(o::SGD) = o.eta
+eta!(o::SGD, e) = o.eta = e
+
+
+@assert QTrees.EMPTY == 1 && QTrees.FULL == 2 && QTrees.MIX == 3
+@inline decode2(c) = @inbounds (0, 2, 1)[c]
+
+# const DECODETABLE = [0, 2, 1]
+# near(a::Integer, b::Integer, r=1) = a-r:a+r, b-r:b+r
+# near(m::AbstractMatrix, a::Integer, b::Integer, r=1) = @view m[near(a, b, r)...]
+# const KERNEL = collect.(Iterators.product(-1:1,-1:1))
+# gard2d(m::AbstractMatrix) = sum(KERNEL .* m)
+# gard2d(t::ShiftedQTree, l, a, b) = gard2d(decode2(near(t[l],a,b)))|>Tuple
+
+function gard2d(t::ShiftedQTree, l, a, b) # FULL is white, Positive directions are right & down 
+    m = t[l]
+    diag = -decode2(m[a - 1, b - 1]) + decode2(m[a + 1, b + 1])
+    cdiag = -decode2(m[a - 1, b + 1]) + decode2(m[a + 1, b - 1])
+    (
+    + diag
+    + cdiag
+    - decode2(m[a - 1, b])
+    + decode2(m[a + 1, b])
+    ), (
+    + diag
+    - cdiag
+    - decode2(m[a, b - 1])
+    + decode2(m[a, b + 1])
+    ) # (h, w)
+end
+
 # function intlog2(x::Float64) #not safe, x can't be nan or inf
 #     #Float64 符号位(S)，编号63；阶码位，编号62 ~52
 #     b64 = reinterpret(UInt64, x)
