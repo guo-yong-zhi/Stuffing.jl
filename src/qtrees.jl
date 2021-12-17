@@ -25,9 +25,9 @@ function indexrange(l::Integer, a::Integer, b::Integer)
 end
 indexrange(ind) = indexrange(ind...)
 Base.@propagate_inbounds function qcode(Q, i)
-    (Q[child(i, 1)] | Q[child(i, 2)] | Q[child(i, 3)] | Q[child(i, 4)])
+    @inbounds (Q[child(i, 1)] | Q[child(i, 2)] | Q[child(i, 3)] | Q[child(i, 4)])
 end
-Base.@propagate_inbounds qcode!(Q, i) = Q[i] = qcode(Q, i)
+Base.@propagate_inbounds qcode!(Q, i) = @inbounds Q[i] = qcode(Q, i)
 decode(c) = (0., 1., 0.5)[c]
 
 const FULL = 0x02; const EMPTY = 0x01; const MIX = 0x03
