@@ -23,7 +23,8 @@
     @test Trainer.take(lru, 3) == [1,2,4]
     push!.(lru, 7:9)
     @test Trainer.take(lru, 3) == [9,8,7]
-
+    using Random
+    Random.seed!(9)
     mask = fill("aa", 500, 800) # can be any AbstractMatrix
     m, n = size(mask)
     for i in 1:m
@@ -48,10 +49,10 @@
     @test !isempty(QTrees.batchcollisions_region(qts[1:2]))
     l = length(qts) - 1
     tele = [0.3, true, false, i -> i % 2 == 1, round(Int, l * 0.2), [10:l...]]
-    for t in ts
+    @time for t in ts
         for te in tele
             place!(qts)
-            fit!(qts, trainer=t, reposition=te)
+            @time fit!(qts, trainer=t, reposition=te)
         end
     end
     place!(qts)

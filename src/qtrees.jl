@@ -167,7 +167,7 @@ function ShiftedQTree(pic::AbstractMatrix{UInt8}, sz::Integer; default=EMPTY)
     ShiftedQTree(PaddedMat(pic, (sz, sz), default=default))
 end
 function ShiftedQTree(pic::AbstractMatrix{UInt8}; default=EMPTY)
-    m = max(size(pic)...)
+    m = max(2, size(pic)...) # >2 for _collision_randbfs
     ShiftedQTree(pic, 2^ceil(Int, log2(m)), default=default)
 end
 function ShiftedQTree(pic::AbstractMatrix, args...; kargs...)

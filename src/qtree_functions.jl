@@ -18,6 +18,7 @@ function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(le
     return r # no collision
 end
 function _collision_randbfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, q::AbstractVector{Index}=[(length(Q1), 1, 1)])
+    #no bounds checking and assume Index[1] >= 2
 #     @assert size(Q1) == size(Q2)
     if isempty(q)
         push!(q, (length(Q1), 1, 1))
@@ -102,19 +103,26 @@ end
 function _batchcollisions_native(qtrees::AbstractVector, inds::AbstractSet{<:Integer}; kargs...)
     _batchcollisions_native(qtrees, inds |> collect; kargs...)
 end
-function batchcollisions_native(qtrees::AbstractVector{U8SQTree}, inds=1:length(qtrees); kargs...)
-    l = length(qtrees[1])
+function batchcollisions_native(qtrees::AbstractVector{U8SQTree}, inds=1:length(qtrees);  
+    colist=Vector{CoItem}(), kargs...)
+    if length(qtrees) > 1
+        l = length(@inbounds qtrees[1])
+    else
+        return colist
+    end
     inds = [i for i in inds if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
-    _batchcollisions_native(qtrees, inds; kargs...)
+    _batchcollisions_native(qtrees, inds; colist=colist, kargs...)
 end
 
 const RegionQTree = Dict{Index, Vector{Int}}
 function locate!(qt::AbstractStackedQTree, regtree::RegionQTree, label::Int)
-    l = length(qt)
+    l = length(qt) #l always >= 2
     while kernelsize(@inbounds qt[l]) == (2, 2) && l >= 1
         l -= 1
     end
     l = l + 1
+    l > length(qt) && (l = length(qt))
+    l < 2 && (l = 2) # >= 2 for _collision_randbfs
     @inbounds mat = qt[l]
     rs, cs = getshift(mat)
     @inbounds mat[rs+1, cs+1] != EMPTY && push!(get!(Vector{Int}, regtree, (l, rs+1, cs+1)), label)
@@ -156,7 +164,11 @@ end
 
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
 function batchcollisions_region(qtrees::AbstractVector, regtree::RegionQTree; colist=Vector{CoItem}(), unique=true, kargs...)
-    nlevel = length(qtrees[1])
+    if length(qtrees) > 1
+        nlevel = length(@inbounds qtrees[1])
+    else
+        return colist
+    end
     pairlist = Vector{CoItem}()
     for (pos, inds) in regtree
         indslen = length(inds) 
@@ -170,9 +182,9 @@ function batchcollisions_region(qtrees::AbstractVector, regtree::RegionQTree; co
         ppos = pos
         while true
             ppos = parent(ppos)
-            (ppos[1] > nlevel) && break
-            if haskey(regtree, ppos)
-                pinds = regtree[ppos]
+            (@inbounds ppos[1] > nlevel) && break
+            pinds = get(regtree, ppos, nothing)
+            if pinds !== nothing
                 pinds = outkernelcollision(qtrees, pos, inds, pinds, colist)
                 append!(pairlist, ((p => pos) for p in Iterators.product(inds, pinds)))
             end
