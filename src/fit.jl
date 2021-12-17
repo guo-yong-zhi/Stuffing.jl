@@ -28,27 +28,21 @@ function step!(t1, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser
     ks2 = (ks2[1] + ks2[2]) ^ 3
     l = collisionpoint[1]
     ll = 2^(l - 1)
-    # @show collisionpoint
     delta1 = ll .* gard2d(t1, collisionpoint...)
     delta2 = ll .* gard2d(t2, collisionpoint...)
-    # @assert gard2d(t1, collisionpoint...)==gard2d2(t1, collisionpoint...)
-    # @show delta1,collisionpoint,gard2d(t1, collisionpoint...)
-    delta1 = optimiser(t1, delta1)
-    # @show delta1
-    delta2 = optimiser(t2, delta2)
     move1 = rand() < ks2 / ks1 # ks1越大移动概率越小，ks1<=ks2时必然移动（质量越大，惯性越大运动越少）
     move2 = rand() < ks1 / ks2
     if move1
         if !move2
-            delta1 = 2 .* delta1
+            delta1 = delta1 .- delta2
         end
-        move!(t1, delta1)
+        move!(t1, optimiser(t1, delta1))
     end
     if move2
         if !move1
-            delta2 = 2 .* delta2
+            delta2 = delta2 .- delta1
         end
-        move!(t2, delta2)
+        move!(t2, optimiser(t2, delta2))
     end
 end
 function step_mask!(mask, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser=(t, Δ) -> Δ ./ 6)

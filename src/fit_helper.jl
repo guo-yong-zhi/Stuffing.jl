@@ -5,9 +5,9 @@ function apply!(o::AbstractOptimiser, x, Δ)
 end
 (opt::AbstractOptimiser)(x, Δ) = apply(opt::AbstractOptimiser, x, Δ)
 Base.broadcastable(o::AbstractOptimiser) = Ref(o)
-function reset!(o::AbstractOptimiser, x) end
-function eta(o::AbstractOptimiser) end
-function eta!(o::AbstractOptimiser, η) end
+reset!(o, x) = nothing
+eta(o) = NaN
+eta!(o, e) = NaN
 
 mutable struct Momentum <: AbstractOptimiser
     eta::Float64
