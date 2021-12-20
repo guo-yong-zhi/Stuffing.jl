@@ -203,9 +203,9 @@ function batchcollisions_region(qtrees::AbstractVector{U8SQTree}, inds::Union{Ab
     batchcollisions_region(qtrees, regtree; kargs...)
 end
 
-const QTREE_COLLISION_ENABLE_TH = round(Int, 15 + 10 * log2(Threads.nthreads()))
+const REGION_ENABLE_THRESHOLD = round(Int, 10+10log2(Threads.nthreads()))
 function batchcollisions(qtrees::AbstractVector{U8SQTree}, args...; unique=true, kargs...)
-    if length(qtrees) > QTREE_COLLISION_ENABLE_TH
+    if length(qtrees) > REGION_ENABLE_THRESHOLD
         return batchcollisions_region(qtrees, args...; unique=unique, kargs...)
     else
         return batchcollisions_native(qtrees, args...; kargs...)
