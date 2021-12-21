@@ -45,18 +45,24 @@ include("test_fit.jl")
     setshift!(qts[1], (-1000, -1000))
     @test collision(qts[1], qts[2])[1] < 0
 
-    mask = fill(true, 500, 800) # can be any AbstractMatrix
-    objs = []
-    for i in 1:30
-        s = 20 + randexp() * 50
-        obj = fill(true, round(Int, s) + 1, round(Int, s * (0.5 + rand() / 2)) + 1) # Bool Matrix implied that background = false
-        push!(objs, obj)
+    ncollection = -1
+    nepoch = 0
+    while ncollection != 0 && nepoch < 10000
+        mask = fill(true, 500, 800) # can be any AbstractMatrix
+        objs = []
+        for i in 1:30
+            s = 20 + randexp() * 50
+            obj = fill(true, round(Int, s) + 1, round(Int, s * (0.5 + rand() / 2)) + 1) # Bool Matrix implied that background = false
+            push!(objs, obj)
+        end
+        sort!(objs, by=prod ∘ size, rev=true)
+        packing(mask, objs, 10)
+        qts = qtrees(objs, mask=mask);
+        setpositions!(qts, :, (200, 300))
+        ep, nc = packing!(qts, trainer=Trainer.trainepoch_P2!)
+        nepoch += ep
+        ncollection = nc
     end
-    sort!(objs, by=prod ∘ size, rev=true)
-    packing(mask, objs, 10)
-    qts = qtrees(objs, mask=mask);
-    setpositions!(qts, :, (200, 300))
-    packing!(qts, trainer=Trainer.trainepoch_P2!)
     getpositions(qts)
     @test isempty(outofkernelbounds(qts[1], qts[2:end]))
     @test isempty(outofbounds(qts[1], qts[2:end]))

@@ -97,14 +97,14 @@ function packing(mask, objs, args...; background=:auto, maskbackground=:auto, ka
 end
 function packing!(qts, args...; kargs...)
     place!(qts)
-    ep, nc = fit!(qts, args...; kargs...)
-    @info "$ep epochs, $nc collections"
-    if nc != 0
+    nepoch, ncollection = fit!(qts, args...; kargs...)
+    @info "$nepoch epochs, $ncollection collections"
+    if ncollection != 0
         colllist = first.(batchcollisions(qts))
         get_text(i) = i > 1 ? "obj_$(i - 1)" : "#MASK#"
         @warn "have $(length(colllist)) collisions:\n" * 
             string([(get_text(i), get_text(j)) for (i, j) in colllist])
     end
-    qts
+    nepoch, ncollection
 end
 end
