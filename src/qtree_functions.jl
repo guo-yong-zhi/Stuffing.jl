@@ -117,12 +117,17 @@ end
 const RegionQTree = Dict{Index, Vector{Int}}
 function locate!(qt::AbstractStackedQTree, regtree::RegionQTree, label::Int)
     l = length(qt) #l always >= 2
-    while kernelsize(@inbounds qt[l]) == (2, 2) && l >= 1
+    # @assert kernelsize(qt[l], 1) <= 2 && kernelsize(qt[l], 2) <= 2
+    while true
         l -= 1
+        s1, s2 = kernelsize(@inbounds qt[l])
+        if s1 > 2 || s2 > 2 || l < 2 # >= 2 for _collision_randbfs
+            l += 1
+            break
+        end
     end
-    l = l + 1
-    l > length(qt) && (l = length(qt))
-    l < 2 && (l = 2) # >= 2 for _collision_randbfs
+    # @assert l <= length(qt)
+    # @assert l >= 2
     @inbounds mat = qt[l]
     rs, cs = getshift(mat)
     @inbounds mat[rs+1, cs+1] != EMPTY && push!(get!(Vector{Int}, regtree, (l, rs+1, cs+1)), label)
