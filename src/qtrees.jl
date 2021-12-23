@@ -273,20 +273,6 @@ function outofkernelbounds(bgqt::ShiftedQTree, qts)
     [i for (i, t) in enumerate(qts) if !inkernelbounds(bgqt, t)]
 end
 
-################ LinkedQTree
-
-struct QTreeNode{T}
-    value::T
-    parent::QTreeNode{T}
-    children::Vector{QTreeNode{T}}
-    QTreeNode{T}() where T = new{T}()
-    QTreeNode{T}(v, p, c) where T = new{T}(v, p, c)
-end
-
-QTreeNode(value::T, parent, children) where T = QTreeNode{T}(value, parent, children)
-
-include("qtree_functions.jl")
-
 ################ show
 function charmat(mat; maxlen=49)
     m, n = size(mat)
@@ -325,4 +311,27 @@ function Base.show(io::IO, m::MIME"text/plain", qt::ShiftedQTree)
         print(io, "} {}")
     end
 end
+
+################ LinkedQTree
+struct QTreeNode{T}
+    value::T
+    parent::QTreeNode{T}
+    children::Vector{QTreeNode{T}}
+    QTreeNode{T}() where T = new{T}()
+    QTreeNode{T}(v, p, c) where T = new{T}(v, p, c)
+end
+
+QTreeNode(value::T, parent, children) where T = QTreeNode{T}(value, parent, children)
+
+
+################ HashQTree
+abstract type AbstractHashQTree end
+struct HashQTree <: AbstractHashQTree
+    qtree::Dict{Index, Vector{Int}}
+end
+HashQTree() = HashQTree(Dict{Index, Vector{Int}}())
+Base.push!(t::HashQTree, ind::Index, label::Int) = push!(get!(Vector{Int}, t.qtree, ind), label)
+Base.iterate(t::HashQTree, args...) = iterate(t.qtree, args...)
+Base.get(t::HashQTree, args...) = get(t.qtree, args...)
+include("qtree_functions.jl")
 end

@@ -48,11 +48,11 @@
     setshift!(qts[2], 1, 1000, 1000);
     @test !isempty(QTrees.batchcollisions_region(qts[1:2]))
     l = length(qts) - 1
-    tele = [0.3, true, false, i -> i % 2 == 1, round(Int, l * 0.2), [10:l...]]
+    repo = [0.3, true, false, i -> i % 2 == 1, round(Int, l * 0.2), [10:l...]]
     @time for t in ts
-        for te in tele
+        for rp in repo
             place!(qts)
-            @time fit!(qts, trainer=t, reposition=te)
+            @time fit!(qts, trainer=t, reposition=rp)
         end
     end
     place!(qts)

@@ -114,8 +114,7 @@ function batchcollisions_native(qtrees::AbstractVector{U8SQTree}, inds=1:length(
     _batchcollisions_native(qtrees, inds; colist=colist, kargs...)
 end
 
-const RegionQTree = Dict{Index, Vector{Int}}
-function locate!(qt::AbstractStackedQTree, regtree::RegionQTree, label::Int)
+function locate!(qt::AbstractStackedQTree, sptree::AbstractHashQTree, label::Int)
     l = length(qt) #l always >= 2
     # @assert kernelsize(qt[l], 1) <= 2 && kernelsize(qt[l], 2) <= 2
     while true
@@ -130,23 +129,23 @@ function locate!(qt::AbstractStackedQTree, regtree::RegionQTree, label::Int)
     # @assert l >= 2
     @inbounds mat = qt[l]
     rs, cs = getshift(mat)
-    @inbounds mat[rs+1, cs+1] != EMPTY && push!(get!(Vector{Int}, regtree, (l, rs+1, cs+1)), label)
-    @inbounds mat[rs+1, cs+2] != EMPTY && push!(get!(Vector{Int}, regtree, (l, rs+1, cs+2)), label)
-    @inbounds mat[rs+2, cs+1] != EMPTY && push!(get!(Vector{Int}, regtree, (l, rs+2, cs+1)), label)
-    @inbounds mat[rs+2, cs+2] != EMPTY && push!(get!(Vector{Int}, regtree, (l, rs+2, cs+2)), label)
+    @inbounds mat[rs+1, cs+1] != EMPTY && push!(sptree, (l, rs+1, cs+1), label)
+    @inbounds mat[rs+1, cs+2] != EMPTY && push!(sptree, (l, rs+1, cs+2), label)
+    @inbounds mat[rs+2, cs+1] != EMPTY && push!(sptree, (l, rs+2, cs+1), label)
+    @inbounds mat[rs+2, cs+2] != EMPTY && push!(sptree, (l, rs+2, cs+2), label)
     nothing
 end
-function locate!(qts::AbstractVector, regtree=RegionQTree())
+function locate!(qts::AbstractVector, sptree=HashQTree())
     for (i, qt) in enumerate(qts)
-        locate!(qt, regtree, i)
+        locate!(qt, sptree, i)
     end
-    regtree
+    sptree
 end
-function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}, regtree=RegionQTree())
+function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}, sptree=HashQTree())
     for i in inds
-        locate!(qts[i], regtree, i)
+        locate!(qts[i], sptree, i)
     end
-    regtree
+    sptree
 end
 
 function outkernelcollision(qtrees, pos, inds, acinds, colist)
@@ -168,14 +167,14 @@ function outkernelcollision(qtrees, pos, inds, acinds, colist)
 end
 
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
-function batchcollisions_region(qtrees::AbstractVector, regtree::RegionQTree; colist=Vector{CoItem}(), unique=true, kargs...)
+function batchcollisions_region(qtrees::AbstractVector, sptree::HashQTree; colist=Vector{CoItem}(), unique=true, kargs...)
     if length(qtrees) > 1
         nlevel = length(@inbounds qtrees[1])
     else
         return colist
     end
     pairlist = Vector{CoItem}()
-    for (pos, inds) in regtree
+    for (pos, inds) in sptree
         indslen = length(inds) 
         if indslen > 1
             for i in 1:indslen
@@ -188,7 +187,7 @@ function batchcollisions_region(qtrees::AbstractVector, regtree::RegionQTree; co
         while true
             ppos = parent(ppos)
             (@inbounds ppos[1] > nlevel) && break
-            pinds = get(regtree, ppos, nothing)
+            pinds = get(sptree, ppos, nothing)
             if pinds !== nothing
                 pinds = outkernelcollision(qtrees, pos, inds, pinds, colist)
                 append!(pairlist, ((p => pos) for p in Iterators.product(inds, pinds)))
@@ -200,12 +199,12 @@ function batchcollisions_region(qtrees::AbstractVector, regtree::RegionQTree; co
     unique ? unique!(first, sort!(r)) : r
 end
 function batchcollisions_region(qtrees::AbstractVector{U8SQTree}; kargs...)
-    regtree = locate!(qtrees)
-    batchcollisions_region(qtrees, regtree; kargs...)
+    sptree = locate!(qtrees)
+    batchcollisions_region(qtrees, sptree; kargs...)
 end
 function batchcollisions_region(qtrees::AbstractVector{U8SQTree}, inds::Union{AbstractVector{Int},AbstractSet{Int}}; kargs...)
-    regtree = locate!(qtrees, inds)
-    batchcollisions_region(qtrees, regtree; kargs...)
+    sptree = locate!(qtrees, inds)
+    batchcollisions_region(qtrees, sptree; kargs...)
 end
 
 const REGION_ENABLE_THRESHOLD = round(Int, 10+10log2(Threads.nthreads()))
