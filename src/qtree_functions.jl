@@ -65,12 +65,12 @@ const CoItem = Pair{Tuple{Int,Int}, Index}
 const AbstractThreadQueue = AbstractVector{<:AbstractVector{Index}}
 thread_queue() = [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()]
 # assume inkernelbounds(qtree, at) is true
-function _batchcollisions_native(qtrees::AbstractVector, indpairs; 
+function _batchcollisions_native(qtrees::AbstractVector, copairs; 
         colist=Vector{CoItem}(),
         queue::AbstractThreadQueue=thread_queue(),
         at=(length(qtrees[1]), 1, 1))
     sl = Threads.SpinLock()
-    Threads.@threads for (i1, i2) in indpairs
+    Threads.@threads for (i1, i2) in copairs
         que = @inbounds queue[Threads.threadid()]
         empty!(que)
         push!(que, at)
@@ -81,10 +81,10 @@ function _batchcollisions_native(qtrees::AbstractVector, indpairs;
     end
     colist
 end
-function _batchcollisions_native(qtrees::AbstractVector, indpairs::Vector{CoItem}; 
+function _batchcollisions_native(qtrees::AbstractVector, coitems::Vector{CoItem}; 
     colist=Vector{CoItem}(), queue::AbstractThreadQueue=thread_queue())
     sl = Threads.SpinLock()
-    Threads.@threads for ((i1, i2), at) in indpairs
+    Threads.@threads for ((i1, i2), at) in coitems
         que = @inbounds queue[Threads.threadid()]
         empty!(que)
         push!(que, at)
@@ -220,7 +220,47 @@ function batchcollisions(qtrees::AbstractVector{U8SQTree}, args...; unique=true,
         return batchcollisions_native(qtrees, args...; kargs...)
     end
 end
-
+function dynamiccollisions(qtrees::AbstractVector, sptree::HashLinkedQTree, moved::Union{AbstractVector{Int},AbstractSet{Int}}; 
+    colist=Vector{CoItem}(), unique=true, kargs...)
+    if length(qtrees) > 1 && length(moved) > 0
+        nlevel = length(@inbounds qtrees[1])
+    else
+        return colist
+    end
+    pairlist = Vector{CoItem}()
+    for label in moved
+        for node in takelabel(sptree, label)
+            lbs = Vector{Int}()
+            p = node.prev
+            while p.prev !== p #not head
+                push!(lbs, p.value)
+                p = p.prev
+            end
+            hv = p.value
+            p = node.next
+            while p.next !== p #not tail
+                push!(lbs, p.value)
+                p = p.next
+            end
+            tv = p.value
+            pos = decodeindex(hv, tv)
+            append!(pairlist, (((label, lb) => pos) for lb in lbs))
+            ppos = pos
+            while true
+                ppos = parent(ppos)
+                (@inbounds ppos[1] > nlevel) && break
+                if haskey(sptree, ppos)
+                    plbs = takeindex(sptree, ppos)
+                    plbs = outkernelcollision(qtrees, pos, [label], plbs, colist)
+                    append!(pairlist, (((label, plb) => pos) for plb in plbs))
+                end
+            end
+        end
+    end
+    @show length(pairlist), length(colist)
+    r = _batchcollisions_native(qtrees, pairlist; colist=colist, kargs...)
+    unique ? unique!(first, sort!(r)) : r
+end
 ########## place!
 function findroom_uniform(ground, q=[(length(ground), 1, 1)])
     if isempty(q)

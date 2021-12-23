@@ -1,7 +1,7 @@
 module QTrees
 export AbstractStackedQTree, StackedQTree, ShiftedQTree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
-    collision, collision_dfs, batchcollisions,
+    collision, collision_dfs, batchcollisions, dynamiccollisions,
     findroom_uniform, findroom_gathering, outofbounds, outofkernelbounds, 
     kernelsize, place!, overlap, overlap!, decode, charimage
 
@@ -359,9 +359,17 @@ function Base.push!(t::HashLinkedQTree{T}, ind::Index, label::Int) where T
         t.map[label] = loc
     end
     push!(loc, n)
-    l = get!(DoubleList{T}, t.qtree, ind)
+    if haskey(t.qtree, ind)
+        l = t.qtree[ind]
+    else
+        hv, i2, i3 = ind
+        tv = i2 << (sizeof(T)*4) | i3
+        l = DoubleList{T}(hv, tv)
+        t.qtree[ind] = l
+    end
     pushfirst!(l, n)
 end
+decodeindex(hv, tv) = (hv, tv >> (sizeof(tv)*4), tv & (1<<(sizeof(tv)*4)-1))
 function Base.empty!(t::HashLinkedQTree, label)
     if haskey(t.map, label) && !isempty(t.map[label])
         nodes = t.map[label]
@@ -371,6 +379,6 @@ function Base.empty!(t::HashLinkedQTree, label)
 end
 tree(t::HashLinkedQTree) = t.qtree
 takeindex(t::HashLinkedQTree, ind::Index) = LinkedList.take(t[ind])
-
+takelabel(t::HashLinkedQTree, label) = t.map[label]
 include("qtree_functions.jl")
 end

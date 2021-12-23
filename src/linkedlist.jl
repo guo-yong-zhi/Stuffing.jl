@@ -29,7 +29,12 @@ function DoubleList{T}() where T
     t.prev = h
     DoubleList(h, t)
 end
-
+function DoubleList{T}(hv::T, tv::T) where T
+    l = DoubleList{T}()
+    l.head.value = hv
+    l.tail.value = tv
+    l
+end
 function Base.pushfirst!(l::DoubleList, n::ListNode)
     n.next = l.head.next
     n.prev = l.head

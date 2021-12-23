@@ -56,6 +56,8 @@
         inds2 = Stuffing.LinkedList.take(hq2[pos])
         @test Set(inds1) == Set(inds2)
     end
+    ind = first(keys(hq2))
+    @test Stuffing.QTrees.decodeindex(hq2[ind].head.value, hq2[ind].tail.value) == ind
     empty!(hq2, 1)
     for pos in keys(hq2)
         inds2 = Stuffing.LinkedList.take(hq2[pos])
