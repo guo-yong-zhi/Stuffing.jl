@@ -1,3 +1,4 @@
+using ..LinkedList
 abstract type AbstractOptimiser end
 function apply(o::AbstractOptimiser, x, Δ) end
 function apply!(o::AbstractOptimiser, x, Δ)
@@ -75,76 +76,6 @@ function intlog2(x::Float64) # not safe, x>0 and x can't be nan or inf
     b64 = reinterpret(Int64, x)
     (b64 >> 52 - 1023) # 符号位:1-2S (1->-1、0->1)，指数位 - 1023
 end
-mutable struct ListNode{T}
-    value::T
-    prev::ListNode
-    next::ListNode
-    function ListNode{T}() where T
-        n = new{T}()
-        n.prev = n
-        n.next = n
-        n
-    end
-end
-function ListNode{T}(value::T) where T
-    n = ListNode{T}()
-    n.value = value
-    n
-end
-ListNode(value::T) where T = ListNode{T}(value)
-
-mutable struct DoubleList{T}
-    head::ListNode{T}
-    tail::ListNode{T}
-end
-function DoubleList{T}() where T
-    h = ListNode{T}()
-    t = ListNode{T}()
-    h.next = t
-    t.prev = h
-    DoubleList(h, t)
-end
-
-function Base.pushfirst!(l::DoubleList, n::ListNode)
-    n.next = l.head.next
-    n.prev = l.head
-    l.head.next = n
-    n.next.prev = n
-    n
-end
-function Base.pop!(l::DoubleList, n::ListNode)
-    n.prev.next = n.next
-    n.next.prev = n.prev
-    n
-end
-function movetofirst!(l::DoubleList, n::ListNode)
-    pop!(l, n)
-    pushfirst!(l, n)
-end
-
-function take!(l::DoubleList, collection)
-    p = l.head.next
-    while p !== l.tail
-        push!(collection, p.value)
-        p = p.next
-    end
-    collection
-end
-function take!(l::DoubleList, collection, firstn)
-    p = l.head.next
-    for i in 1:firstn
-        if p === l.tail
-            break
-        end
-        push!(collection, p.value)
-        p = p.next
-    end
-    collection
-end
-function take(l::DoubleList{T}, args...) where T
-    collection = Vector{T}()
-    take!(l, collection, args...)
-end
 
 struct LRU{T,MAPTYPE}
     list::DoubleList{T}
@@ -164,18 +95,11 @@ function Base.push!(lru::LRU, v)
     end
     v
 end
-take!(lru::LRU, args...) = take!(lru.list, args...)
-take(lru::LRU, args...) = take(lru.list, args...)
+take!(lru::LRU, args...) = LinkedList.take!(lru.list, args...)
+take(lru::LRU, args...) = LinkedList.take(lru.list, args...)
 Base.broadcastable(lru::LRU) = Ref(lru)
-struct IntMap{T}
-    map::Vector{ListNode{T}}
-end
-IntMap{T}(n::Int) where T = IntMap{T}(Vector{ListNode{T}}(undef, n))
-Base.haskey(im::IntMap, key) = isassigned(im.map, key)
-Base.getindex(im::IntMap, ind...) = getindex(im.map, ind...)
-Base.setindex!(im::IntMap, v, ind...) = setindex!(im.map, v, ind...)
 
-intlru(n) = LRU{Int}(IntMap{Int}(n))
+intlru(n) = LRU{Int}(IntMap(Vector{ListNode{Int}}(undef, n)))
 
 mutable struct MonotoneIndicator{T}
     min::T

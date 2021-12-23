@@ -11,7 +11,7 @@
     end
     push!(lru, 1)
     @test Trainer.take(lru) == [1,2,4,6,8,10,9,7,5,3]
-    lru = Trainer.LRU{Int}(Trainer.IntMap{Int}(10))
+    lru = Trainer.intlru(10)
     for i in 1:10
         push!(lru, i)
     end

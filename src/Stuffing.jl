@@ -3,6 +3,7 @@ export qtree, maskqtree, qtrees, place!, overlap!, overlap, getpositions, setpos
 export QTrees, getshift, getcenter, setshift!, setcenter!, outofbounds, outofkernelbounds, 
     batchcollisions, collision, findroom_uniform, findroom_gathering
 export Trainer, train!, fit!, Momentum, SGD
+include("linkedlist.jl")
 include("qtrees.jl")
 include("fit.jl")
 using .QTrees
