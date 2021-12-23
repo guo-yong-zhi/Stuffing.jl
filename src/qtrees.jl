@@ -164,6 +164,7 @@ function ShiftedQTree(pic::PaddedMat{T}) where T
 end
 function ShiftedQTree(pic::AbstractMatrix{UInt8}, sz::Integer; default=EMPTY)
     @assert isinteger(log2(sz))
+    @assert sz >= size(pic, 1) && sz >= size(pic, 2)
     ShiftedQTree(PaddedMat(pic, (sz, sz), default=default))
 end
 function ShiftedQTree(pic::AbstractMatrix{UInt8}; default=EMPTY)

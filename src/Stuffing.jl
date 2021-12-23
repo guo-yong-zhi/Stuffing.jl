@@ -37,18 +37,18 @@ function maskqtree(pic::AbstractMatrix; background=pic[1])
     maskqtree(pic .!= background)
 end
 # appointment: the first one is mask
-function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto)
+function qtrees(pics; mask=nothing, background=:auto, maskbackground=:auto, size=:auto)
     ts = Vector{Stuffing.QTrees.U8SQTree}()
     if mask !== nothing
         mq = maskbackground == :auto ? maskqtree(mask) : maskqtree(mask; background=maskbackground)
         push!(ts, mq)
-        sz = size(mq[1], 1)
-    else
-        sz = maximum(maximum(size(p)) for p in pics)
-        sz = 2^ceil(Int, log2(sz))
+        size == :auto && (size = Base.size(mq[1], 1))
+    elseif size == :auto
+        size = maximum(maximum(Base.size(p)) for p in pics)
+        size = 2^ceil(Int, log2(size))
     end
     for p in pics
-        push!(ts, background == :auto ? qtree(p, sz) : qtree(p, sz; background=background))
+        push!(ts, background == :auto ? qtree(p, size) : qtree(p, size; background=background))
     end
     ts
 end
