@@ -45,6 +45,24 @@
     Trainer.trainepoch_EM2!,Trainer.trainepoch_EM3!,
     Trainer.trainepoch_P!,Trainer.trainepoch_P2!,Trainer.trainepoch_Px!]
     qts = qtrees(objs, mask=mask, maskbackground="aa")
+
+    #locate!
+    place!(qts)
+    hq2 = Stuffing.QTrees.locate!(qts, Stuffing.QTrees.dynamic_spacial_qtree(length(qts)))
+    hq1 = Stuffing.QTrees.locate!(qts, Stuffing.QTrees.spacial_qtree())
+    @test keys(hq2.qtree) == keys(hq1.qtree)
+    for pos in keys(hq2)
+        inds1 = hq1[pos]
+        inds2 = Stuffing.LinkedList.take(hq2[pos])
+        @test Set(inds1) == Set(inds2)
+    end
+    empty!(hq2, 1)
+    for pos in keys(hq2)
+        inds2 = Stuffing.LinkedList.take(hq2[pos])
+        @assert !(1 in inds2)
+    end
+
+    #fit!
     setshift!(qts[2], 1, 1000, 1000);
     @test !isempty(QTrees.batchcollisions_region(qts[1:2]))
     l = length(qts) - 1

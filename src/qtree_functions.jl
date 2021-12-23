@@ -113,6 +113,9 @@ function batchcollisions_native(qtrees::AbstractVector{U8SQTree}, inds=1:length(
     inds = [i for i in inds if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
     _batchcollisions_native(qtrees, inds; colist=colist, kargs...)
 end
+dynamic_spacial_qtree(n) = HashLinkedQTree{Int}(IntMap(Vector{Vector{ListNode{Int}}}(undef, n)))
+spacial_qtree() = HashQTree()
+spacial_qtree(n) = spacial_qtree()
 
 function locate!(qt::AbstractStackedQTree, sptree::AbstractHashQTree, label::Int)
     l = length(qt) #l always >= 2
@@ -129,19 +132,20 @@ function locate!(qt::AbstractStackedQTree, sptree::AbstractHashQTree, label::Int
     # @assert l >= 2
     @inbounds mat = qt[l]
     rs, cs = getshift(mat)
+    empty!(sptree, label)
     @inbounds mat[rs+1, cs+1] != EMPTY && push!(sptree, (l, rs+1, cs+1), label)
     @inbounds mat[rs+1, cs+2] != EMPTY && push!(sptree, (l, rs+1, cs+2), label)
     @inbounds mat[rs+2, cs+1] != EMPTY && push!(sptree, (l, rs+2, cs+1), label)
     @inbounds mat[rs+2, cs+2] != EMPTY && push!(sptree, (l, rs+2, cs+2), label)
     nothing
 end
-function locate!(qts::AbstractVector, sptree=HashQTree())
+function locate!(qts::AbstractVector, sptree=spacial_qtree(length(qts)))
     for (i, qt) in enumerate(qts)
         locate!(qt, sptree, i)
     end
     sptree
 end
-function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}, sptree=HashQTree())
+function locate!(qts::AbstractVector, inds::Union{AbstractVector{Int},AbstractSet{Int}}, sptree=spacial_qtree(length(qts)))
     for i in inds
         locate!(qts[i], sptree, i)
     end
@@ -167,14 +171,15 @@ function outkernelcollision(qtrees, pos, inds, acinds, colist)
 end
 
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
-function batchcollisions_region(qtrees::AbstractVector, sptree::HashQTree; colist=Vector{CoItem}(), unique=true, kargs...)
+function batchcollisions_region(qtrees::AbstractVector, sptree::AbstractHashQTree; colist=Vector{CoItem}(), unique=true, kargs...)
     if length(qtrees) > 1
         nlevel = length(@inbounds qtrees[1])
     else
         return colist
     end
     pairlist = Vector{CoItem}()
-    for (pos, inds) in sptree
+    for pos in keys(sptree)
+        inds = takeindex(sptree, pos)
         indslen = length(inds) 
         if indslen > 1
             for i in 1:indslen
@@ -187,8 +192,8 @@ function batchcollisions_region(qtrees::AbstractVector, sptree::HashQTree; colis
         while true
             ppos = parent(ppos)
             (@inbounds ppos[1] > nlevel) && break
-            pinds = get(sptree, ppos, nothing)
-            if pinds !== nothing
+            if haskey(sptree, ppos)
+                pinds = takeindex(sptree, ppos)
                 pinds = outkernelcollision(qtrees, pos, inds, pinds, colist)
                 append!(pairlist, ((p => pos) for p in Iterators.product(inds, pinds)))
             end

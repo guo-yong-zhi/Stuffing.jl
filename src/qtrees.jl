@@ -6,6 +6,7 @@ export AbstractStackedQTree, StackedQTree, ShiftedQTree, buildqtree!,
     kernelsize, place!, overlap, overlap!, decode, charimage
 
 using Random
+using ..LinkedList
 
 const PERM4 = ((1, 2, 3, 4), (1, 2, 4, 3), (1, 3, 2, 4), (1, 3, 4, 2), (1, 4, 2, 3), (1, 4, 3, 2), (2, 1, 3, 4), 
 (2, 1, 4, 3), (2, 3, 1, 4), (2, 3, 4, 1), (2, 4, 1, 3), (2, 4, 3, 1), (3, 1, 2, 4), (3, 1, 4, 2), (3, 2, 1, 4), 
@@ -326,12 +327,50 @@ QTreeNode(value::T, parent, children) where T = QTreeNode{T}(value, parent, chil
 
 ################ HashQTree
 abstract type AbstractHashQTree end
+function Base.push!(t::AbstractHashQTree, ind::Index, label) end
+function Base.empty!(t::AbstractHashQTree, label) end
+function tree(t::AbstractHashQTree) end
+Base.iterate(t::AbstractHashQTree, args...) = iterate(tree(t), args...)
+Base.get(t::AbstractHashQTree, args...) = get(tree(t), args...)
+Base.getindex(t::AbstractHashQTree, args...) = getindex(tree(t), args...)
+Base.keys(t::AbstractHashQTree) = keys(tree(t))
+Base.values(t::AbstractHashQTree) = values(tree(t))
+Base.haskey(t::AbstractHashQTree, args...) = haskey(tree(t), args...)
+function takeindex(t::AbstractHashQTree, ind::Index) end
 struct HashQTree <: AbstractHashQTree
     qtree::Dict{Index, Vector{Int}}
 end
 HashQTree() = HashQTree(Dict{Index, Vector{Int}}())
 Base.push!(t::HashQTree, ind::Index, label::Int) = push!(get!(Vector{Int}, t.qtree, ind), label)
-Base.iterate(t::HashQTree, args...) = iterate(t.qtree, args...)
-Base.get(t::HashQTree, args...) = get(t.qtree, args...)
+# Base.empty!(t::HashQTree, label) = nothing #not implemented
+tree(t::HashQTree) = t.qtree
+takeindex(t::HashQTree, ind::Index) = t[ind]
+struct HashLinkedQTree{T, MAPTYPE} <: AbstractHashQTree
+    qtree::Dict{Index, DoubleList{T}}
+    map::MAPTYPE
+end
+HashLinkedQTree{T}(map::U) where {T,U} = HashLinkedQTree{T,U}(Dict{Index, DoubleList{T}}(), map)
+function Base.push!(t::HashLinkedQTree{T}, ind::Index, label::Int) where T
+    n = ListNode(label)
+    if haskey(t.map, label)
+        loc = t.map[label]
+    else
+        loc = Vector{ListNode{T}}()
+        t.map[label] = loc
+    end
+    push!(loc, n)
+    l = get!(DoubleList{T}, t.qtree, ind)
+    pushfirst!(l, n)
+end
+function Base.empty!(t::HashLinkedQTree, label)
+    if haskey(t.map, label) && !isempty(t.map[label])
+        nodes = t.map[label]
+        pop!.(nodes)
+        empty!(t.map[label])
+    end
+end
+tree(t::HashLinkedQTree) = t.qtree
+takeindex(t::HashLinkedQTree, ind::Index) = LinkedList.take(t[ind])
+
 include("qtree_functions.jl")
 end

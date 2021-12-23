@@ -22,3 +22,18 @@ function testqtree(qt)
         end
     end
 end
+
+function randobject(sz=100)
+    s1 = max(2, sz/10) + 0.9rand() * sz
+    s2 = max(2, sz/10) + 0.9rand() * sz
+    trues(round(Int, s1), round(Int, s2))
+end
+function randobjects(n, sz=100)
+    objs = [randobject(sz) for i in 1:n]
+    sort!(objs, by=prod ∘ size, rev=true)
+end
+function randqtrees(n; sz=100, masksize=(1000, 1000))
+    objs = randobjects(n, sz)
+    qts = qtrees(objs, mask=trues(masksize...))
+    place!(qts)
+end
