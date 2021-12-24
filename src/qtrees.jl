@@ -1,7 +1,7 @@
 module QTrees
 export AbstractStackedQTree, StackedQTree, ShiftedQTree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
-    collision, collision_dfs, batchcollisions, dynamiccollisions,
+    collision, collision_dfs, batchcollisions, partialcollisions, dynamiccollisions,
     findroom_uniform, findroom_gathering, outofbounds, outofkernelbounds, 
     kernelsize, place!, overlap, overlap!, decode, charimage
 
@@ -20,11 +20,28 @@ end
 @inline parent(ind::Index) = @inbounds (ind[1] + 1, (ind[2] + 1) ÷ 2, (ind[3] + 1) ÷ 2)
 indexcenter(l::Integer, a::Integer, b::Integer) = l == 1 ? (a, b) : (2^(l - 1) * (a - 1) + 2^(l - 2), 2^(l - 1) * (b - 1) + 2^(l - 2))
 indexcenter(ind) = indexcenter(ind...)
+function childnumber(ancestor::Index, descendant::Index) #assume the ancestor-descendant relationship exists
+    o2, o3 = QTrees.indexcenter(ancestor[1] - descendant[1] + 1, ancestor[2], ancestor[3])
+    n = ((descendant[3] <= o3)<<1) | (descendant[2] <= o2)
+    n == 0 ? 4 : n
+end
 function indexrange(l::Integer, a::Integer, b::Integer)
     r = 2^(l - 1)
     r * (a - 1) + 1:r * a, r * (b - 1) + 1:r * b
 end
 indexrange(ind) = indexrange(ind...)
+function inrange(a::Index, b::Index)
+    a1, a2, a3 = a
+    b1, b2, b3 = b
+    if a1 > b1
+        r2, r3 = QTrees.indexrange(a1-b1+1, a2, a3)
+        return b2 in r2 && b3 in r3
+    elseif a1 == b1
+        return a2 == b2 && a3 == b3
+    else
+        error("$a1 < $b1")
+    end
+end
 Base.@propagate_inbounds function qcode(Q, i)
     @inbounds (Q[child(i, 1)] | Q[child(i, 2)] | Q[child(i, 3)] | Q[child(i, 4)])
 end
@@ -314,71 +331,143 @@ function Base.show(io::IO, m::MIME"text/plain", qt::ShiftedQTree)
 end
 
 ################ LinkedQTree
-struct QTreeNode{T}
+mutable struct QTreeNode{T}
     value::T
     parent::QTreeNode{T}
     children::Vector{QTreeNode{T}}
-    QTreeNode{T}() where T = new{T}()
+    function QTreeNode{T}() where T
+        n = new{T}()
+        n.parent = n
+        n.children = [n, n, n, n]
+        n
+    end
     QTreeNode{T}(v, p, c) where T = new{T}(v, p, c)
 end
 
 QTreeNode(value::T, parent, children) where T = QTreeNode{T}(value, parent, children)
-
-
-################ HashQTree
-abstract type AbstractHashQTree end
-function Base.push!(t::AbstractHashQTree, ind::Index, label) end
-function Base.empty!(t::AbstractHashQTree, label) end
-function tree(t::AbstractHashQTree) end
-Base.iterate(t::AbstractHashQTree, args...) = iterate(tree(t), args...)
-Base.get(t::AbstractHashQTree, args...) = get(tree(t), args...)
-Base.getindex(t::AbstractHashQTree, args...) = getindex(tree(t), args...)
-Base.keys(t::AbstractHashQTree) = keys(tree(t))
-Base.values(t::AbstractHashQTree) = values(tree(t))
-Base.haskey(t::AbstractHashQTree, args...) = haskey(tree(t), args...)
-function takeindex(t::AbstractHashQTree, ind::Index) end
-struct HashQTree <: AbstractHashQTree
+function QTreeNode(value::T) where T
+    n = QTreeNode{T}()
+    n.value = value
+    n
+end
+function QTreeNode(parent::QTreeNode{T}) where T
+    n = QTreeNode{T}()
+    n.parent = parent
+    n
+end
+function QTreeNode(parent::QTreeNode{T}, value::T) where T
+    n = QTreeNode{T}()
+    n.parent = parent
+    n.value = value
+    n
+end
+isroot(n::QTreeNode) = n === parent.parent
+isleafchild(n::QTreeNode, c::QTreeNode) = n === c
+function Base.iterate(n::QTreeNode{T}, Q=[n]) where T
+    isempty(Q) && return nothing
+    n = popfirst!(Q)
+    for c in n.children
+        (!isleafchild(n, c)) && push!(Q, c)
+    end
+    return n, Q
+end
+################ HashSpacialQTree
+abstract type AbstractSpacialQTree end
+function Base.push!(t::AbstractSpacialQTree, ind::Index, label) end
+function Base.empty!(t::AbstractSpacialQTree, label) end
+function tree(t::AbstractSpacialQTree) end
+Base.iterate(t::AbstractSpacialQTree, args...) = iterate(tree(t), args...)
+Base.get(t::AbstractSpacialQTree, args...) = get(tree(t), args...)
+Base.getindex(t::AbstractSpacialQTree, args...) = getindex(tree(t), args...)
+Base.keys(t::AbstractSpacialQTree) = keys(tree(t))
+Base.values(t::AbstractSpacialQTree) = values(tree(t))
+Base.haskey(t::AbstractSpacialQTree, args...) = haskey(tree(t), args...)
+struct HashSpacialQTree <: AbstractSpacialQTree
     qtree::Dict{Index, Vector{Int}}
 end
-HashQTree() = HashQTree(Dict{Index, Vector{Int}}())
-Base.push!(t::HashQTree, ind::Index, label::Int) = push!(get!(Vector{Int}, t.qtree, ind), label)
-# Base.empty!(t::HashQTree, label) = nothing #not implemented
-tree(t::HashQTree) = t.qtree
-takeindex(t::HashQTree, ind::Index) = t[ind]
-struct HashLinkedQTree{T, MAPTYPE} <: AbstractHashQTree
-    qtree::Dict{Index, DoubleList{T}}
+HashSpacialQTree() = HashSpacialQTree(Dict{Index, Vector{Int}}())
+Base.push!(t::HashSpacialQTree, ind::Index, label::Int) = push!(get!(Vector{Int}, t.qtree, ind), label)
+# Base.empty!(t::HashSpacialQTree, label) = nothing #not implemented
+tree(t::HashSpacialQTree) = t.qtree
+
+
+const SpacialQTreeNode = QTreeNode{Pair{Index, DoubleList{Int}}}
+function new_spacial_qtree_node(parent::SpacialQTreeNode, index)
+    dl = DoubleList{Int}()
+    node = QTreeNode(parent, index=>dl)
+    dl.tail.value = Int(pointer_from_objref(node))
+    node
+end
+function new_spacial_qtree_node(index)
+    dl = DoubleList{Int}()
+    node::SpacialQTreeNode = QTreeNode(index=>dl)
+    dl.tail.value = Int(pointer_from_objref(node))
+    node
+end
+struct LinkedSpacialQTree{MAPTYPE}
+    qtree::SpacialQTreeNode
     map::MAPTYPE
 end
-HashLinkedQTree{T}(map::U) where {T,U} = HashLinkedQTree{T,U}(Dict{Index, DoubleList{T}}(), map)
-function Base.push!(t::HashLinkedQTree{T}, ind::Index, label::Int) where T
+LinkedSpacialQTree(map::U) where U = LinkedSpacialQTree{U}(QTreeNode{Pair{Index, DoubleList{T}}}(), map)
+LinkedSpacialQTree(index, map::U) where U = LinkedSpacialQTree{U}(new_spacial_qtree_node(index), map)
+tree(t::LinkedSpacialQTree) = t.qtree
+function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
+    # @show ind, label
     n = ListNode(label)
     if haskey(t.map, label)
         loc = t.map[label]
     else
-        loc = Vector{ListNode{T}}()
+        loc = Vector{ListNode{Int}}()
         t.map[label] = loc
     end
     push!(loc, n)
-    if haskey(t.qtree, ind)
-        l = t.qtree[ind]
-    else
-        hv, i2, i3 = ind
-        tv = i2 << (sizeof(T)*4) | i3
-        l = DoubleList{T}(hv, tv)
-        t.qtree[ind] = l
+    tn = t.qtree
+    aind = spacialindex(tn)
+    # @show spacialindex(tn)
+    if inrange(aind, ind)
+        while true
+            aind = spacialindex(tn)
+            aind[1] <= ind[1] && break
+            cn = childnumber(aind, ind)
+            # @show aind, ind, cn
+            cnode = tn.children[cn]
+            if isleafchild(tn, cnode)
+                cnode = new_spacial_qtree_node(tn, child(aind, cn))
+                tn.children[cn] = cnode
+            end
+            tn = cnode
+        end
+        if aind != ind
+            @show aind ind
+            error()
+        end
+        pushfirst!(tn.value.second, n)
     end
-    pushfirst!(l, n)
 end
-decodeindex(hv, tv) = (hv, tv >> (sizeof(tv)*4), tv & (1<<(sizeof(tv)*4)-1))
-function Base.empty!(t::HashLinkedQTree, label)
+function seektreenode(listnode::ListNode)
+    @assert istail(listnode)
+    unsafe_pointer_to_objref(Ptr{Any}(listnode.value))
+end
+function Base.empty!(t::LinkedSpacialQTree, label)
     if haskey(t.map, label) && !isempty(t.map[label])
         nodes = t.map[label]
         pop!.(nodes)
         empty!(t.map[label])
     end
 end
-tree(t::HashLinkedQTree) = t.qtree
-takeindex(t::HashLinkedQTree, ind::Index) = LinkedList.take(t[ind])
-takelabel(t::HashLinkedQTree, label) = t.map[label]
+spacialindex(t::QTreeNode) = t.value.first
+taketreenode(t::QTreeNode) = LinkedList.take(t.value.second)
+takelabel(t::LinkedSpacialQTree, label) = t.map[label]
+function taketree(t::LinkedSpacialQTree)
+    hashtree = Dict{Index, Vector{Int}}()
+    for n in tree(t)
+        spinds = QTrees.spacialindex(n)
+        lbs = QTrees.taketreenode(n)
+        if !isempty(lbs)
+            hashtree[spinds] = lbs
+        end
+    end
+    return hashtree
+end
 include("qtree_functions.jl")
 end

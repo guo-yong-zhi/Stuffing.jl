@@ -48,19 +48,14 @@
 
     #locate!
     place!(qts)
-    hq2 = Stuffing.QTrees.locate!(qts, Stuffing.QTrees.dynamic_spacial_qtree(length(qts)))
-    hq1 = Stuffing.QTrees.locate!(qts, Stuffing.QTrees.spacial_qtree())
-    @test keys(hq2.qtree) == keys(hq1.qtree)
-    for pos in keys(hq2)
-        inds1 = hq1[pos]
-        inds2 = Stuffing.LinkedList.take(hq2[pos])
-        @test Set(inds1) == Set(inds2)
-    end
-    ind = first(keys(hq2))
-    @test Stuffing.QTrees.decodeindex(hq2[ind].head.value, hq2[ind].tail.value) == ind
-    empty!(hq2, 1)
-    for pos in keys(hq2)
-        inds2 = Stuffing.LinkedList.take(hq2[pos])
+    spt2 = Stuffing.QTrees.locate!(qts, Stuffing.QTrees.dynamic_spacial_qtree(qts))
+    spt1 = Stuffing.QTrees.locate!(qts, Stuffing.QTrees.spacial_qtree())
+    spt1_ = Dict([p for p in QTrees.tree(spt1) if QTrees.inrange(QTrees.spacialindex(QTrees.tree(spt2)), first(p))]) #inrange filter
+    spt2_ = QTrees.taketree(spt2) #to hash
+    @test Dict([k=>Set(v) for (k,v) in spt1_]) == Dict([k=>Set(v) for (k,v) in spt2_])
+    empty!(spt2, 1)
+    spt2_ = QTrees.taketree(spt2)
+    for inds2 in values(spt2_)
         @assert !(1 in inds2)
     end
 

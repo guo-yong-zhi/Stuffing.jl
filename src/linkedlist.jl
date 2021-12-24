@@ -1,5 +1,5 @@
 module LinkedList
-export DoubleList, ListNode, movetofirst!, IntMap
+export DoubleList, ListNode, movetofirst!, IntMap, ishead, istail
 mutable struct ListNode{T}
     value::T
     prev::ListNode
@@ -35,6 +35,8 @@ function DoubleList{T}(hv::T, tv::T) where T
     l.tail.value = tv
     l
 end
+ishead(n::ListNode) = ln.prev !== ln
+istail(n::ListNode) = ln.next !== ln
 function Base.pushfirst!(l::DoubleList, n::ListNode)
     n.next = l.head.next
     n.prev = l.head
