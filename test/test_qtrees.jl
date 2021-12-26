@@ -32,9 +32,24 @@ testqtree = Stuffing.testqtree
     qts = qtrees(mask, objs)
     place!(qts, roomfinder=QTrees.findroom_gathering)
     place!(qts)
+
+    #locate!
+    spt2 = QTrees.locate!(qts, QTrees.dynamic_spacial_qtree(qts))
+    spt1 = QTrees.locate!(qts, QTrees.spacial_qtree())
+    spt1_ = Dict([p for p in QTrees.tree(spt1) if QTrees.inrange(QTrees.spacial_index(QTrees.tree(spt2)), first(p))]) #inrange filter
+    spt2_ = QTrees.collect_tree(spt2) #to hash
+    @test Dict([k=>Set(v) for (k,v) in spt1_]) == Dict([k=>Set(v) for (k,v) in spt2_])
+    empty!(spt2, 1)
+    spt2_ = QTrees.collect_tree(spt2)
+    for inds2 in values(spt2_)
+        @assert !(1 in inds2)
+    end
+
+    #collisions
     clq = QTrees.batchcollisions_region(qts)
     cln = QTrees.batchcollisions_native(qts)
-    @test Set(Set.(first.(clq))) == Set(Set.(first.(cln)))
+    clp = QTrees.partialcollisions(qts, spt2, Set(1:length(qts)))
+    @test Set(Set.(first.(clq))) == Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
 
     #corner cases
     # batch

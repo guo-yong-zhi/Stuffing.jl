@@ -46,19 +46,6 @@
     Trainer.trainepoch_P!,Trainer.trainepoch_P2!,Trainer.trainepoch_Px!]
     qts = qtrees(objs, mask=mask, maskbackground="aa")
 
-    #locate!
-    place!(qts)
-    spt2 = Stuffing.QTrees.locate!(qts, Stuffing.QTrees.dynamic_spacial_qtree(qts))
-    spt1 = Stuffing.QTrees.locate!(qts, Stuffing.QTrees.spacial_qtree())
-    spt1_ = Dict([p for p in QTrees.tree(spt1) if QTrees.inrange(QTrees.spacial_index(QTrees.tree(spt2)), first(p))]) #inrange filter
-    spt2_ = QTrees.collect_tree(spt2) #to hash
-    @test Dict([k=>Set(v) for (k,v) in spt1_]) == Dict([k=>Set(v) for (k,v) in spt2_])
-    empty!(spt2, 1)
-    spt2_ = QTrees.collect_tree(spt2)
-    for inds2 in values(spt2_)
-        @assert !(1 in inds2)
-    end
-
     #fit!
     setshift!(qts[2], 1, 1000, 1000);
     @test !isempty(QTrees.batchcollisions_region(qts[1:2]))

@@ -97,7 +97,7 @@ function collect!(filter, l::DoubleList, collection, firstn)
     collection
 end
 Base.collect(l::DoubleList{T}, args...) where T = collect!(l, Vector{T}(), args...)
-Base.collect(filter, l::DoubleList, args...) = collect!(filter, l, Vector{T}(), args...)
+Base.collect(filter, l::DoubleList{T}, args...) where T = collect!(filter, l, Vector{T}(), args...)
 struct IntMap{T}
     map::T
 end

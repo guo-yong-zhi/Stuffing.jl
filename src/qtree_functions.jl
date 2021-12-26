@@ -230,6 +230,7 @@ function partialcollisions(qtrees::AbstractVector, sptree::LinkedSpacialQTree, m
     colist=Vector{CoItem}(), unique=true, kargs...)
     pairlist = Vector{CoItem}()
     for label in moved
+        # @show label
         for listnode in spacial_indexesof(sptree, label)
             lbs = Vector{Int}()
             ln = listnode.next
@@ -255,15 +256,17 @@ function partialcollisions(qtrees::AbstractVector, sptree::LinkedSpacialQTree, m
                     if !isemptychild(tn, c) #如果isemptychild则该child无意义
                         cpos = spacial_index(c)
                         clbs = collect_labels(c)
-                        clbs = outkernelcollision(qtrees, cpos, clbs, [label], colist)
-                        append!(pairlist, (((clb, label) => cpos) for clb in clbs))
+                        # @show cpos clbs
+                        lbs = outkernelcollision(qtrees, cpos, clbs, [label], colist)
+                        isempty(lbs) || append!(pairlist, (((clb, label) => cpos) for clb in clbs))
                         push!(st, c)
+                        # @show pairlist
                     end
                 end
             end
         end
     end
-    @show length(pairlist), length(colist)
+    # @show length(pairlist), length(colist)
     r = _batchcollisions_native(qtrees, pairlist; colist=colist, kargs...)
     unique ? unique!(first, sort!(r)) : r
 end

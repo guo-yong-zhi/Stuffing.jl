@@ -361,7 +361,7 @@ function QTreeNode(parent::QTreeNode{T}, value::T) where T
     n.value = value
     n
 end
-isroot(n::QTreeNode) = n === parent.parent
+isroot(n::QTreeNode) = n === n.parent
 isemptychild(n::QTreeNode, c::QTreeNode) = n === c
 function Base.iterate(n::QTreeNode{T}, Q=[n]) where T
     isempty(Q) && return nothing
@@ -396,12 +396,14 @@ function new_spacial_qtree_node(parent::SpacialQTreeNode, index)
     dl = DoubleList{Int}()
     node = QTreeNode(parent, index=>dl)
     dl.tail.value = Int(pointer_from_objref(node))
+    @assert node == seek_treenode(dl.tail)
     node
 end
 function new_spacial_qtree_node(index)
     dl = DoubleList{Int}()
     node::SpacialQTreeNode = QTreeNode(index=>dl)
     dl.tail.value = Int(pointer_from_objref(node))
+    @assert node == seek_treenode(dl.tail)
     node
 end
 struct LinkedSpacialQTree{MAPTYPE}
@@ -416,14 +418,6 @@ labelsof(t::QTreeNode) = t.value.second
 spacial_indexesof(t::LinkedSpacialQTree, label) = t.map[label]
 function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
     # @show ind, label
-    n = ListNode(label)
-    if haskey(t.map, label)
-        loc = t.map[label]
-    else
-        loc = Vector{ListNode{Int}}()
-        t.map[label] = loc
-    end
-    push!(loc, n)
     tn = t.qtree
     aind = spacial_index(tn)
     # @show spacial_index(tn)
@@ -444,6 +438,14 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
             @show aind ind
             error()
         end
+        n = ListNode(label)
+        if haskey(t.map, label)
+            loc = t.map[label]
+        else
+            loc = Vector{ListNode{Int}}()
+            t.map[label] = loc
+        end
+        push!(loc, n)
         pushfirst!(tn.value.second, n)
     end
 end
