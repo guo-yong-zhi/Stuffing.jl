@@ -34,8 +34,8 @@ testqtree = Stuffing.testqtree
     place!(qts)
 
     #locate!
-    spt2 = QTrees.locate!(qts, QTrees.dynamic_spacial_qtree(qts))
-    spt1 = QTrees.locate!(qts, QTrees.spacial_qtree())
+    spt2 = QTrees.locate!(qts, QTrees.linked_spacial_qtree(qts))
+    spt1 = QTrees.locate!(qts, QTrees.hash_spacial_qtree())
     spt1_ = Dict([p for p in QTrees.tree(spt1) if QTrees.inrange(QTrees.spacial_index(QTrees.tree(spt2)), first(p))]) #inrange filter
     spt2_ = QTrees.collect_tree(spt2) #to hash
     @test Dict([k=>Set(v) for (k,v) in spt1_]) == Dict([k=>Set(v) for (k,v) in spt2_])

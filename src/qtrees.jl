@@ -371,6 +371,8 @@ function Base.iterate(n::QTreeNode{T}, Q=[n]) where T
     end
     return n, Q
 end
+Base.eltype(::Type{QTreeNode{T}}) where T = QTreeNode{T}
+
 ################ HashSpacialQTree
 abstract type AbstractSpacialQTree end
 function Base.push!(t::AbstractSpacialQTree, ind::Index, label) end
@@ -391,37 +393,39 @@ Base.push!(t::HashSpacialQTree, ind::Index, label::Int) = push!(get!(Vector{Int}
 tree(t::HashSpacialQTree) = t.qtree
 
 ################ LinkedSpacialQTree
-const SpacialQTreeNode = QTreeNode{Pair{Index, DoubleList{Int}}}
-function new_spacial_qtree_node(parent::SpacialQTreeNode, index)
-    dl = DoubleList{Int}()
-    node = QTreeNode(parent, index=>dl)
-    dl.tail.value = Int(pointer_from_objref(node))
-    # @assert node == seek_treenode(dl.tail)
-    node
+mutable struct LabelList
+    index::Index
+    list::DoubleList{Int}
+    function LabelList(index::Index)
+        l = new()
+        l.index = index
+        l
+    end
+    LabelList() = new()
 end
-function new_spacial_qtree_node(index)
+const SpacialQTreeNode = QTreeNode{LabelList}
+new_spacial_qtree_node(parent::SpacialQTreeNode, index::Index) = QTreeNode(parent, LabelList(index))
+new_spacial_qtree_node(index::Index) = QTreeNode(LabelList(index))
+new_spacial_qtree_node() = QTreeNode(LabelList())
+function new_labellist(node::QTreeNode)
     dl = DoubleList{Int}()
-    node::SpacialQTreeNode = QTreeNode(index=>dl)
     dl.tail.value = Int(pointer_from_objref(node))
     # @assert node == seek_treenode(dl.tail)
-    node
+    node.value.list = dl
 end
 struct LinkedSpacialQTree
     qtree::SpacialQTreeNode
-    map::IntMap{Vector{Vector{ListNode{Int64}}}}
+    map::IntMap{Vector{Vector{ListNode{Int}}}}
 end
-LinkedSpacialQTree(map) = LinkedSpacialQTree(QTreeNode{Pair{Index, DoubleList{Int}}}(), map)
 LinkedSpacialQTree(index::Index, map) = LinkedSpacialQTree(new_spacial_qtree_node(index), map)
+LinkedSpacialQTree(map) = LinkedSpacialQTree(new_spacial_qtree_node(), map)
 tree(t::LinkedSpacialQTree) = t.qtree
-spacial_index(t::QTreeNode) = t.value.first
-labelsof(t::QTreeNode) = t.value.second
+spacial_index(n::QTreeNode) = n.value.index
+labelsof(n::QTreeNode) = n.value.list
+isemptylabels(n::QTreeNode) = (!isdefined(n.value, :list)) || isempty(labelsof(n))
 function spacial_indexesof(t::LinkedSpacialQTree, label)
     m = t.map
-    if haskey(m, label)
-        return m[label]
-    else
-        return Vector{ListNode{Int}}()
-    end
+    haskey(m, label) ? m[label] : Vector{ListNode{Int}}()
 end
 function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
     # @show ind, label
@@ -450,12 +454,13 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
             t.map[label] = loc
         end
         push!(loc, n)
-        pushfirst!(tn.value.second, n)
+        isdefined(tn.value, :list) || new_labellist(tn)
+        pushfirst!(tn.value.list, n)
     end
 end
 function seek_treenode(listnode::ListNode)
     # @assert istail(listnode)
-    unsafe_pointer_to_objref(Ptr{Any}(listnode.value))::QTreeNode{Pair{Index, DoubleList{Int}}}
+    unsafe_pointer_to_objref(Ptr{Any}(listnode.value))::SpacialQTreeNode
 end
 function Base.empty!(t::LinkedSpacialQTree, label)
     if haskey(t.map, label) && !isempty(t.map[label])
@@ -471,7 +476,7 @@ function collect_tree(t::LinkedSpacialQTree)
     hashtree = Dict{Index, Vector{Int}}()
     for n in tree(t)
         spinds = spacial_index(n)
-        if !isempty(labelsof(n))
+        if !isemptylabels(n)
             lbs = collect_labels(n)
             hashtree[spinds] = lbs
         end

@@ -110,15 +110,15 @@ function totalcollisions_native(qtrees::AbstractVector{U8SQTree}, labels=1:lengt
     labels = [i for i in labels if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
     _totalcollisions_native(qtrees, labels; colist=colist, kargs...)
 end
-function dynamic_spacial_qtree(qts)
+function linked_spacial_qtree(qts)
     if !isempty(qts)
         return LinkedSpacialQTree((length(qts[1]), 1, 1), IntMap(Vector{Vector{ListNode{Int}}}(undef, length(qts))))
     else
         return LinkedSpacialQTree(IntMap(Vector{Vector{ListNode{Int}}}(undef, length(qts))))
     end
 end
-spacial_qtree() = HashSpacialQTree()
-spacial_qtree(qts) = spacial_qtree()
+hash_spacial_qtree() = HashSpacialQTree()
+hash_spacial_qtree(qts) = hash_spacial_qtree()
 
 function locate!(qt::AbstractStackedQTree, sptree::Union{HashSpacialQTree, LinkedSpacialQTree}, label::Int)
     l = length(qt) #l always >= 2
@@ -142,37 +142,40 @@ function locate!(qt::AbstractStackedQTree, sptree::Union{HashSpacialQTree, Linke
     @inbounds mat[rs+2, cs+2] != EMPTY && push!(sptree, (l, rs+2, cs+2), label)
     nothing
 end
-function locate!(qts::AbstractVector, sptree=spacial_qtree(qts))
+function locate!(qts::AbstractVector, sptree=hash_spacial_qtree(qts))
     for (i, qt) in enumerate(qts)
         locate!(qt, sptree, i)
     end
     sptree
 end
-function locate!(qts::AbstractVector, labels::Union{AbstractVector{Int},AbstractSet{Int}}, sptree=spacial_qtree(qts))
+function locate!(qts::AbstractVector, labels::Union{AbstractVector{Int},AbstractSet{Int}}, sptree=hash_spacial_qtree(qts))
     for l in labels
         locate!(qts[l], sptree, l)
     end
     sptree
 end
 
-function outkernelcollision(qtrees, spindex, lowlabels, higlabels, colist)
-    inlabels = Int[]
+function collisions_boundsfilter(qtrees, spindex, lowlabels, higlabels, pairlist, colist)
     for hlb in higlabels
         # check here because there are no bounds checking in _collision_randbfs
-        if inkernelbounds(@inbounds(qtrees[hlb][spindex[1]]), spindex[2], spindex[3])
-            push!(inlabels, hlb)
-        elseif getdefault(@inbounds(qtrees[hlb][1])) == QTrees.FULL
-            for llb in lowlabels
-                if @inbounds(qtrees[llb][spindex]) != QTrees.EMPTY
-                    # @show (llb, hlb)=>spindex
-                    push!(colist, (llb, hlb) => spindex)
-                end
+        collisions_boundsfilter(qtrees, spindex, lowlabels, hlb, pairlist, colist)
+    end
+end
+function collisions_boundsfilter(qtrees, spindex, lowlabels, hlb::Int, pairlist, colist)
+    if inkernelbounds(@inbounds(qtrees[hlb][spindex[1]]), spindex[2], spindex[3])
+        append!(pairlist, ((llb, hlb)=>spindex for llb in lowlabels))
+    elseif getdefault(@inbounds(qtrees[hlb][1])) == QTrees.FULL
+        for llb in lowlabels
+            if @inbounds(qtrees[llb][spindex]) != QTrees.EMPTY
+                # @show (llb, hlb)=>spindex
+                push!(colist, (llb, hlb) => spindex)
             end
         end
     end
-    inlabels
 end
-
+function collisions_boundsfilter(qtrees, spindex, llb::Int, higlabels, pairlist, colist)
+    collisions_boundsfilter(qtrees, spindex, (llb,), higlabels, pairlist, colist)
+end
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
 function totalcollisions_spacial(qtrees::AbstractVector, sptree::HashSpacialQTree; colist=Vector{CoItem}(), unique=true, kargs...)
     length(qtrees) > 1 || return colist
@@ -194,8 +197,7 @@ function totalcollisions_spacial(qtrees::AbstractVector, sptree::HashSpacialQTre
             (@inbounds pspindex[1] > nlevel) && break
             if haskey(sptree, pspindex)
                 plbs = sptree[pspindex]
-                plbs = outkernelcollision(qtrees, spindex, labels, plbs, colist)
-                append!(pairlist, ((p => spindex) for p in Iterators.product(labels, plbs)))
+                collisions_boundsfilter(qtrees, spindex, labels, plbs, pairlist, colist)
             end
         end
     end
@@ -220,13 +222,17 @@ function totalcollisions(qtrees::AbstractVector{U8SQTree}, args...; unique=true,
         return totalcollisions_native(qtrees, args...; kargs...)
     end
 end
-function partialcollisions(qtrees::AbstractVector, sptree::LinkedSpacialQTree, moved::AbstractSet{Int}; 
+function partialcollisions(qtrees::AbstractVector, 
+    sptree::LinkedSpacialQTree=locate!(qtrees, linked_spacial_qtree(qtrees)),
+    moved::AbstractSet{Int}=Set(1:length(qtrees)); 
     colist=Vector{CoItem}(), unique=true, kargs...)
     pairlist = Vector{CoItem}()
+    lbs = Vector{Int}()
+    st = Vector{SpacialQTreeNode}()
     for label in moved
         # @show label
         for listnode in spacial_indexesof(sptree, label)
-            lbs = Vector{Int}()
+            empty!(lbs)
             ln = listnode.next
             while !istail(ln) #tail是哨兵，本身的value不遍历
                 push!(lbs, ln.value)
@@ -240,20 +246,23 @@ function partialcollisions(qtrees::AbstractVector, sptree::LinkedSpacialQTree, m
             tn = treenode
             while !isroot(tn)
                 tn = tn.parent #root不是哨兵，值需要遍历
-                plbs = collect_labels(v->!(v in moved), tn) #moved了的plb不加入，等候其向下遍历时加，避免重复
-                plbs = outkernelcollision(qtrees, spindex, [label], plbs, colist)
-                append!(pairlist, (((label, plb) => spindex) for plb in plbs))
+                if !isemptylabels(tn)
+                    plbs = Iterators.filter(!in(moved), labelsof(tn)) #moved了的plb不加入，等候其向下遍历时加，避免重复
+                    collisions_boundsfilter(qtrees, spindex, label, plbs, pairlist, colist)
+                end
             end
-            st = [treenode]
+            empty!(st)
+            push!(st, treenode)
             while !isempty(st)
                 tn = pop!(st)
                 for c in tn.children
                     if !isemptychild(tn, c) #如果isemptychild则该child无意义
-                        cspindex = spacial_index(c)
-                        clbs = collect_labels(c)
-                        # @show cspindex clbs
-                        lbs = outkernelcollision(qtrees, cspindex, clbs, [label], colist)
-                        isempty(lbs) || append!(pairlist, (((clb, label) => cspindex) for clb in clbs))
+                        if !isemptylabels(c)
+                            cspindex = spacial_index(c)
+                            clbs = labelsof(c)
+                            # @show cspindex clbs
+                            collisions_boundsfilter(qtrees, cspindex, clbs, label, pairlist, colist)
+                        end
                         push!(st, c)
                         # @show pairlist
                     end
