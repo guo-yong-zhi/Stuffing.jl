@@ -95,8 +95,8 @@ function Base.push!(lru::LRU, v)
     end
     v
 end
-take!(lru::LRU, args...) = LinkedList.take!(lru.list, args...)
-take(lru::LRU, args...) = LinkedList.take(lru.list, args...)
+collect!(lru::LRU, args...) = LinkedList.collect!(lru.list, args...)
+Base.collect(lru::LRU, args...) = LinkedList.collect(lru.list, args...)
 Base.broadcastable(lru::LRU) = Ref(lru)
 
 intlru(n) = LRU{Int}(IntMap(Vector{ListNode{Int}}(undef, n)))

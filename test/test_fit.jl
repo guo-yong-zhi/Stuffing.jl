@@ -10,7 +10,7 @@
         push!(lru, i)
     end
     push!(lru, 1)
-    @test Trainer.take(lru) == [1,2,4,6,8,10,9,7,5,3]
+    @test collect(lru) == [1,2,4,6,8,10,9,7,5,3]
     lru = Trainer.intlru(10)
     for i in 1:10
         push!(lru, i)
@@ -19,10 +19,10 @@
         push!(lru, i)
     end
     push!(lru, 1)
-    @test Trainer.take(lru) == [1,2,4,6,8,10,9,7,5,3]
-    @test Trainer.take(lru, 3) == [1,2,4]
+    @test collect(lru) == [1,2,4,6,8,10,9,7,5,3]
+    @test collect(lru, 3) == [1,2,4]
     push!.(lru, 7:9)
-    @test Trainer.take(lru, 3) == [9,8,7]
+    @test collect(lru, 3) == [9,8,7]
     using Random
     Random.seed!(9)
     mask = fill("aa", 500, 800) # can be any AbstractMatrix
@@ -50,11 +50,11 @@
     place!(qts)
     spt2 = Stuffing.QTrees.locate!(qts, Stuffing.QTrees.dynamic_spacial_qtree(qts))
     spt1 = Stuffing.QTrees.locate!(qts, Stuffing.QTrees.spacial_qtree())
-    spt1_ = Dict([p for p in QTrees.tree(spt1) if QTrees.inrange(QTrees.spacialindex(QTrees.tree(spt2)), first(p))]) #inrange filter
-    spt2_ = QTrees.taketree(spt2) #to hash
+    spt1_ = Dict([p for p in QTrees.tree(spt1) if QTrees.inrange(QTrees.spacial_index(QTrees.tree(spt2)), first(p))]) #inrange filter
+    spt2_ = QTrees.collect_tree(spt2) #to hash
     @test Dict([k=>Set(v) for (k,v) in spt1_]) == Dict([k=>Set(v) for (k,v) in spt2_])
     empty!(spt2, 1)
-    spt2_ = QTrees.taketree(spt2)
+    spt2_ = QTrees.collect_tree(spt2)
     for inds2 in values(spt2_)
         @assert !(1 in inds2)
     end

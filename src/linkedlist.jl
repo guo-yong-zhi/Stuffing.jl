@@ -35,8 +35,9 @@ function DoubleList{T}(hv::T, tv::T) where T
     l.tail.value = tv
     l
 end
-ishead(n::ListNode) = ln.prev !== ln
-istail(n::ListNode) = ln.next !== ln
+ishead(n::ListNode) = n.prev === n
+istail(n::ListNode) = n.next === n
+Base.isempty(l::DoubleList) = l.head.next === l.tail
 function Base.pushfirst!(l::DoubleList, n::ListNode)
     n.next = l.head.next
     n.prev = l.head
@@ -55,7 +56,7 @@ function movetofirst!(l::DoubleList, n::ListNode)
     pushfirst!(l, n)
 end
 
-function take!(l::DoubleList, collection)
+function collect!(l::DoubleList, collection)
     p = l.head.next
     while p !== l.tail
         push!(collection, p.value)
@@ -63,7 +64,7 @@ function take!(l::DoubleList, collection)
     end
     collection
 end
-function take!(l::DoubleList, collection, firstn)
+function collect!(l::DoubleList, collection, firstn)
     p = l.head.next
     for i in 1:firstn
         if p === l.tail
@@ -74,11 +75,29 @@ function take!(l::DoubleList, collection, firstn)
     end
     collection
 end
-function take(l::DoubleList{T}, args...) where T
-    collection = Vector{T}()
-    take!(l, collection, args...)
+function collect!(filter, l::DoubleList, collection)
+    p = l.head.next
+    while p !== l.tail
+        v = p.value
+        filter(v) && push!(collection, v)
+        p = p.next
+    end
+    collection
 end
-
+function collect!(filter, l::DoubleList, collection, firstn)
+    p = l.head.next
+    for i in 1:firstn
+        if p === l.tail
+            break
+        end
+        v = p.value
+        filter(v) && push!(collection, v)
+        p = p.next
+    end
+    collection
+end
+Base.collect(l::DoubleList{T}, args...) where T = collect!(l, Vector{T}(), args...)
+Base.collect(filter, l::DoubleList, args...) = collect!(filter, l, Vector{T}(), args...)
 struct IntMap{T}
     map::T
 end

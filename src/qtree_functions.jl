@@ -230,7 +230,7 @@ function partialcollisions(qtrees::AbstractVector, sptree::LinkedSpacialQTree, m
     colist=Vector{CoItem}(), unique=true, kargs...)
     pairlist = Vector{CoItem}()
     for label in moved
-        for listnode in takelabel(sptree, label)
+        for listnode in spacial_indexesof(sptree, label)
             lbs = Vector{Int}()
             ln = listnode.next
             while !istail(ln) #tail是哨兵，本身的value不遍历
@@ -238,13 +238,13 @@ function partialcollisions(qtrees::AbstractVector, sptree::LinkedSpacialQTree, m
                 ln = ln.next
             end
             # 更prev的node都是move过的，在其向后遍历时会加入与当前node的pair，故不需要向前遍历
-            treenode = seektreenode(ln)
-            pos = spacialindex(treenode)
+            treenode = seek_treenode(ln)
+            pos = spacial_index(treenode)
             append!(pairlist, (((label, lb) => pos) for lb in lbs))
             tn = treenode
             while !isroot(tn)
                 tn = tn.parent #root不是哨兵，值需要遍历
-                plbs = taketreenode(v->!(v in moved), tn) #moved了的plb不加入，等候其向下遍历时加，避免重复
+                plbs = collect_labels(v->!(v in moved), tn) #moved了的plb不加入，等候其向下遍历时加，避免重复
                 plbs = outkernelcollision(qtrees, pos, [label], plbs, colist)
                 append!(pairlist, (((label, plb) => pos) for plb in plbs))
             end
@@ -252,9 +252,9 @@ function partialcollisions(qtrees::AbstractVector, sptree::LinkedSpacialQTree, m
             while !isempty(st)
                 tn = pop!(st)
                 for c in tn.children
-                    if !isleafchild(tn, c) #如果isleafchild则该child无意义
-                        cpos = spacialindex(c)
-                        clbs = taketreenode(c)
+                    if !isemptychild(tn, c) #如果isemptychild则该child无意义
+                        cpos = spacial_index(c)
+                        clbs = collect_labels(c)
                         clbs = outkernelcollision(qtrees, cpos, clbs, [label], colist)
                         append!(pairlist, (((clb, label) => cpos) for clb in clbs))
                         push!(st, c)
