@@ -1,7 +1,7 @@
 module Stuffing
 export qtree, maskqtree, qtrees, place!, overlap!, overlap, getpositions, setpositions!, packing, packing!
 export QTrees, getshift, getcenter, setshift!, setcenter!, outofbounds, outofkernelbounds, 
-    batchcollisions, collision, findroom_uniform, findroom_gathering
+    totalcollisions, collision, findroom_uniform, findroom_gathering
 export Trainer, train!, fit!, Momentum, SGD
 include("linkedlist.jl")
 include("qtrees.jl")
@@ -101,7 +101,7 @@ function packing!(qts, args...; kargs...)
     nepoch, ncollection = fit!(qts, args...; kargs...)
     @info "$nepoch epochs, $ncollection collections"
     if ncollection != 0
-        colllist = first.(batchcollisions(qts))
+        colllist = first.(totalcollisions(qts))
         get_text(i) = i > 1 ? "obj_$(i - 1)" : "#MASK#"
         @warn "have $(length(colllist)) collisions:\n" * 
             string([(get_text(i), get_text(j)) for (i, j) in colllist])

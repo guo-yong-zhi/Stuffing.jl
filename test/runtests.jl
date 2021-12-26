@@ -40,7 +40,7 @@ include("test_fit.jl")
     o3 = zeros(100, 100)
     o3[79:90, 79:90] .= 1
     qts = qtrees([o1, o2, o3], background=0.0)
-    C = batchcollisions(qts)
+    C = totalcollisions(qts)
     @test length(C) == 2
     setshift!(qts[1], (-1000, -1000))
     @test collision(qts[1], qts[2])[1] < 0

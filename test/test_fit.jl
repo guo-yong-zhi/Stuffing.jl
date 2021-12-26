@@ -48,7 +48,7 @@
 
     #fit!
     setshift!(qts[2], 1, 1000, 1000);
-    @test !isempty(QTrees.batchcollisions_region(qts[1:2]))
+    @test !isempty(QTrees.totalcollisions_spacial(qts[1:2]))
     l = length(qts) - 1
     repo = [0.3, true, false, i -> i % 2 == 1, round(Int, l * 0.2), [10:l...]]
     @time for t in ts

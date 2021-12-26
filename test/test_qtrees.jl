@@ -46,46 +46,46 @@ testqtree = Stuffing.testqtree
     end
 
     #collisions
-    clq = QTrees.batchcollisions_region(qts)
-    cln = QTrees.batchcollisions_native(qts)
+    clq = QTrees.totalcollisions_spacial(qts)
+    cln = QTrees.totalcollisions_native(qts)
     clp = QTrees.partialcollisions(qts, spt2, Set(1:length(qts)))
     @test Set(Set.(first.(clq))) == Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
 
     #corner cases
     # batch
-    @test QTrees.batchcollisions_region(Vector{QTrees.U8SQTree}()) |> isempty
-    @test QTrees.batchcollisions_native(Vector{QTrees.U8SQTree}()) |> isempty
+    @test QTrees.totalcollisions_spacial(Vector{QTrees.U8SQTree}()) |> isempty
+    @test QTrees.totalcollisions_native(Vector{QTrees.U8SQTree}()) |> isempty
     qt1 = qtree(reshape([1], 1, 1))
-    @test QTrees.batchcollisions_region([qt1]) |> isempty
-    @test QTrees.batchcollisions_native([qt1]) |> isempty
+    @test QTrees.totalcollisions_spacial([qt1]) |> isempty
+    @test QTrees.totalcollisions_native([qt1]) |> isempty
     # empty tree
     qt1 = qtree(Matrix{Int}(undef, 0, 0), background = 0)
     qt2 = qtree(Matrix{Int}(undef, 0, 0), background = 0)
     @test length(qt1) >= 2
     @test QTrees.collision_dfs(qt1, qt2)[1] < 0
     @test QTrees.collision(qt1, qt2)[1] < 0
-    @test QTrees.batchcollisions_native([qt1, qt2]) |> isempty
-    @test QTrees.batchcollisions_region([qt1, qt2]) |> isempty
+    @test QTrees.totalcollisions_native([qt1, qt2]) |> isempty
+    @test QTrees.totalcollisions_spacial([qt1, qt2]) |> isempty
     # no pixel tree
     qt1 = qtree(reshape([1], 1, 1))
     qt2 = qtree(reshape([1], 1, 1))
     @test length(qt1) >= 2
     @test QTrees.collision_dfs(qt1, qt2)[1] < 0
     @test QTrees.collision(qt1, qt2)[1] < 0
-    @test QTrees.batchcollisions_native([qt1, qt2]) |> isempty
-    @test QTrees.batchcollisions_region([qt1, qt2]) |> isempty
+    @test QTrees.totalcollisions_native([qt1, qt2]) |> isempty
+    @test QTrees.totalcollisions_spacial([qt1, qt2]) |> isempty
     # single pixel tree
     qt1 = qtree(reshape([1], 1, 1), background=0)
     qt2 = qtree(reshape([1], 1, 1), background=0)
     @test length(qt1) >= 2
     @test QTrees.collision_dfs(qt1, qt2) == (1, 1, 1)
     @test QTrees.collision(qt1, qt2) == (1, 1, 1)
-    @test QTrees.batchcollisions_native([qt1, qt2]) |> only |> last == (1, 1, 1)
-    @test QTrees.batchcollisions_region([qt1, qt2]) |> only |> last == (1, 1, 1)
+    @test QTrees.totalcollisions_native([qt1, qt2]) |> only |> last == (1, 1, 1)
+    @test QTrees.totalcollisions_spacial([qt1, qt2]) |> only |> last == (1, 1, 1)
     # out of bounds tree
     setshift!(qt1, (10, -10))
     @test QTrees.collision_dfs(qt1, qt2)[1] < 0
     @test QTrees.collision(qt1, qt2)[1] < 0
-    @test QTrees.batchcollisions_native([qt1, qt2]) |> isempty
-    @test QTrees.batchcollisions_region([qt1, qt2]) |> isempty
+    @test QTrees.totalcollisions_native([qt1, qt2]) |> isempty
+    @test QTrees.totalcollisions_spacial([qt1, qt2]) |> isempty
 end

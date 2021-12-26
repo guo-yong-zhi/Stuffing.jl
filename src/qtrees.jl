@@ -1,7 +1,7 @@
 module QTrees
 export AbstractStackedQTree, StackedQTree, ShiftedQTree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
-    collision, collision_dfs, batchcollisions, partialcollisions, dynamiccollisions,
+    collision, collision_dfs, totalcollisions, partialcollisions, dynamiccollisions,
     findroom_uniform, findroom_gathering, outofbounds, outofkernelbounds, 
     kernelsize, place!, overlap, overlap!, decode, charimage
 
