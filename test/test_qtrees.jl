@@ -46,10 +46,13 @@ testqtree = Stuffing.testqtree
     end
 
     #collisions
-    clq = QTrees.totalcollisions_spacial(qts)
+    cls = QTrees.totalcollisions_spacial(qts)
     cln = QTrees.totalcollisions_native(qts)
     clp = QTrees.partialcollisions(qts, spt2, Set(1:length(qts)))
-    @test Set(Set.(first.(clq))) == Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
+    @test Set(Set.(first.(cls))) == Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
+    moved = first.(clp)|>Iterators.flatten|>Set
+    clp = QTrees.partialcollisions(qts, spt2, moved, unique=true)
+    @test Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
 
     #corner cases
     # batch

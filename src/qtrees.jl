@@ -390,32 +390,39 @@ Base.push!(t::HashSpacialQTree, ind::Index, label::Int) = push!(get!(Vector{Int}
 # Base.empty!(t::HashSpacialQTree, label) = nothing #not implemented
 tree(t::HashSpacialQTree) = t.qtree
 
-
+################ LinkedSpacialQTree
 const SpacialQTreeNode = QTreeNode{Pair{Index, DoubleList{Int}}}
 function new_spacial_qtree_node(parent::SpacialQTreeNode, index)
     dl = DoubleList{Int}()
     node = QTreeNode(parent, index=>dl)
     dl.tail.value = Int(pointer_from_objref(node))
-    @assert node == seek_treenode(dl.tail)
+    # @assert node == seek_treenode(dl.tail)
     node
 end
 function new_spacial_qtree_node(index)
     dl = DoubleList{Int}()
     node::SpacialQTreeNode = QTreeNode(index=>dl)
     dl.tail.value = Int(pointer_from_objref(node))
-    @assert node == seek_treenode(dl.tail)
+    # @assert node == seek_treenode(dl.tail)
     node
 end
-struct LinkedSpacialQTree{MAPTYPE}
+struct LinkedSpacialQTree
     qtree::SpacialQTreeNode
-    map::MAPTYPE
+    map::IntMap{Vector{Vector{ListNode{Int64}}}}
 end
-LinkedSpacialQTree(map::U) where U = LinkedSpacialQTree{U}(QTreeNode{Pair{Index, DoubleList{T}}}(), map)
-LinkedSpacialQTree(index, map::U) where U = LinkedSpacialQTree{U}(new_spacial_qtree_node(index), map)
+LinkedSpacialQTree(map) = LinkedSpacialQTree(QTreeNode{Pair{Index, DoubleList{Int}}}(), map)
+LinkedSpacialQTree(index::Index, map) = LinkedSpacialQTree(new_spacial_qtree_node(index), map)
 tree(t::LinkedSpacialQTree) = t.qtree
 spacial_index(t::QTreeNode) = t.value.first
 labelsof(t::QTreeNode) = t.value.second
-spacial_indexesof(t::LinkedSpacialQTree, label) = t.map[label]
+function spacial_indexesof(t::LinkedSpacialQTree, label)
+    m = t.map
+    if haskey(m, label)
+        return m[label]
+    else
+        return Vector{ListNode{Int}}()
+    end
+end
 function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
     # @show ind, label
     tn = t.qtree
@@ -434,10 +441,7 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
             end
             tn = cnode
         end
-        if aind != ind
-            @show aind ind
-            error()
-        end
+        # @assert aind == ind
         n = ListNode(label)
         if haskey(t.map, label)
             loc = t.map[label]
@@ -450,8 +454,8 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
     end
 end
 function seek_treenode(listnode::ListNode)
-    @assert istail(listnode)
-    unsafe_pointer_to_objref(Ptr{Any}(listnode.value))
+    # @assert istail(listnode)
+    unsafe_pointer_to_objref(Ptr{Any}(listnode.value))::QTreeNode{Pair{Index, DoubleList{Int}}}
 end
 function Base.empty!(t::LinkedSpacialQTree, label)
     if haskey(t.map, label) && !isempty(t.map[label])

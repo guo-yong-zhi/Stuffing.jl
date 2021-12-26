@@ -105,11 +105,8 @@ function _totalcollisions_native(qtrees::AbstractVector, labels::AbstractSet{<:I
 end
 function totalcollisions_native(qtrees::AbstractVector{U8SQTree}, labels=1:length(qtrees);  
     colist=Vector{CoItem}(), kargs...)
-    if length(qtrees) > 1
-        l = length(@inbounds qtrees[1])
-    else
-        return colist
-    end
+    length(qtrees) > 1 || return colist
+    l = length(@inbounds qtrees[1])
     labels = [i for i in labels if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
     _totalcollisions_native(qtrees, labels; colist=colist, kargs...)
 end
@@ -178,11 +175,8 @@ end
 
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
 function totalcollisions_spacial(qtrees::AbstractVector, sptree::HashSpacialQTree; colist=Vector{CoItem}(), unique=true, kargs...)
-    if length(qtrees) > 1
-        nlevel = length(@inbounds qtrees[1])
-    else
-        return colist
-    end
+    length(qtrees) > 1 || return colist
+    nlevel = length(@inbounds qtrees[1])
     pairlist = Vector{CoItem}()
     for spindex in keys(sptree)
         labels = sptree[spindex]
@@ -239,6 +233,7 @@ function partialcollisions(qtrees::AbstractVector, sptree::LinkedSpacialQTree, m
                 ln = ln.next
             end
             # 更prev的node都是move过的，在其向后遍历时会加入与当前node的pair，故不需要向前遍历
+            # 但要保证更prev的node在moved中
             treenode = seek_treenode(ln)
             spindex = spacial_index(treenode)
             append!(pairlist, (((label, lb) => spindex) for lb in lbs))

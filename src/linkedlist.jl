@@ -2,8 +2,8 @@ module LinkedList
 export DoubleList, ListNode, movetofirst!, IntMap, ishead, istail
 mutable struct ListNode{T}
     value::T
-    prev::ListNode
-    next::ListNode
+    prev::ListNode{T}
+    next::ListNode{T}
     function ListNode{T}() where T
         n = new{T}()
         n.prev = n
