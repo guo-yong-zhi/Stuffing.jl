@@ -416,9 +416,10 @@ end
 struct LinkedSpacialQTree
     qtree::SpacialQTreeNode
     map::IntMap{Vector{Vector{ListNode{Int}}}}
+    listnode_cache::DoubleList{Int}
 end
-LinkedSpacialQTree(index::Index, map) = LinkedSpacialQTree(new_spacial_qtree_node(index), map)
-LinkedSpacialQTree(map) = LinkedSpacialQTree(new_spacial_qtree_node(), map)
+LinkedSpacialQTree(index::Index, map) = LinkedSpacialQTree(new_spacial_qtree_node(index), map, DoubleList{Int}())
+LinkedSpacialQTree(map) = LinkedSpacialQTree(new_spacial_qtree_node(), map, DoubleList{Int}())
 tree(t::LinkedSpacialQTree) = t.qtree
 spacial_index(n::QTreeNode) = n.value.index
 labelsof(n::QTreeNode) = n.value.list
@@ -426,6 +427,18 @@ isemptylabels(n::QTreeNode) = (!isdefined(n.value, :list)) || isempty(labelsof(n
 function spacial_indexesof(t::LinkedSpacialQTree, label)
     m = t.map
     haskey(m, label) ? m[label] : Vector{ListNode{Int}}()
+end
+function new_listnode_for_push(t::LinkedSpacialQTree, value::Int)
+    cache = t.listnode_cache
+    if isempty(cache)
+        return ListNode(value)
+    else
+        n = popfirst!(cache)
+        n.value = value
+        # n.prev = n #will be assigned in pushfirst!
+        # n.next = n
+        return n
+    end
 end
 function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
     # @show ind, label
@@ -446,7 +459,9 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
             tn = cnode
         end
         # @assert aind == ind
-        n = ListNode(label)
+        n = new_listnode_for_push(t, label)
+        isdefined(tn.value, :list) || new_labellist(tn)
+        pushfirst!(tn.value.list, n)
         if haskey(t.map, label)
             loc = t.map[label]
         else
@@ -454,8 +469,6 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
             t.map[label] = loc
         end
         push!(loc, n)
-        isdefined(tn.value, :list) || new_labellist(tn)
-        pushfirst!(tn.value.list, n)
     end
 end
 function seek_treenode(listnode::ListNode)
@@ -465,7 +478,9 @@ end
 function Base.empty!(t::LinkedSpacialQTree, label)
     if haskey(t.map, label) && !isempty(t.map[label])
         nodes = t.map[label]
-        pop!.(nodes)
+        for n in nodes
+            pushfirst!(t.listnode_cache, pop!(n))
+        end
         empty!(t.map[label])
     end
 end

@@ -51,6 +51,8 @@ function Base.pop!(n::ListNode)
     n
 end
 Base.pop!(l::DoubleList, n::ListNode) = Base.pop!(n)
+Base.popfirst!(l::DoubleList) = (@assert !isempty(l); pop!(l.head.next))
+
 function movetofirst!(l::DoubleList, n::ListNode)
     pop!(l, n)
     pushfirst!(l, n)

@@ -222,13 +222,14 @@ function totalcollisions(qtrees::AbstractVector{U8SQTree}, args...; unique=true,
         return totalcollisions_native(qtrees, args...; kargs...)
     end
 end
-function partialcollisions(qtrees::AbstractVector, 
-    sptree::LinkedSpacialQTree=locate!(qtrees, linked_spacial_qtree(qtrees)),
+function partialcollisions(qtrees::AbstractVector,
+    sptree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
     moved::AbstractSet{Int}=Set(1:length(qtrees)); 
     colist=Vector{CoItem}(), unique=true, kargs...)
     pairlist = Vector{CoItem}()
     lbs = Vector{Int}()
     st = Vector{SpacialQTreeNode}()
+    locate!(qtrees, moved, sptree)
     for label in moved
         # @show label
         for listnode in spacial_indexesof(sptree, label)
