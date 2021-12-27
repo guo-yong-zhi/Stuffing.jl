@@ -177,10 +177,11 @@ function collisions_boundsfilter(qtrees, spindex, llb::Int, higlabels, pairlist,
     collisions_boundsfilter(qtrees, spindex, (llb,), higlabels, pairlist, colist)
 end
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
-function totalcollisions_spacial(qtrees::AbstractVector, sptree::HashSpacialQTree; colist=Vector{CoItem}(), unique=true, kargs...)
+function totalcollisions_spacial(qtrees::AbstractVector, sptree::HashSpacialQTree; 
+    colist=Vector{CoItem}(), pairlist::AbstractVector{CoItem}=Vector{CoItem}(), unique=true, kargs...)
     length(qtrees) > 1 || return colist
     nlevel = length(@inbounds qtrees[1])
-    pairlist = Vector{CoItem}()
+    empty!(pairlist)
     for spindex in keys(sptree)
         labels = sptree[spindex]
         labelslen = length(labels) 
@@ -215,9 +216,11 @@ function totalcollisions_spacial(qtrees::AbstractVector{U8SQTree}, labels::Union
 end
 
 const SPACIAL_ENABLE_THRESHOLD = round(Int, 10+10log2(Threads.nthreads()))
-function totalcollisions(qtrees::AbstractVector{U8SQTree}, args...; unique=true, kargs...)
+function totalcollisions(qtrees::AbstractVector{U8SQTree}, args...;
+    pairlist::AbstractVector{CoItem}=Vector{CoItem}(),
+    unique=true, kargs...)
     if length(qtrees) > SPACIAL_ENABLE_THRESHOLD
-        return totalcollisions_spacial(qtrees, args...; unique=unique, kargs...)
+        return totalcollisions_spacial(qtrees, args...; pairlist=pairlist, unique=unique, kargs...)
     else
         return totalcollisions_native(qtrees, args...; kargs...)
     end
@@ -225,8 +228,7 @@ end
 function partialcollisions(qtrees::AbstractVector,
     sptree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
     moved::AbstractSet{Int}=Set(1:length(qtrees)); 
-    colist=Vector{CoItem}(), unique=true, kargs...)
-    pairlist = Vector{CoItem}()
+    colist=Vector{CoItem}(), pairlist::AbstractVector{CoItem}=Vector{CoItem}(), unique=true, kargs...)
     lbs = Vector{Int}()
     st = Vector{SpacialQTreeNode}()
     locate!(qtrees, moved, sptree)
