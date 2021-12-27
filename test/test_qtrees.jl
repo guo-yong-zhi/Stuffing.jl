@@ -38,6 +38,7 @@ testqtree = Stuffing.testqtree
     place!(qts, roomfinder=QTrees.findroom_gathering)
     place!(qts)
 
+    qts = Stuffing.randqtrees(200)
     #locate!
     spt2 = QTrees.locate!(qts, QTrees.linked_spacial_qtree(qts))
     spt1 = QTrees.locate!(qts, QTrees.hash_spacial_qtree())
@@ -58,14 +59,17 @@ testqtree = Stuffing.testqtree
     moved = first.(clp)|>Iterators.flatten|>Set
     clp = QTrees.partialcollisions(qts, spt2, moved, unique=true)
     @test Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
+    clp = QTrees.partialcollisions(qts)
+    @test Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
 
-    #corner cases
+    #edge cases
     # batch
     @test QTrees.totalcollisions_spacial(Vector{QTrees.U8SQTree}()) |> isempty
     @test QTrees.totalcollisions_native(Vector{QTrees.U8SQTree}()) |> isempty
     qt1 = qtree(reshape([1], 1, 1))
     @test QTrees.totalcollisions_spacial([qt1]) |> isempty
     @test QTrees.totalcollisions_native([qt1]) |> isempty
+    @test QTrees.partialcollisions([qt1]) |> isempty
     # empty tree
     qt1 = qtree(Matrix{Int}(undef, 0, 0), background = 0)
     qt2 = qtree(Matrix{Int}(undef, 0, 0), background = 0)
@@ -74,6 +78,7 @@ testqtree = Stuffing.testqtree
     @test QTrees.collision(qt1, qt2)[1] < 0
     @test QTrees.totalcollisions_native([qt1, qt2]) |> isempty
     @test QTrees.totalcollisions_spacial([qt1, qt2]) |> isempty
+    @test QTrees.partialcollisions([qt1, qt2]) |> isempty
     # no pixel tree
     qt1 = qtree(reshape([1], 1, 1))
     qt2 = qtree(reshape([1], 1, 1))
@@ -82,6 +87,7 @@ testqtree = Stuffing.testqtree
     @test QTrees.collision(qt1, qt2)[1] < 0
     @test QTrees.totalcollisions_native([qt1, qt2]) |> isempty
     @test QTrees.totalcollisions_spacial([qt1, qt2]) |> isempty
+    @test QTrees.partialcollisions([qt1, qt2]) |> isempty
     # single pixel tree
     qt1 = qtree(reshape([1], 1, 1), background=0)
     qt2 = qtree(reshape([1], 1, 1), background=0)
@@ -90,10 +96,14 @@ testqtree = Stuffing.testqtree
     @test QTrees.collision(qt1, qt2) == (1, 1, 1)
     @test QTrees.totalcollisions_native([qt1, qt2]) |> only |> last == (1, 1, 1)
     @test QTrees.totalcollisions_spacial([qt1, qt2]) |> only |> last == (1, 1, 1)
+    @test QTrees.partialcollisions([qt1, qt2]) |> only |> last == (1, 1, 1)
+    spt2 = QTrees.locate!([qt1, qt2], QTrees.linked_spacial_qtree([qt1, qt2]))
+    @test QTrees.partialcollisions([qt1, qt2], spt2, Set([1])) |> only |> last == (1, 1, 1)
     # out of bounds tree
     setshift!(qt1, (10, -10))
     @test QTrees.collision_dfs(qt1, qt2)[1] < 0
     @test QTrees.collision(qt1, qt2)[1] < 0
     @test QTrees.totalcollisions_native([qt1, qt2]) |> isempty
     @test QTrees.totalcollisions_spacial([qt1, qt2]) |> isempty
+    @test QTrees.partialcollisions([qt1, qt2]) |> isempty
 end
