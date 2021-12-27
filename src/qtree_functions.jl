@@ -231,6 +231,7 @@ function partialcollisions(qtrees::AbstractVector,
     colist=Vector{CoItem}(), pairlist::AbstractVector{CoItem}=Vector{CoItem}(), unique=true, kargs...)
     lbs = Vector{Int}()
     st = Vector{SpacialQTreeNode}()
+    empty!(pairlist)
     locate!(qtrees, moved, sptree)
     for label in moved
         # @show label
@@ -279,6 +280,7 @@ function partialcollisions(qtrees::AbstractVector,
             end
         end
     end
+    empty!(moved)
     # @show length(pairlist), length(colist)
     r = _totalcollisions_native(qtrees, pairlist; colist=colist, kargs...)
     unique ? unique!(first, sort!(r)) : r

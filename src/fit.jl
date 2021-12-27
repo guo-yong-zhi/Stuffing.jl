@@ -1,6 +1,7 @@
 module Trainer
 export Momentum, SGD, train!, fit!
-export trainepoch_E!, trainepoch_EM!, trainepoch_EM2!, trainepoch_EM3!, trainepoch_P!, trainepoch_P2!, trainepoch_Px!
+export trainepoch_E!, trainepoch_EM!, trainepoch_EM2!, trainepoch_EM3!, 
+trainepoch_P!, trainepoch_P2!, trainepoch_Px!, trainepoch_D!
 
 using Random
 using ..QTrees
@@ -301,7 +302,7 @@ function trainepoch_P2!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ
     nc
 end
 
-function levelpools(qtrees, levels=[-length(qtrees[1]):3:-3..., -1])
+function levelpools(qtrees, levels=[-length(qtrees[1]):4:-3..., -1])
     pools = [i => Vector{Tuple{Int,Int}}() for i in levels]
     l = length(qtrees)
     for i1 in 1:l
@@ -341,6 +342,26 @@ function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree};
     nc
 end
 
+"dynamic trainer"
+trainepoch_D!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
+                            :queue => QTrees.thread_queue(),
+                            :pairlist => Vector{QTrees.CoItem}(),
+                            :moved => Set{Int}(1:length(inputs)),
+                            :sptree => QTrees.linked_spacial_qtree(inputs))
+trainepoch_D!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
+function trainepoch_D!(qtrees::AbstractVector{<:ShiftedQTree}; sptree, optimiser=(t, Δ) -> Δ ./ 6, 
+    colist=Vector{QTrees.CoItem}(), moved=Set{Int}(), kargs...)
+    length(moved) == 0 && return length(colist)
+    for ni in 1:10length(qtrees) ÷ length(moved)
+        partialcollisions(qtrees, sptree, moved; colist=empty!(colist), kargs...)
+        nc = length(colist)
+        if nc == 0 return nc end
+        batchsteps!(qtrees, colist, optimiser)
+        union!(moved, first.(colist) |> Iterators.flatten)
+        if ni > 10length(colist) break end
+    end
+    length(colist)
+end
 function select_coinds(qtrees, colist::Vector{Tuple{Int,Int}}; from=i->true)
     selected = Vector{Int}()
     l = length(colist)
@@ -380,10 +401,10 @@ end
 
 function reposition!(ts, colist=nothing, args...; kargs...)
     maskqt = ts[1]
-    outinds = outofkernelbounds(maskqt, ts[2:end]) .+ 1
-    if !isempty(outinds)
-        place!(deepcopy(maskqt), ts, outinds)
-        return outinds
+    outlabels = outofkernelbounds(maskqt, ts[2:end]) .+ 1
+    if !isempty(outlabels)
+        place!(deepcopy(maskqt), ts, outlabels)
+        return outlabels
     end
     if colist !== nothing
         selected = select_coinds(ts, colist, args...; kargs...)
@@ -392,7 +413,7 @@ function reposition!(ts, colist=nothing, args...; kargs...)
         end
         return selected
     end
-    return outinds
+    return outlabels
 end
 
 function train!(ts, nepoch::Number=-1, args...; 
@@ -432,6 +453,7 @@ function train!(ts, nepoch::Number=-1, args...;
     end
     nepoch >= 0 || (nepoch = trainer(:nepoch))
     @info "nepoch: $nepoch, " * (reposition_flag ? "patient: $patient" : "reposition off")
+    moved = get(resource, :moved, nothing)
     while ep < nepoch
         nc = trainer(ts, args...; resource..., optimiser=optimiser, unique=false, kargs...)
         ep += 1
@@ -445,6 +467,7 @@ function train!(ts, nepoch::Number=-1, args...;
             if length(repositioned) > 0
                 reset!(indi_r)
                 reset!.(optimiser, ts[repositioned])
+                moved !== nothing && union!(moved, repositioned)
             end
             repositioned_set = Set(repositioned)
             if last_repositioned == repositioned_set
@@ -456,13 +479,14 @@ function train!(ts, nepoch::Number=-1, args...;
         end
         callback(ep)
         if nc == 0
-            outinds = reposition!(ts)
-            outlen = length(outinds)
+            outlabels = reposition!(ts)
+            outlen = length(outlabels)
             if outlen == 0
                 break
             else
-                @info "$outinds out of bounds"
+                @info "$outlabels out of bounds"
                 nc += outlen
+                moved !== nothing && union!(moved, outlabels)
             end
         end
         if reposition_count >= 10
