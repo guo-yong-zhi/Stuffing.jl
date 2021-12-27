@@ -25,6 +25,10 @@ function childnumber(ancestor::Index, descendant::Index) #assume the ancestor-de
     n = ((descendant[3] <= o3)<<1) | (descendant[2] <= o2)
     n == 0 ? 4 : n
 end
+function childnumber(ind::Index)
+    n = ((ind[3]&0x01)<<0x01)| (ind[2]&0x01)
+    n == 0 ? 4 : n
+end
 function indexrange(l::Integer, a::Integer, b::Integer)
     r = 2^(l - 1)
     r * (a - 1) + 1:r * a, r * (b - 1) + 1:r * b
@@ -404,7 +408,6 @@ mutable struct LabelList
     LabelList() = new()
 end
 const SpacialQTreeNode = QTreeNode{LabelList}
-new_spacial_qtree_node(parent::SpacialQTreeNode, index::Index) = QTreeNode(parent, LabelList(index))
 new_spacial_qtree_node(index::Index) = QTreeNode(LabelList(index))
 new_spacial_qtree_node() = QTreeNode(LabelList())
 function new_labellist(node::QTreeNode)
@@ -417,9 +420,10 @@ struct LinkedSpacialQTree
     qtree::SpacialQTreeNode
     map::IntMap{Vector{Vector{ListNode{Int}}}}
     listnode_cache::DoubleList{Int}
+    treenode_cache::Vector{SpacialQTreeNode}
 end
-LinkedSpacialQTree(index::Index, map) = LinkedSpacialQTree(new_spacial_qtree_node(index), map, DoubleList{Int}())
-LinkedSpacialQTree(map) = LinkedSpacialQTree(new_spacial_qtree_node(), map, DoubleList{Int}())
+LinkedSpacialQTree(index::Index, map) = LinkedSpacialQTree(new_spacial_qtree_node(index), map, DoubleList{Int}(), Vector{SpacialQTreeNode}())
+LinkedSpacialQTree(map) = LinkedSpacialQTree(new_spacial_qtree_node(), map, DoubleList{Int}(), Vector{SpacialQTreeNode}())
 tree(t::LinkedSpacialQTree) = t.qtree
 spacial_index(n::QTreeNode) = n.value.index
 labelsof(n::QTreeNode) = n.value.list
@@ -440,6 +444,27 @@ function new_listnode_for_push(t::LinkedSpacialQTree, value::Int)
         return n
     end
 end
+function new_spacial_qtree_node(t::LinkedSpacialQTree, parent::SpacialQTreeNode, index::Index)
+    cache = t.treenode_cache
+    if isempty(cache)
+        # @show index
+        return QTreeNode(parent, LabelList(index))
+    else
+        # @show length(cache)
+        n = pop!(cache)
+        # @assert n.children == [n,n,n,n]
+        n.parent = parent
+        n.value.index = index
+        return n
+    end
+end
+function remove_tree_node(t::LinkedSpacialQTree, node::SpacialQTreeNode)
+    push!(t.treenode_cache, node)
+    p = node.parent
+    ind = spacial_index(node)
+    # @show ind
+    p.children[childnumber(ind)] = p
+end
 function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
     # @show ind, label
     tn = t.qtree
@@ -453,7 +478,7 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
             # @show aind, ind, cn
             cnode = tn.children[cn]
             if isemptychild(tn, cnode)
-                cnode = new_spacial_qtree_node(tn, child(aind, cn))
+                cnode = new_spacial_qtree_node(t, tn, child(aind, cn))
                 tn.children[cn] = cnode
             end
             tn = cnode

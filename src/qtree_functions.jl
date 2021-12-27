@@ -253,21 +253,27 @@ function partialcollisions(qtrees::AbstractVector,
                 end
             end
             empty!(st)
-            push!(st, treenode)
+            for c in treenode.children
+                isemptychild(treenode, c) || push!(st, c)
+            end
             while !isempty(st)
                 tn = pop!(st)
+                emptyflag = true
+                if !isemptylabels(tn)
+                    emptyflag = false
+                    cspindex = spacial_index(tn)
+                    clbs = labelsof(tn)
+                    # @show cspindex clbs
+                    collisions_boundsfilter(qtrees, cspindex, clbs, label, pairlist, colist)
+                end
                 for c in tn.children
                     if !isemptychild(tn, c) #如果isemptychild则该child无意义
-                        if !isemptylabels(c)
-                            cspindex = spacial_index(c)
-                            clbs = labelsof(c)
-                            # @show cspindex clbs
-                            collisions_boundsfilter(qtrees, cspindex, clbs, label, pairlist, colist)
-                        end
+                        emptyflag = false
                         push!(st, c)
                         # @show pairlist
                     end
                 end
+                emptyflag && remove_tree_node(sptree, tn)
             end
         end
     end

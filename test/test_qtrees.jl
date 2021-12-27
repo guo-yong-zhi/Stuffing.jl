@@ -3,6 +3,11 @@ buildqtree! = QTrees.buildqtree!
 testqtree = Stuffing.testqtree
 
 @testset "qtrees.jl" begin
+    ind = (rand(1:20), rand(1:2000), rand(1:2000))
+    cn = QTrees.childnumber(ind)
+    @test cn == QTrees.childnumber(QTrees.parent(ind), ind)
+    @test QTrees.child(QTrees.parent(ind), cn) == ind
+
     qt = ShiftedQTree(rand((0, 0, 1), rand(50:300), rand(50:300))) |> buildqtree!
     @test qt[1][-10, -15] == QTrees.EMPTY
     @test_throws BoundsError qt[1][-10, -15] = QTrees.EMPTY
