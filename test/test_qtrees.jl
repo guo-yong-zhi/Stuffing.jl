@@ -61,6 +61,12 @@ testqtree = Stuffing.testqtree
     @test Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
     clp = QTrees.partialcollisions(qts)
     @test Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
+    # partial
+    labels = [1,3,6,99]
+    sptree = QTrees.locate!(qts, linked_spacial_qtree(qts))
+    c1 = QTrees.partialcollisions(qts, sptree, Set(labels))
+    c2set = Set([Set(p) for p in first.(QTrees.totalcollisions(qts)) if !isdisjoint(p, labels)])
+    @test c2set == Set(Set.(first.(c1)))
 
     #edge cases
     # batch
