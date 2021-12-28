@@ -297,7 +297,7 @@ UpdatedSet(maxlen::Int) = UpdatedSet(maxlen, maxlen, Set{Int}(1:maxlen))
 UpdatedSet(labels, maxlen::Int=length(labels)) = UpdatedSet(length(labels), maxlen, Set{Int}(labels))
 function Base.union!(s::UpdatedSet, c)
     s.updatelen = length(c)
-    length(s.set) == s.maxlen || union!(s.set, c)
+    length(s.set) == s.maxlen ? s : union!(s.set, c)
 end
 Base.empty!(s::UpdatedSet) = empty!(s.set)
 Base.length(s::UpdatedSet) = length(s.set)
