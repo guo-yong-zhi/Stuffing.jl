@@ -66,7 +66,7 @@ function step_index!(qtrees, i1, i2, collisionpoint, optimiser)
     end
 end
 
-function batchsteps!(qtrees, colist::Vector{QTrees.CoItem}, optimiser)
+function batchsteps!(qtrees, colist::Vector{QTrees.CoItem}, optimiser=(t, Δ) -> Δ ./ 6)
     for ((i1, i2), cp) in shuffle!(colist)
         # @show cp
         # @assert cp[1] > 0

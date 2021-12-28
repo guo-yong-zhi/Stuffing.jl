@@ -67,7 +67,34 @@ testqtree = Stuffing.testqtree
     c1 = QTrees.partialcollisions(qts, sptree, Set(labels))
     c2set = Set([Set(p) for p in first.(QTrees.totalcollisions(qts)) if !isdisjoint(p, labels)])
     @test c2set == Set(Set.(first.(c1)))
-
+    # dynamic
+    updated = Set(1:length(qts));
+    sptree = linked_spacial_qtree(qts);
+    for i in 1:10
+        C1 = partialcollisions(qts, sptree, updated);
+        union!(updated, first.(C1) |> Iterators.flatten) #all collided labels
+        C2 = QTrees.totalcollisions_native(qts);
+        @test length(C1) == length(C2)
+        @test Set(Set.(first.(C1))) == Set(Set.(first.(C2)))
+        Stuffing.Trainer.batchsteps!(qts, C1)
+        QTrees.shift!(qts[3], 1, 1, 1)
+        QTrees.shift!(qts[7], 1, -1, -1)
+        union!(updated, [3, 7]) #other updated labels
+    end
+    updated = UpdatedSet(length(qts));
+    sptree = linked_spacial_qtree(qts);
+    for i in 1:10
+        C1 = dynamiccollisions(qts, sptree, updated);
+        union!(updated, first.(C1) |> Iterators.flatten) #all collided labels
+        C2 = QTrees.totalcollisions_native(qts);
+        C3 = QTrees.totalcollisions(qts); 
+        @test length(C1) == length(C2) || length(C1) == length(C3)
+        @test Set(Set.(first.(C1))) == Set(Set.(first.(C2))) || Set(Set.(first.(C1))) == Set(Set.(first.(C3)))
+        Stuffing.Trainer.batchsteps!(qts, C1)
+        QTrees.shift!(qts[3], 1, -1, -1)
+        QTrees.shift!(qts[7], 1, 1, 1)
+        union!(updated, [3, 7]) #other updated labels
+    end
     #edge cases
     # batch
     @test QTrees.totalcollisions_spacial(Vector{QTrees.U8SQTree}()) |> isempty

@@ -1,7 +1,7 @@
 module Stuffing
 export qtree, maskqtree, qtrees, place!, overlap!, overlap, getpositions, setpositions!, packing, packing!
 export QTrees, getshift, getcenter, setshift!, setcenter!, outofbounds, outofkernelbounds, 
-    partialcollisions, totalcollisions, collision, findroom_uniform, findroom_gathering,
+    dynamiccollisions, partialcollisions, totalcollisions, collision, findroom_uniform, findroom_gathering,
     UpdatedSet, locate!, linked_spacial_qtree, hash_spacial_qtree
 export Trainer, train!, fit!, Momentum, SGD
 include("linkedlist.jl")
