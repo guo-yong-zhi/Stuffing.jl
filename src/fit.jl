@@ -346,18 +346,18 @@ end
 trainepoch_D!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
                             :queue => QTrees.thread_queue(),
                             :pairlist => Vector{QTrees.CoItem}(),
-                            :moved => Set{Int}(1:length(inputs)),
+                            :updated => QTrees.UpdatedSet(1:length(inputs)),
                             :sptree => QTrees.linked_spacial_qtree(inputs))
 trainepoch_D!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_D!(qtrees::AbstractVector{<:ShiftedQTree}; sptree, optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), moved=Set{Int}(), kargs...)
-    length(moved) == 0 && return length(colist)
-    for ni in 1:10length(qtrees) ÷ length(moved)
-        partialcollisions(qtrees, sptree, moved; colist=empty!(colist), kargs...)
+    colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
+    length(updated) == 0 && return length(colist)
+    for ni in 1:10length(qtrees) ÷ length(updated)
+        dynamiccollisions(qtrees, sptree, updated; colist=empty!(colist), kargs...)
         nc = length(colist)
         if nc == 0 return nc end
         batchsteps!(qtrees, colist, optimiser)
-        union!(moved, first.(colist) |> Iterators.flatten)
+        union!(updated, first.(colist) |> Iterators.flatten)
         if ni > 10length(colist) break end
     end
     length(colist)
@@ -453,7 +453,7 @@ function train!(ts, nepoch::Number=-1, args...;
     end
     nepoch >= 0 || (nepoch = trainer(:nepoch))
     @info "nepoch: $nepoch, " * (reposition_flag ? "patient: $patient" : "reposition off")
-    moved = get(resource, :moved, nothing)
+    updated = get(resource, :updated, nothing)
     while ep < nepoch
         nc = trainer(ts, args...; resource..., optimiser=optimiser, unique=false, kargs...)
         ep += 1
@@ -467,7 +467,7 @@ function train!(ts, nepoch::Number=-1, args...;
             if length(repositioned) > 0
                 reset!(indi_r)
                 reset!.(optimiser, ts[repositioned])
-                moved !== nothing && union!(moved, repositioned)
+                updated !== nothing && union!(updated, repositioned)
             end
             repositioned_set = Set(repositioned)
             if last_repositioned == repositioned_set
@@ -486,7 +486,7 @@ function train!(ts, nepoch::Number=-1, args...;
             else
                 @info "$outlabels out of bounds"
                 nc += outlen
-                moved !== nothing && union!(moved, outlabels)
+                updated !== nothing && union!(updated, outlabels)
             end
         end
         if reposition_count >= 10

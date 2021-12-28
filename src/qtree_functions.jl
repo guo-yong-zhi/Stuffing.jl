@@ -227,13 +227,13 @@ function totalcollisions(qtrees::AbstractVector{U8SQTree}, args...;
 end
 function partialcollisions(qtrees::AbstractVector,
     sptree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
-    moved::AbstractSet{Int}=Set(1:length(qtrees)); 
+    updated::AbstractSet{Int}=Set(1:length(qtrees)); 
     colist=Vector{CoItem}(), pairlist::AbstractVector{CoItem}=Vector{CoItem}(), unique=true, kargs...)
     lbs = Vector{Int}()
     st = Vector{SpacialQTreeNode}()
     empty!(pairlist)
-    locate!(qtrees, moved, sptree)
-    for label in moved
+    locate!(qtrees, updated, sptree)
+    for label in updated
         # @show label
         for listnode in spacial_indexesof(sptree, label)
             empty!(lbs)
@@ -251,7 +251,7 @@ function partialcollisions(qtrees::AbstractVector,
             while !isroot(tn)
                 tn = tn.parent #root不是哨兵，值需要遍历
                 if !isemptylabels(tn)
-                    plbs = Iterators.filter(!in(moved), labelsof(tn)) #moved了的plb不加入，等候其向下遍历时加，避免重复
+                    plbs = Iterators.filter(!in(updated), labelsof(tn)) #moved了的plb不加入，等候其向下遍历时加，避免重复
                     collisions_boundsfilter(qtrees, spindex, label, plbs, pairlist, colist)
                 end
             end
@@ -280,10 +280,35 @@ function partialcollisions(qtrees::AbstractVector,
             end
         end
     end
-    empty!(moved)
+    empty!(updated)
     # @show length(pairlist), length(colist)
     r = _totalcollisions_native(qtrees, pairlist; colist=colist, kargs...)
     unique ? unique!(first, sort!(r)) : r
+end
+mutable struct UpdatedSet{T} <: AbstractSet{T}
+    updatelen::Int
+    maxlen::Int
+    set::Set{T}
+end
+UpdatedSet(updated) = UpdatedSet(length(updated), length(updated), Set{Int}(updated))
+function Base.union!(s::UpdatedSet, c)
+    s.updatelen = length(c)
+    length(s.set) == s.maxlen || union!(s.set, c)
+end
+Base.empty!(s::UpdatedSet) = empty!(s.set)
+Base.length(s::UpdatedSet) = length(s.set)
+Base.iterate(s::UpdatedSet, args...) = iterate(s.set, args...)
+Base.in(item, s::UpdatedSet) = in(item, s.set)
+Base.in(s::UpdatedSet) = in(s.set)
+function dynamiccollisions(qtrees::AbstractVector,
+    sptree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
+    updated::UpdatedSet{Int}=UpdatedSet(1:length(qtrees));
+    kargs...)
+    if updated.updatelen / updated.maxlen > 0.9
+        return totalcollisions(qtrees; kargs...)
+    else
+        return partialcollisions(qtrees, sptree, updated; kargs...)
+    end
 end
 ########## place!
 function findroom_uniform(ground, q=[(length(ground), 1, 1)])

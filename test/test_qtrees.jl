@@ -56,8 +56,8 @@ testqtree = Stuffing.testqtree
     cln = QTrees.totalcollisions_native(qts)
     clp = QTrees.partialcollisions(qts, spt2, Set(1:length(qts)))
     @test Set(Set.(first.(cls))) == Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
-    moved = first.(clp)|>Iterators.flatten|>Set
-    clp = QTrees.partialcollisions(qts, spt2, moved, unique=true)
+    updated = first.(clp)|>Iterators.flatten|>Set
+    clp = QTrees.partialcollisions(qts, spt2, updated, unique=true)
     @test Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
     clp = QTrees.partialcollisions(qts)
     @test Set(Set.(first.(cln))) == Set(Set.(first.(clp)))
