@@ -218,13 +218,14 @@ function totalcollisions_spacial(qtrees::AbstractVector{U8SQTree}, labels::Union
 end
 
 const SPACIAL_ENABLE_THRESHOLD = round(Int, 10+10log2(Threads.nthreads()))
-function totalcollisions(qtrees::AbstractVector{U8SQTree}, args...;
-    pairlist::AbstractVector{CoItem}=Vector{CoItem}(),
-    unique=true, kargs...)
+function totalcollisions_native_kw(qtrees, args...; pairlist=nothing, unique=true, sptree=nothing, kargs...)
+    totalcollisions_native(qtrees, args...; kargs...)
+end
+function totalcollisions(qtrees::AbstractVector{U8SQTree}, args...; kargs...)
     if length(qtrees) > SPACIAL_ENABLE_THRESHOLD
-        return totalcollisions_spacial(qtrees, args...; pairlist=pairlist, unique=unique, kargs...)
+        return totalcollisions_spacial(qtrees, args...; kargs...)
     else
-        return totalcollisions_native(qtrees, args...; kargs...)
+        return totalcollisions_native_kw(qtrees, args...; kargs...)
     end
 end
 function partialcollisions(qtrees::AbstractVector,

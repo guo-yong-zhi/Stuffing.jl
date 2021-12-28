@@ -41,7 +41,7 @@
         push!(objs, obj)
     end
     sort!(objs, by=prod ∘ size, rev=true)
-    ts = [Trainer.trainepoch_E!,Trainer.trainepoch_EM!,
+    trainers = [Trainer.trainepoch_E!,Trainer.trainepoch_EM!,
     Trainer.trainepoch_EM2!,Trainer.trainepoch_EM3!,Trainer.trainepoch_D!, 
     Trainer.trainepoch_P!,Trainer.trainepoch_P2!,Trainer.trainepoch_Px!]
     qts = qtrees(objs, mask=mask, maskbackground="aa")
@@ -49,9 +49,21 @@
     #fit!
     setshift!(qts[2], 1, 1000, 1000);
     @test !isempty(QTrees.totalcollisions_spacial(qts[1:2]))
+    #edge cases
+    samples = [
+        [qtree(reshape([1], 1, 1))],
+        [qtree(reshape([1], 1, 1)), qtree(reshape([1], 1, 1))],
+        Stuffing.randqtrees(1),
+        Stuffing.randqtrees(2),
+    ]
+    @time for t in trainers
+        for sample in samples
+            @time train!(sample, trainer=t)
+        end
+    end
     l = length(qts) - 1
     repo = [0.3, true, false, i -> i % 2 == 1, round(Int, l * 0.2), [10:l...]]
-    @time for t in ts
+    @time for t in trainers
         for rp in repo
             place!(qts)
             @time fit!(qts, trainer=t, reposition=rp)
