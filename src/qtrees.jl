@@ -3,7 +3,7 @@ export AbstractStackedQTree, StackedQTree, ShiftedQTree, buildqtree!,
     shift!, setrshift!, setcshift!, setshift!, getshift, getcenter, setcenter!,
     collision, collision_dfs, totalcollisions, partialcollisions, dynamiccollisions,
     findroom_uniform, findroom_gathering, outofbounds, outofkernelbounds, 
-    kernelsize, place!, overlap, overlap!, decode, charimage
+    kernelsize, place!, overlap, overlap!, decode, charimage, UpdatedSet
 
 using Random
 using ..LinkedList
@@ -380,7 +380,8 @@ Base.eltype(::Type{QTreeNode{T}}) where T = QTreeNode{T}
 ################ HashSpacialQTree
 abstract type AbstractSpacialQTree end
 function Base.push!(t::AbstractSpacialQTree, ind::Index, label) end
-function Base.empty!(t::AbstractSpacialQTree, label) end
+function Base.empty!(t::AbstractSpacialQTree) end
+function Base.empty!(t::AbstractSpacialQTree, label::Int) end
 function tree(t::AbstractSpacialQTree) end
 Base.iterate(t::AbstractSpacialQTree, args...) = iterate(tree(t), args...)
 Base.get(t::AbstractSpacialQTree, args...) = get(tree(t), args...)
@@ -393,6 +394,7 @@ struct HashSpacialQTree <: AbstractSpacialQTree
 end
 HashSpacialQTree() = HashSpacialQTree(Dict{Index, Vector{Int}}())
 Base.push!(t::HashSpacialQTree, ind::Index, label::Int) = push!(get!(Vector{Int}, t.qtree, ind), label)
+Base.empty!(t::HashSpacialQTree) = (empty!(t.qtree); t)
 # Base.empty!(t::HashSpacialQTree, label) = nothing #not implemented
 tree(t::HashSpacialQTree) = t.qtree
 

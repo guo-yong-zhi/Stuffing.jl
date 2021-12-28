@@ -206,12 +206,14 @@ function totalcollisions_spacial(qtrees::AbstractVector, sptree::HashSpacialQTre
     r = _totalcollisions_native(qtrees, pairlist; colist=colist, kargs...)
     unique ? unique!(first, sort!(r)) : r
 end
-function totalcollisions_spacial(qtrees::AbstractVector{U8SQTree}; kargs...)
-    sptree = locate!(qtrees)
+function totalcollisions_spacial(qtrees::AbstractVector{U8SQTree};
+    sptree=hash_spacial_qtree(qtrees), kargs...)
+    locate!(qtrees, empty!(sptree))
     totalcollisions_spacial(qtrees, sptree; kargs...)
 end
-function totalcollisions_spacial(qtrees::AbstractVector{U8SQTree}, labels::Union{AbstractVector{Int},AbstractSet{Int}}; kargs...)
-    sptree = locate!(qtrees, labels)
+function totalcollisions_spacial(qtrees::AbstractVector{U8SQTree}, labels::Union{AbstractVector{Int},AbstractSet{Int}}; 
+    sptree=hash_spacial_qtree(qtrees), kargs...)
+    locate!(qtrees, labels, empty!(sptree))
     totalcollisions_spacial(qtrees, sptree; kargs...)
 end
 
@@ -227,40 +229,41 @@ function totalcollisions(qtrees::AbstractVector{U8SQTree}, args...;
 end
 function partialcollisions(qtrees::AbstractVector,
     sptree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
-    updated::AbstractSet{Int}=Set(1:length(qtrees)); 
-    colist=Vector{CoItem}(), pairlist::AbstractVector{CoItem}=Vector{CoItem}(), unique=true, kargs...)
-    lbs = Vector{Int}()
-    st = Vector{SpacialQTreeNode}()
+    labels::AbstractSet{Int}=Set(1:length(qtrees)); 
+    colist=Vector{CoItem}(), pairlist::AbstractVector{CoItem}=Vector{CoItem}(),
+    lbcollector = Vector{Int}(),
+    treenodestack = Vector{SpacialQTreeNode}(),
+    unique=true, kargs...)
     empty!(pairlist)
-    locate!(qtrees, updated, sptree)
-    for label in updated
+    locate!(qtrees, labels, sptree)
+    for label in labels
         # @show label
         for listnode in spacial_indexesof(sptree, label)
-            empty!(lbs)
+            empty!(lbcollector)
             ln = listnode.next
             while !istail(ln) #tail是哨兵，本身的value不遍历
-                push!(lbs, ln.value)
+                push!(lbcollector, ln.value)
                 ln = ln.next
             end
             # 更prev的node都是move过的，在其向后遍历时会加入与当前node的pair，故不需要向前遍历
             # 但要保证更prev的node在moved中
             treenode = seek_treenode(ln)
             spindex = spacial_index(treenode)
-            append!(pairlist, (((label, lb) => spindex) for lb in lbs))
+            append!(pairlist, (((label, lb) => spindex) for lb in lbcollector))
             tn = treenode
             while !isroot(tn)
                 tn = tn.parent #root不是哨兵，值需要遍历
                 if !isemptylabels(tn)
-                    plbs = Iterators.filter(!in(updated), labelsof(tn)) #moved了的plb不加入，等候其向下遍历时加，避免重复
+                    plbs = Iterators.filter(!in(labels), labelsof(tn)) #moved了的plb不加入，等候其向下遍历时加，避免重复
                     collisions_boundsfilter(qtrees, spindex, label, plbs, pairlist, colist)
                 end
             end
-            empty!(st)
+            empty!(treenodestack)
             for c in treenode.children
-                isemptychild(treenode, c) || push!(st, c)
+                isemptychild(treenode, c) || push!(treenodestack, c)
             end
-            while !isempty(st)
-                tn = pop!(st)
+            while !isempty(treenodestack)
+                tn = pop!(treenodestack)
                 emptyflag = true
                 if !isemptylabels(tn)
                     emptyflag = false
@@ -272,7 +275,7 @@ function partialcollisions(qtrees::AbstractVector,
                 for c in tn.children
                     if !isemptychild(tn, c) #如果isemptychild则该child无意义
                         emptyflag = false
-                        push!(st, c)
+                        push!(treenodestack, c)
                         # @show pairlist
                     end
                 end
@@ -280,7 +283,7 @@ function partialcollisions(qtrees::AbstractVector,
             end
         end
     end
-    empty!(updated)
+    empty!(labels)
     # @show length(pairlist), length(colist)
     r = _totalcollisions_native(qtrees, pairlist; colist=colist, kargs...)
     unique ? unique!(first, sort!(r)) : r
@@ -290,7 +293,8 @@ mutable struct UpdatedSet{T} <: AbstractSet{T}
     maxlen::Int
     set::Set{T}
 end
-UpdatedSet(updated) = UpdatedSet(length(updated), length(updated), Set{Int}(updated))
+UpdatedSet(maxlen::Int) = UpdatedSet(maxlen, maxlen, Set{Int}(1:maxlen))
+UpdatedSet(labels, maxlen::Int=length(labels)) = UpdatedSet(length(labels), maxlen, Set{Int}(labels))
 function Base.union!(s::UpdatedSet, c)
     s.updatelen = length(c)
     length(s.set) == s.maxlen || union!(s.set, c)
@@ -300,14 +304,19 @@ Base.length(s::UpdatedSet) = length(s.set)
 Base.iterate(s::UpdatedSet, args...) = iterate(s.set, args...)
 Base.in(item, s::UpdatedSet) = in(item, s.set)
 Base.in(s::UpdatedSet) = in(s.set)
+function totalcollisions_kw(qtrees; sptree2=hash_spacial_qtree(qtrees), 
+    sptree=nothing, lbcollector=nothing, treenodestack=nothing, kargs...)
+    totalcollisions(qtrees; sptree=sptree2, kargs...)
+end
+partialcollisions_kw(qtrees, sptree, updated; sptree2=nothing, kargs...) = partialcollisions(qtrees, sptree, updated; kargs...)
 function dynamiccollisions(qtrees::AbstractVector,
     sptree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
     updated::UpdatedSet{Int}=UpdatedSet(1:length(qtrees));
     kargs...)
     if updated.updatelen / updated.maxlen > 0.9
-        return totalcollisions(qtrees; kargs...)
+        return totalcollisions_kw(qtrees; kargs...)
     else
-        return partialcollisions(qtrees, sptree, updated; kargs...)
+        return partialcollisions_kw(qtrees, sptree, updated; kargs...)
     end
 end
 ########## place!

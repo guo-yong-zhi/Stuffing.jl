@@ -78,15 +78,16 @@ end
 trainepoch_E!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
                             :queue => QTrees.thread_queue(),
                             :pairlist => Vector{QTrees.CoItem}(),
-                            :uniqueset => Set{Int}())
+                            :updated => Set{Int}(),
+                            :sptree => QTrees.hash_spacial_qtree(inputs))
 trainepoch_E!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), uniqueset=Set{Int}(), kargs...)
+    colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
     nc = length(colist)
     if nc == 0 return nc end
     batchsteps!(qtrees, colist, optimiser)
-    inds = union!(empty!(uniqueset), first.(colist) |> Iterators.flatten)
+    inds = union!(empty!(updated), first.(colist) |> Iterators.flatten)
     # @show length(qtrees),length(inds)
     for ni in 1:length(qtrees) ÷ length(inds)
         totalcollisions(qtrees, inds; colist=empty!(colist), kargs...)
@@ -101,15 +102,16 @@ trainepoch_EM!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :queue => QTrees.thread_queue(), 
                             :memory => intlru(length(inputs)),
                             :pairlist => Vector{QTrees.CoItem}(),
-                            :uniqueset => Set{Int}())
+                            :updated => Set{Int}(),
+                            :sptree => QTrees.hash_spacial_qtree(inputs))
 trainepoch_EM!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), uniqueset=Set{Int}(), kargs...)
+    colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
     nc = length(colist)
     if nc == 0 return nc end
     batchsteps!(qtrees, colist, optimiser)
-    inds = union!(empty!(uniqueset), first.(colist) |> Iterators.flatten)
+    inds = union!(empty!(updated), first.(colist) |> Iterators.flatten)
     # @show length(inds)
     push!.(memory, inds)
     inds = collect(memory, length(inds) * 2)
@@ -117,7 +119,7 @@ function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimise
         totalcollisions(qtrees, inds; colist=empty!(colist), kargs...)
         batchsteps!(qtrees, colist, optimiser)
         if ni > 2length(colist) break end
-        inds2 = union!(empty!(uniqueset), first.(colist) |> Iterators.flatten)
+        inds2 = union!(empty!(updated), first.(colist) |> Iterators.flatten)
         # @show length(qtrees),length(inds),length(inds2)
         for ni2 in 1:2length(inds) ÷ length(inds2)
             totalcollisions(qtrees, inds2; colist=empty!(colist), kargs...)
@@ -131,12 +133,12 @@ end
 trainepoch_EM2!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM2!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), uniqueset=Set{Int}(), kargs...)
+    colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
     nc = length(colist)
     if nc == 0 return nc end
     batchsteps!(qtrees, colist, optimiser)
-    inds = union!(empty!(uniqueset), first.(colist) |> Iterators.flatten)
+    inds = union!(empty!(updated), first.(colist) |> Iterators.flatten)
     # @show length(inds)
     push!.(memory, inds)
     inds = collect(memory, length(inds) * 4)
@@ -144,14 +146,14 @@ function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimis
         totalcollisions(qtrees, inds; colist=empty!(colist), kargs...)
         batchsteps!(qtrees, colist, optimiser)
         if ni > 2length(colist) break end
-        inds2 = union!(empty!(uniqueset), first.(colist) |> Iterators.flatten)
+        inds2 = union!(empty!(updated), first.(colist) |> Iterators.flatten)
         push!.(memory, inds2)
         inds2 = collect(memory, length(inds2) * 2)
         for ni2 in 1:2length(inds) ÷ length(inds2)
             totalcollisions(qtrees, inds2; colist=empty!(colist), kargs...)
             batchsteps!(qtrees, colist, optimiser)
             if ni2 > 2length(colist) break end
-            inds3 = union!(empty!(uniqueset), first.(colist) |> Iterators.flatten)
+            inds3 = union!(empty!(updated), first.(colist) |> Iterators.flatten)
             # @show length(qtrees),length(inds),length(inds2),length(inds3)
             for ni3 in 1:2length(inds2) ÷ length(inds3)
                 totalcollisions(qtrees, inds3; colist=empty!(colist), kargs...)
@@ -167,12 +169,12 @@ end
 trainepoch_EM3!(;inputs) = trainepoch_EM!(;inputs=inputs)
 trainepoch_EM3!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), uniqueset=Set{Int}(), kargs...)
+    colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
     nc = length(colist)
     if nc == 0 return nc end
     batchsteps!(qtrees, colist, optimiser)
-    inds = union!(empty!(uniqueset), first.(colist) |> Iterators.flatten)
+    inds = union!(empty!(updated), first.(colist) |> Iterators.flatten)
     # @show length(inds)
     push!.(memory, inds)
     inds = collect(memory, length(inds) * 8)
@@ -180,21 +182,21 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimis
         totalcollisions(qtrees, inds; colist=empty!(colist), kargs...)
         batchsteps!(qtrees, colist, optimiser)
         if ni > 2length(colist) break end
-        inds2 = union!(empty!(uniqueset), first.(colist) |> Iterators.flatten)
+        inds2 = union!(empty!(updated), first.(colist) |> Iterators.flatten)
         push!.(memory, inds2)
         inds2 = collect(memory, length(inds2) * 4)
         for ni2 in 1:2length(inds) ÷ length(inds2)
             totalcollisions(qtrees, inds2; colist=empty!(colist), kargs...)
             batchsteps!(qtrees, colist, optimiser)
             if ni2 > 2length(colist) break end
-            inds3 = union!(empty!(uniqueset), first.(colist) |> Iterators.flatten)
+            inds3 = union!(empty!(updated), first.(colist) |> Iterators.flatten)
             push!.(memory, inds3)
             inds3 = collect(memory, length(inds3) * 2)
             for ni3 in 1:2length(inds2) ÷ length(inds3)
                 totalcollisions(qtrees, inds3; colist=empty!(colist), kargs...)
                 batchsteps!(qtrees, colist, optimiser)
                 if ni3 > 2length(colist) break end
-                inds4 = union!(empty!(uniqueset), first.(colist) |> Iterators.flatten)
+                inds4 = union!(empty!(updated), first.(colist) |> Iterators.flatten)
             # @show length(qtrees),length(inds),length(inds2),length(inds3)
                 for ni4 in 1:2length(inds3) ÷ length(inds4)
                     totalcollisions(qtrees, inds4; colist=empty!(colist), kargs...)
@@ -205,6 +207,30 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimis
         end
     end
     nc
+end
+
+"dynamic trainer"
+trainepoch_D!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
+                            :queue => QTrees.thread_queue(),
+                            :pairlist => Vector{QTrees.CoItem}(),
+                            :updated => QTrees.UpdatedSet(1:length(inputs)),
+                            :sptree => QTrees.linked_spacial_qtree(inputs), #fllowing 4 tiems: pre-allocating for dynamiccollisions
+                            :sptree2 => QTrees.hash_spacial_qtree(inputs),
+                            :lbcollector => Vector{Int}(),
+                            :treenodestack => Vector{QTrees.SpacialQTreeNode}())
+trainepoch_D!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
+function trainepoch_D!(qtrees::AbstractVector{<:ShiftedQTree}; sptree, optimiser=(t, Δ) -> Δ ./ 6, 
+    colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
+    length(updated) == 0 && return length(colist)
+    for ni in 1:10length(qtrees) ÷ length(updated)
+        dynamiccollisions(qtrees, sptree, updated; colist=empty!(colist), kargs...)
+        nc = length(colist)
+        if nc == 0 return nc end
+        batchsteps!(qtrees, colist, optimiser)
+        union!(updated, first.(colist) |> Iterators.flatten)
+        if ni > 10length(colist) break end
+    end
+    length(colist)
 end
 
 function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser, 
@@ -342,26 +368,6 @@ function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree};
     nc
 end
 
-"dynamic trainer"
-trainepoch_D!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
-                            :queue => QTrees.thread_queue(),
-                            :pairlist => Vector{QTrees.CoItem}(),
-                            :updated => QTrees.UpdatedSet(1:length(inputs)),
-                            :sptree => QTrees.linked_spacial_qtree(inputs))
-trainepoch_D!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
-function trainepoch_D!(qtrees::AbstractVector{<:ShiftedQTree}; sptree, optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
-    length(updated) == 0 && return length(colist)
-    for ni in 1:10length(qtrees) ÷ length(updated)
-        dynamiccollisions(qtrees, sptree, updated; colist=empty!(colist), kargs...)
-        nc = length(colist)
-        if nc == 0 return nc end
-        batchsteps!(qtrees, colist, optimiser)
-        union!(updated, first.(colist) |> Iterators.flatten)
-        if ni > 10length(colist) break end
-    end
-    length(colist)
-end
 function select_coinds(qtrees, colist::Vector{Tuple{Int,Int}}; from=i->true)
     selected = Vector{Int}()
     l = length(colist)

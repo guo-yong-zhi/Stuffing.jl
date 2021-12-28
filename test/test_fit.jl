@@ -42,9 +42,8 @@
     end
     sort!(objs, by=prod ∘ size, rev=true)
     ts = [Trainer.trainepoch_E!,Trainer.trainepoch_EM!,
-    Trainer.trainepoch_EM2!,Trainer.trainepoch_EM3!,
-    Trainer.trainepoch_P!,Trainer.trainepoch_P2!,Trainer.trainepoch_Px!,
-    Trainer.trainepoch_D!, ]
+    Trainer.trainepoch_EM2!,Trainer.trainepoch_EM3!,Trainer.trainepoch_D!, 
+    Trainer.trainepoch_P!,Trainer.trainepoch_P2!,Trainer.trainepoch_Px!]
     qts = qtrees(objs, mask=mask, maskbackground="aa")
 
     #fit!
