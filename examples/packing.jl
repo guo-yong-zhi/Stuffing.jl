@@ -2,7 +2,7 @@ using Stuffing
 using Random
 
 # prepare some pseudo images 
-mask = fill("aa", 500, 800) # can be any AbstractMatrix
+mask = fill("aa", 500, 800); # can be any AbstractMatrix
 m, n = size(mask)
 for i in 1:m
     for j in 1:n
@@ -17,16 +17,16 @@ for i in 1:30
     obj = fill(true, round(Int, s) + 1, round(Int, s * (0.5 + rand() / 2)) + 1) # Bool Matrix implied that background = false
     push!(objs, obj)
 end
-sort!(objs, by=prod ∘ size, rev=true) # better in descending order of size
+sort!(objs, by=prod ∘ size, rev=true); # better in descending order of size
 
 # packing
-qts = qtrees(objs, mask=mask, maskbackground="aa")
-place!(qts)
+qts = qtrees(objs, mask=mask, maskbackground="aa");
+place!(qts);
 fit!(qts)
 
 # draw
 println("visualization:")
-oqt = overlap(qts)
+oqt = overlap(qts);
 println(repr("text/plain", oqt))
 # or
 println(QTrees.charimage(oqt, maxlen=97))
@@ -45,4 +45,8 @@ packing(mask, objs, maskbackground="aa")
 # or
 qts = qtrees(objs, mask=mask, maskbackground="aa");
 packing!(qts)
+getpositions(qts)
+# set the maximum number of iterations and trainer
+qts = qtrees(objs, mask=mask, maskbackground="aa");
+packing!(qts, 2000, trainer=Trainer.trainepoch_D!)
 getpositions(qts)
