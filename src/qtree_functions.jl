@@ -313,7 +313,7 @@ function dynamiccollisions(qtrees::AbstractVector,
     sptree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
     updated::UpdatedSet{Int}=UpdatedSet(1:length(qtrees));
     kargs...)
-    if updated.updatelen / updated.maxlen > 0.9
+    if updated.updatelen / updated.maxlen > 0.5
         return totalcollisions_kw(qtrees; kargs...)
     else
         return partialcollisions_kw(qtrees, sptree, updated; kargs...)
