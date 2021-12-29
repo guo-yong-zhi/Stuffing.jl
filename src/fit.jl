@@ -214,21 +214,20 @@ trainepoch_D!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :queue => QTrees.thread_queue(),
                             :pairlist => Vector{QTrees.CoItem}(),
                             :updated => QTrees.UpdatedSet(1:length(inputs)),
+                            :loops => 10,
                             :sptree => QTrees.linked_spacial_qtree(inputs), #fllowing 4 tiems: pre-allocating for dynamiccollisions
                             :sptree2 => QTrees.hash_spacial_qtree(inputs),
                             :lbcollector => Vector{Int}(),
                             :treenodestack => Vector{QTrees.SpacialQTreeNode}())
-trainepoch_D!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
+trainepoch_D!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 2000), s, nothing)
 function trainepoch_D!(qtrees::AbstractVector{<:ShiftedQTree}; sptree, optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
-    length(updated) == 0 && return length(colist)
-    for ni in 1:10length(qtrees) ÷ length(updated)
+    colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), loops=1, kargs...)
+    for ni in 1:loops
         dynamiccollisions(qtrees, sptree, updated; colist=empty!(colist), kargs...)
         nc = length(colist)
         if nc == 0 return nc end
         batchsteps!(qtrees, colist, optimiser)
         union!(updated, first.(colist) |> Iterators.flatten)
-        if ni > 10length(colist) break end
     end
     length(colist)
 end
