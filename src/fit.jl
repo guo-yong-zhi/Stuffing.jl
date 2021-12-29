@@ -80,7 +80,7 @@ trainepoch_E!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :pairlist => Vector{QTrees.CoItem}(),
                             :updated => Set{Int}(),
                             :sptree => QTrees.hash_spacial_qtree(inputs))
-trainepoch_E!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
+trainepoch_E!(s::Symbol) = get(Dict(:patient => 20, :nepoch => 2000), s, nothing)
 function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, 
     colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
@@ -409,6 +409,7 @@ function reposition!(ts, colist=nothing, args...; kargs...)
     outlabels = outofkernelbounds(maskqt, ts[2:end]) .+ 1
     if !isempty(outlabels)
         place!(deepcopy(maskqt), ts, outlabels)
+        @info "$outlabels are out of bounds"
         return outlabels
     end
     if colist !== nothing
@@ -420,7 +421,16 @@ function reposition!(ts, colist=nothing, args...; kargs...)
     end
     return outlabels
 end
-
+function randommove!(ts, colist)
+    sort!(colist, by=maximum, rev=true)
+    selected = @view colist[max(1, end-3):end]
+    if length(colist) > 0
+        for ((l1, l2), c) in selected
+            shift!(ts[max(l1, l2)], max(1, c[1]-1), rand((-1, 1)), rand((-1, 1)))
+        end
+    end
+    return maximum.(first.(selected))
+end
 function train!(ts, nepoch::Number=-1, args...; 
     trainer=trainepoch_EM2!, patient::Number=trainer(:patient), 
     optimiser=Momentum(η=1/4), scheduler=lr->lr*√0.5,
@@ -481,6 +491,14 @@ function train!(ts, nepoch::Number=-1, args...;
                 reposition_count = 0.
             end
             last_repositioned = repositioned_set
+            if reposition_count >= 2
+                if reposition_count >= 10
+                    @info "The repositioning strategy failed after $ep epochs"
+                    break
+                end
+                moved = randommove!(ts, colist)
+                @info "@epoch $ep, random move $(length(moved)>0 ? moved : "nothing")"
+            end
         end
         callback(ep)
         if nc == 0
@@ -493,10 +511,6 @@ function train!(ts, nepoch::Number=-1, args...;
                 nc += outlen
                 updated !== nothing && union!(updated, outlabels)
             end
-        end
-        if reposition_count >= 10
-            @info "The repositioning strategy failed after $ep epochs"
-            break
         end
         if indi_s.age > max(1, patient, nepoch / 50)
             if isempty(eta_list) || indi_s.min < eta_list[end][2] || (indi_s.min == eta_list[end][2] && rand()>0.5)
