@@ -79,7 +79,7 @@ trainepoch_E!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :queue => QTrees.thread_queue(),
                             :pairlist => Vector{QTrees.CoItem}(),
                             :updated => Set{Int}(),
-                            :sptree => QTrees.hash_spacial_qtree(inputs))
+                            :spqtree => QTrees.hash_spacial_qtree(inputs))
 trainepoch_E!(s::Symbol) = get(Dict(:patient => 20, :nepoch => 2000), s, nothing)
 function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, 
     colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
@@ -103,7 +103,7 @@ trainepoch_EM!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :memory => intlru(length(inputs)),
                             :pairlist => Vector{QTrees.CoItem}(),
                             :updated => Set{Int}(),
-                            :sptree => QTrees.hash_spacial_qtree(inputs))
+                            :spqtree => QTrees.hash_spacial_qtree(inputs))
 trainepoch_EM!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
     colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
@@ -215,15 +215,15 @@ trainepoch_D!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :pairlist => Vector{QTrees.CoItem}(),
                             :updated => QTrees.UpdatedSet(1:length(inputs)),
                             :loops => 10,
-                            :sptree => QTrees.linked_spacial_qtree(inputs), #fllowing 4 tiems: pre-allocating for dynamiccollisions
+                            :spqtree => QTrees.linked_spacial_qtree(inputs), #fllowing 4 tiems: pre-allocating for dynamiccollisions
                             :sptree2 => QTrees.hash_spacial_qtree(inputs),
                             :lbcollector => Vector{Int}(),
                             :treenodestack => Vector{QTrees.SpacialQTreeNode}())
 trainepoch_D!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 2000), s, nothing)
-function trainepoch_D!(qtrees::AbstractVector{<:ShiftedQTree}; sptree, optimiser=(t, Δ) -> Δ ./ 6, 
+function trainepoch_D!(qtrees::AbstractVector{<:ShiftedQTree}; spqtree, optimiser=(t, Δ) -> Δ ./ 6, 
     colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), loops=1, kargs...)
     for ni in 1:loops
-        dynamiccollisions(qtrees, sptree, updated; colist=empty!(colist), kargs...)
+        dynamiccollisions(qtrees, spqtree, updated; colist=empty!(colist), kargs...)
         nc = length(colist)
         if nc == 0 return nc end
         batchsteps!(qtrees, colist, optimiser)

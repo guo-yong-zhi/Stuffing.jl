@@ -29,8 +29,8 @@ qts = Stuffing.randqtrees(300);
 println("visualization:")
 println(repr("text/plain", overlap(qts)))
 labels = [1, 3, 99]
-sptree = QTrees.locate!(qts, linked_spacial_qtree(qts));
-C1 = partialcollisions(qts, sptree, Set(labels));
+spqtree = QTrees.locate!(qts, linked_spacial_qtree(qts));
+C1 = partialcollisions(qts, spqtree, Set(labels));
 @show length(C1)
 println("Outputs the collisions associated with $labels.")
 println(C1)

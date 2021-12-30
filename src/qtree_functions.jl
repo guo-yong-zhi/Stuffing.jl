@@ -120,7 +120,7 @@ end
 hash_spacial_qtree() = HashSpacialQTree()
 hash_spacial_qtree(qts) = hash_spacial_qtree()
 
-function locate!(qt::AbstractStackedQTree, sptree::Union{HashSpacialQTree, LinkedSpacialQTree}, label::Int)
+function locate!(qt::AbstractStackedQTree, spqtree::Union{HashSpacialQTree, LinkedSpacialQTree}, label::Int)
     l = length(qt) #l always >= 2
     # @assert kernelsize(qt[l], 1) <= 2 && kernelsize(qt[l], 2) <= 2
     while true
@@ -135,24 +135,24 @@ function locate!(qt::AbstractStackedQTree, sptree::Union{HashSpacialQTree, Linke
     # @assert l >= 2
     @inbounds mat = qt[l]
     rs, cs = getshift(mat)
-    empty!(sptree, label)
-    @inbounds mat[rs+1, cs+1] != EMPTY && push!(sptree, (l, rs+1, cs+1), label)
-    @inbounds mat[rs+1, cs+2] != EMPTY && push!(sptree, (l, rs+1, cs+2), label)
-    @inbounds mat[rs+2, cs+1] != EMPTY && push!(sptree, (l, rs+2, cs+1), label)
-    @inbounds mat[rs+2, cs+2] != EMPTY && push!(sptree, (l, rs+2, cs+2), label)
+    empty!(spqtree, label)
+    @inbounds mat[rs+1, cs+1] != EMPTY && push!(spqtree, (l, rs+1, cs+1), label)
+    @inbounds mat[rs+1, cs+2] != EMPTY && push!(spqtree, (l, rs+1, cs+2), label)
+    @inbounds mat[rs+2, cs+1] != EMPTY && push!(spqtree, (l, rs+2, cs+1), label)
+    @inbounds mat[rs+2, cs+2] != EMPTY && push!(spqtree, (l, rs+2, cs+2), label)
     nothing
 end
-function locate!(qts::AbstractVector, sptree=hash_spacial_qtree(qts))
+function locate!(qts::AbstractVector, spqtree=hash_spacial_qtree(qts))
     for (i, qt) in enumerate(qts)
-        locate!(qt, sptree, i)
+        locate!(qt, spqtree, i)
     end
-    sptree
+    spqtree
 end
-function locate!(qts::AbstractVector, labels::Union{AbstractVector{Int},AbstractSet{Int}}, sptree=hash_spacial_qtree(qts))
+function locate!(qts::AbstractVector, labels::Union{AbstractVector{Int},AbstractSet{Int}}, spqtree=hash_spacial_qtree(qts))
     for l in labels
-        locate!(qts[l], sptree, l)
+        locate!(qts[l], spqtree, l)
     end
-    sptree
+    spqtree
 end
 
 function collisions_boundsfilter(qtrees, spindex, lowlabels, higlabels, pairlist, colist)
@@ -177,13 +177,13 @@ function collisions_boundsfilter(qtrees, spindex, llb::Int, higlabels, pairlist,
     collisions_boundsfilter(qtrees, spindex, (llb,), higlabels, pairlist, colist)
 end
 @assert collect(Iterators.product(1:2, 4:6))[1] == (1, 4)
-function totalcollisions_spacial(qtrees::AbstractVector, sptree::HashSpacialQTree; 
+function totalcollisions_spacial(qtrees::AbstractVector, spqtree::HashSpacialQTree; 
     colist=Vector{CoItem}(), pairlist::AbstractVector{CoItem}=Vector{CoItem}(), unique=true, kargs...)
     length(qtrees) > 1 || return colist
     nlevel = length(@inbounds qtrees[1])
     empty!(pairlist)
-    for spindex in keys(sptree)
-        labels = sptree[spindex]
+    for spindex in keys(spqtree)
+        labels = spqtree[spindex]
         labelslen = length(labels) 
         if labelslen > 1
             for i in 1:labelslen
@@ -196,8 +196,8 @@ function totalcollisions_spacial(qtrees::AbstractVector, sptree::HashSpacialQTre
         while true
             pspindex = parent(pspindex)
             (@inbounds pspindex[1] > nlevel) && break
-            if haskey(sptree, pspindex)
-                plbs = sptree[pspindex]
+            if haskey(spqtree, pspindex)
+                plbs = spqtree[pspindex]
                 collisions_boundsfilter(qtrees, spindex, labels, plbs, pairlist, colist)
             end
         end
@@ -207,18 +207,18 @@ function totalcollisions_spacial(qtrees::AbstractVector, sptree::HashSpacialQTre
     unique ? unique!(first, sort!(r)) : r
 end
 function totalcollisions_spacial(qtrees::AbstractVector{U8SQTree};
-    sptree=hash_spacial_qtree(qtrees), kargs...)
-    locate!(qtrees, empty!(sptree))
-    totalcollisions_spacial(qtrees, sptree; kargs...)
+    spqtree=hash_spacial_qtree(qtrees), kargs...)
+    locate!(qtrees, empty!(spqtree))
+    totalcollisions_spacial(qtrees, spqtree; kargs...)
 end
 function totalcollisions_spacial(qtrees::AbstractVector{U8SQTree}, labels::Union{AbstractVector{Int},AbstractSet{Int}}; 
-    sptree=hash_spacial_qtree(qtrees), kargs...)
-    locate!(qtrees, labels, empty!(sptree))
-    totalcollisions_spacial(qtrees, sptree; kargs...)
+    spqtree=hash_spacial_qtree(qtrees), kargs...)
+    locate!(qtrees, labels, empty!(spqtree))
+    totalcollisions_spacial(qtrees, spqtree; kargs...)
 end
 
 const SPACIAL_ENABLE_THRESHOLD = round(Int, 10+10log2(Threads.nthreads()))
-function totalcollisions_native_kw(qtrees, args...; pairlist=nothing, unique=true, sptree=nothing, kargs...)
+function totalcollisions_native_kw(qtrees, args...; pairlist=nothing, unique=true, spqtree=nothing, kargs...)
     totalcollisions_native(qtrees, args...; kargs...)
 end
 function totalcollisions(qtrees::AbstractVector{U8SQTree}, args...; kargs...)
@@ -229,17 +229,17 @@ function totalcollisions(qtrees::AbstractVector{U8SQTree}, args...; kargs...)
     end
 end
 function partialcollisions(qtrees::AbstractVector,
-    sptree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
+    spqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
     labels::AbstractSet{Int}=Set(1:length(qtrees)); 
     colist=Vector{CoItem}(), pairlist::AbstractVector{CoItem}=Vector{CoItem}(),
     lbcollector = Vector{Int}(),
     treenodestack = Vector{SpacialQTreeNode}(),
     unique=true, kargs...)
     empty!(pairlist)
-    locate!(qtrees, labels, sptree)
+    locate!(qtrees, labels, spqtree) #需要将labels中的label移动到链表首
     for label in labels
         # @show label
-        for listnode in spacial_indexesof(sptree, label)
+        for listnode in spacial_indexesof(spqtree, label)
             empty!(lbcollector)
             ln = listnode.next
             while !istail(ln) #tail是哨兵，本身的value不遍历
@@ -247,7 +247,7 @@ function partialcollisions(qtrees::AbstractVector,
                 ln = ln.next
             end
             # 更prev的node都是move过的，在其向后遍历时会加入与当前node的pair，故不需要向前遍历
-            # 但要保证更prev的node在moved中
+            # 但要保证更prev的node在`labels`中
             treenode = seek_treenode(ln)
             spindex = spacial_index(treenode)
             append!(pairlist, (((label, lb) => spindex) for lb in lbcollector))
@@ -280,7 +280,7 @@ function partialcollisions(qtrees::AbstractVector,
                         # @show pairlist
                     end
                 end
-                emptyflag && remove_tree_node(sptree, tn)
+                emptyflag && remove_tree_node(spqtree, tn)
             end
         end
     end
@@ -306,19 +306,30 @@ Base.iterate(s::UpdatedSet, args...) = iterate(s.set, args...)
 Base.in(item, s::UpdatedSet) = in(item, s.set)
 Base.in(s::UpdatedSet) = in(s.set)
 function totalcollisions_kw(qtrees; sptree2=hash_spacial_qtree(qtrees), 
-    sptree=nothing, lbcollector=nothing, treenodestack=nothing, kargs...)
-    totalcollisions(qtrees; sptree=sptree2, kargs...)
+    spqtree=nothing, lbcollector=nothing, treenodestack=nothing, kargs...)
+    totalcollisions(qtrees; spqtree=sptree2, kargs...)
 end
-partialcollisions_kw(qtrees, sptree, updated; sptree2=nothing, kargs...) = partialcollisions(qtrees, sptree, updated; kargs...)
+partialcollisions_kw(qtrees, spqtree, updated; sptree2=nothing, kargs...) = partialcollisions(qtrees, spqtree, updated; kargs...)
 function dynamiccollisions(qtrees::AbstractVector,
-    sptree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
+    spqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
     updated::UpdatedSet{Int}=UpdatedSet(1:length(qtrees));
     kargs...)
     if updated.updatelen / updated.maxlen > 0.5
         return totalcollisions_kw(qtrees; kargs...)
     else
-        return partialcollisions_kw(qtrees, sptree, updated; kargs...)
+        return partialcollisions_kw(qtrees, spqtree, updated; kargs...)
     end
+end
+struct DynamicColliders
+    qtrees::Vector{U8SQTree}
+    spqtree::LinkedSpacialQTree
+    updated::UpdatedSet
+end
+DynamicColliders(qtrees::AbstractVector{U8SQTree}) = DynamicColliders(qtrees, linked_spacial_qtree(qtrees), UpdatedSet(length(qtrees)))
+function dynamiccollisions(colliders::DynamicColliders; kargs...)
+    r = dynamiccollisions(colliders.qtrees, colliders.spqtree, colliders.updated; kargs...)
+    union!(colliders.updated, first.(r) |> Iterators.flatten)
+    r
 end
 ########## place!
 function findroom_uniform(ground, q=[(length(ground), 1, 1)])
