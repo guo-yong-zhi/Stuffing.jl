@@ -340,7 +340,7 @@ end
 "pairwise trainer(general levels)"
 trainepoch_Px!(;inputs) = Dict(:levelpools => levelpools(inputs),
                             :queue => QTrees.thread_queue())
-trainepoch_Px!(s::Symbol) = get(Dict(:patient => 1, :nepoch => 10), s, nothing)
+trainepoch_Px!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
 function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree}; 
     levelpools::AbstractVector{<:Pair{Int,<:AbstractVector{Tuple{Int,Int}}}}=levelpools(qtrees),
     optimiser=(t, Δ) -> Δ ./ 6, kargs...)
@@ -350,16 +350,17 @@ function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree};
     outpool = length(levelpools) >= 2 ? last(levelpools[2]) : nothing
     outlevel = length(levelpools) >= 2 ? first(levelpools[2]) : 0
     inpool = last(levelpools[1])
-    for niter in 1:typemax(Int)
+    if (length(inpool) == 0) return nc end
+    for niter in 1:max(1, length(qtrees) ÷ length(inpool))
         if outpool !== nothing empty!(outpool) end
         nc = filttrain!(qtrees, inpool, outpool, outlevel, optimiser=optimiser; kargs...)
         if first(levelpools[1]) < -length(qtrees[1]) + 2
             r = outpool !== nothing ? length(outpool) / length(inpool) : 1
-            @info string(niter, "#"^(-first(levelpools[1])), "$(first(levelpools[1])) pool:$(length(inpool))($r) nc:$nc ")
+            # @info string(niter, "#"^(-first(levelpools[1])), "$(first(levelpools[1])) pool:$(length(inpool))($r) nc:$nc ")
         end
         if (nc == 0) break end
         # if (nc < last_nc) last_nc = nc else break end
-        if (niter > nc) break end
+        if (niter > 8nc) break end
         if length(levelpools) >= 2
             trainepoch_Px!(qtrees, levelpools=levelpools[2:end], optimiser=optimiser; kargs...)
         end
@@ -367,7 +368,7 @@ function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree};
     nc
 end
 
-function select_coinds(qtrees, colist::Vector{Tuple{Int,Int}}; from=i->true)
+function select_coinds(qtrees, colist::Vector{Tuple{Int,Int}}; from=i->true, force=false)
     selected = Vector{Int}()
     l = length(colist)
     if l == 0
@@ -391,8 +392,13 @@ function select_coinds(qtrees, colist::Vector{Tuple{Int,Int}}; from=i->true)
             if !from(mij - 1)
                 continue
             end
-            cp = collision_dfs(qtrees[i], qtrees[j])
-            if cp[1] >= 0
+            if !force
+                cp = collision_dfs(qtrees[i], qtrees[j])
+                if cp[1] >= 0
+                    push!(selected, mij)
+                    break
+                end
+            else
                 push!(selected, mij)
                 break
             end
@@ -421,13 +427,16 @@ function reposition!(ts, colist=nothing, args...; kargs...)
     end
     return outlabels
 end
+function randomshift(ts, co::QTrees.CoItem)
+    (l1, l2), c = co
+    shift!(ts[max(l1, l2)], max(1, c[1]-1), rand((-1, 1)), rand((-1, 1)))
+end
+randomshift(ts, co::Tuple{Int,Int}) = shift!(ts[max(co[1], co[2])], 1, rand((-1, 1)), rand((-1, 1)))
 function randommove!(ts, colist)
     sort!(colist, by=maximum, rev=true)
-    selected = @view colist[max(1, end-3):end]
+    selected = @view colist[max(1, end-2):end]
     if length(colist) > 0
-        for ((l1, l2), c) in selected
-            shift!(ts[max(l1, l2)], max(1, c[1]-1), rand((-1, 1)), rand((-1, 1)))
-        end
+        randomshift.(Ref(ts), selected)
     end
     return maximum.(first.(selected))
 end
@@ -476,9 +485,10 @@ function train!(ts, nepoch::Number=-1, args...;
         update!(indi_g, nc)
         update!(indi_s, nc)
         if nc != 0 && reposition_flag && length(ts) / 20 > length(colist) > 0 && patient > 0 && (indi_r.age >= patient || indi_r.age > length(colist)) # 超出耐心或少数几个碰撞
-            repositioned = reposition!(ts, colist, from=from)
+            force = reposition_count>=2
+            repositioned = reposition!(ts, colist, from=from, force=force)
             @info "@epoch $ep(+$(indi_r.age)), $nc($(length(colist))) collisions, reposition " * 
-            (length(repositioned) > 0 ? "$repositioned to $(getshift.(ts[repositioned]))" : "nothing")
+            (length(repositioned) > 0 ? "$repositioned to $(getshift.(ts[repositioned]))" : "nothing") * (force ? " (forced)" : "")
             if length(repositioned) > 0
                 reset!(indi_r)
                 reset!.(optimiser, ts[repositioned])
@@ -486,12 +496,12 @@ function train!(ts, nepoch::Number=-1, args...;
             end
             repositioned_set = Set(repositioned)
             if last_repositioned == repositioned_set
-                reposition_count += length(repositioned_set) > 0 ? 1 : 0.5
+                reposition_count += 1
             else
                 reposition_count = 0.
             end
             last_repositioned = repositioned_set
-            if reposition_count >= 2
+            if reposition_count >= 1
                 if reposition_count >= 10
                     @info "The repositioning strategy failed after $ep epochs"
                     break
