@@ -77,7 +77,8 @@ end
 "element-wise trainer"
 trainepoch_E!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
                             :queue => QTrees.thread_queue(),
-                            :pairlist => Vector{QTrees.CoItem}(),
+                            :itemlist => Vector{QTrees.CoItem}(),
+                            :pairlist => Vector{Tuple{Int, Int}}(),
                             :updated => Set{Int}(),
                             :spqtree => QTrees.hash_spacial_qtree(inputs))
 trainepoch_E!(s::Symbol) = get(Dict(:patient => 20, :nepoch => 2000), s, nothing)
@@ -101,7 +102,8 @@ end
 trainepoch_EM!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
                             :queue => QTrees.thread_queue(), 
                             :memory => intlru(length(inputs)),
-                            :pairlist => Vector{QTrees.CoItem}(),
+                            :itemlist => Vector{QTrees.CoItem}(),
+                            :pairlist => Vector{Tuple{Int, Int}}(),
                             :updated => Set{Int}(),
                             :spqtree => QTrees.hash_spacial_qtree(inputs))
 trainepoch_EM!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
@@ -212,11 +214,12 @@ end
 "dynamic trainer"
 trainepoch_D!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
                             :queue => QTrees.thread_queue(),
-                            :pairlist => Vector{QTrees.CoItem}(),
+                            :itemlist => Vector{QTrees.CoItem}(),
+                            :pairlist => Vector{Tuple{Int, Int}}(),
                             :updated => QTrees.UpdatedSet(1:length(inputs)),
                             :loops => 10,
                             :spqtree => QTrees.linked_spacial_qtree(inputs), #fllowing 4 tiems: pre-allocating for dynamiccollisions
-                            :sptree2 => QTrees.hash_spacial_qtree(inputs),
+                            :sptqree2 => QTrees.hash_spacial_qtree(inputs),
                             :lbcollector => Vector{Int}(),
                             :treenodestack => Vector{QTrees.SpacialQTreeNode}())
 trainepoch_D!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 2000), s, nothing)
