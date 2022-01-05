@@ -57,7 +57,7 @@ function movetofirst!(l::DoubleList, n::ListNode)
     pop!(l, n)
     pushfirst!(l, n)
 end
-function Base.iterate(l::DoubleList, p=l.head.next) where T
+function Base.iterate(l::DoubleList, p=l.head.next)
     p === l.tail && return nothing
     p.value, p.next
 end

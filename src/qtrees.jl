@@ -368,7 +368,7 @@ function QTreeNode(parent::QTreeNode{T}, value::T) where T
 end
 isroot(n::QTreeNode) = n === n.parent
 isemptychild(n::QTreeNode, c::QTreeNode) = n === c
-function Base.iterate(n::QTreeNode{T}, Q=[n]) where T
+function Base.iterate(n::QTreeNode, Q=[n])
     isempty(Q) && return nothing
     n = popfirst!(Q)
     for c in n.children
