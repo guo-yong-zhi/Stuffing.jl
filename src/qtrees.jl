@@ -395,6 +395,12 @@ struct HashSpacialQTree <: AbstractSpacialQTree
 end
 HashSpacialQTree() = HashSpacialQTree(Dict{Index, Vector{Int}}())
 Base.push!(t::HashSpacialQTree, ind::Index, label::Int) = push!(get!(Vector{Int}, t.qtree, ind), label)
+function Base.push!(t::HashSpacialQTree, inds, label::Int)
+    empty!(t, label)
+    for ind in inds
+        push!(t, ind, label)
+    end
+end
 Base.empty!(t::HashSpacialQTree) = (empty!(t.qtree); t)
 # Base.empty!(t::HashSpacialQTree, label) = nothing #not implemented
 tree(t::HashSpacialQTree) = t.qtree
@@ -497,6 +503,12 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
             t.map[label] = loc
         end
         push!(loc, n)
+    end
+end
+function Base.push!(t::LinkedSpacialQTree, inds, label::Int)
+    empty!(t, label)
+    for ind in inds
+        push!(t, ind, label)
     end
 end
 function seek_treenode(listnode::ListNode)

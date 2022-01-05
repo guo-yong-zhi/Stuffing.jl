@@ -138,11 +138,27 @@ function locate!(qt::AbstractStackedQTree, spqtree::Union{HashSpacialQTree, Link
     # @assert l >= 2
     @inbounds mat = qt[l]
     rs, cs = getshift(mat)
-    empty!(spqtree, label)
-    @inbounds mat[rs+1, cs+1] != EMPTY && push!(spqtree, (l, rs+1, cs+1), label)
-    @inbounds mat[rs+1, cs+2] != EMPTY && push!(spqtree, (l, rs+1, cs+2), label)
-    @inbounds mat[rs+2, cs+1] != EMPTY && push!(spqtree, (l, rs+2, cs+1), label)
-    @inbounds mat[rs+2, cs+2] != EMPTY && push!(spqtree, (l, rs+2, cs+2), label)
+    inds = Vector{Index}(undef, 4)
+    empty!(inds)
+    @inbounds mat[rs+1, cs+1] != EMPTY && push!(inds, (l, rs+1, cs+1))
+    @inbounds mat[rs+1, cs+2] != EMPTY && push!(inds, (l, rs+1, cs+2))
+    @inbounds mat[rs+2, cs+1] != EMPTY && push!(inds, (l, rs+2, cs+1))
+    @inbounds mat[rs+2, cs+2] != EMPTY && push!(inds, (l, rs+2, cs+2))
+    if length(inds) > 2 && l < length(qt)
+        l = l + 1
+        @inbounds mat = qt[l]
+        rs, cs = getshift(mat)
+        inds2 = Vector{Index}(undef, 4)
+        empty!(inds2)
+        @inbounds mat[rs+1, cs+1] != EMPTY && push!(inds2, (l, rs+1, cs+1))
+        @inbounds mat[rs+1, cs+2] != EMPTY && push!(inds2, (l, rs+1, cs+2))
+        @inbounds mat[rs+2, cs+1] != EMPTY && push!(inds2, (l, rs+2, cs+1))
+        @inbounds mat[rs+2, cs+2] != EMPTY && push!(inds2, (l, rs+2, cs+2))
+        if length(inds2) < length(inds)-1
+            inds = inds2
+        end
+    end
+    push!(spqtree, inds, label)
     nothing
 end
 function locate!(qts::AbstractVector, spqtree=hash_spacial_qtree(qts))
@@ -318,7 +334,7 @@ function dynamiccollisions(qtrees::AbstractVector,
     spqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
     updated::UpdatedSet{Int}=UpdatedSet(1:length(qtrees));
     kargs...)
-    if updated.updatelen / updated.maxlen > 0.5
+    if updated.updatelen / updated.maxlen > 0.6
         return totalcollisions_kw(qtrees; kargs...)
     else
         return partialcollisions_kw(qtrees, spqtree, updated; kargs...)
