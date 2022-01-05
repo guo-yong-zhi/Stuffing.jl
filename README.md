@@ -3,7 +3,7 @@
 This's an algorithm for solving **2D irregular nesting problems** (also known as cutting problems or packing problems).  
 The algorithm accepts arbitrary **binary raster masks** as inputs and is good at handling the nesting problems of many gadgets. The implementation is based on quadtree & gradient optimization. Also, it can be parallelized if you start `julia` with `julia --threads k`. This package is used by [WordCloud.jl](https://github.com/guo-yong-zhi/WordCloud.jl).  
 Examples: [collision detection](./examples/collision.jl), [dynamic collision detection](./examples/dynamiccollisions.jl), [packing](./examples/packing.jl)  
-Benchmark: [benchmark](https://github.com/guo-yong-zhi/WordCloud/blob/master/examples/benchmark.jl)  
+Benchmark: [collision benchmark](./examples/collision_benchmark.jl), [fit benchmark](https://github.com/guo-yong-zhi/WordCloud/blob/master/examples/benchmark.jl)  
 ***
 ```
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
