@@ -446,7 +446,7 @@ end
 function train!(ts, nepoch::Number=-1, args...; 
     trainer=trainepoch_EM2!, patient::Number=trainer(:patient), 
     optimiser=Momentum(η=1/4), scheduler=lr->lr*√0.5,
-    callback=x -> x, reposition=i -> true, resource=trainer(inputs=ts), kargs...)
+    callback=x -> x, callback_pre=x -> x, reposition=i -> true, resource=trainer(inputs=ts), kargs...)
     reposition_flag = true
     if reposition isa Function
         from = reposition
@@ -482,6 +482,7 @@ function train!(ts, nepoch::Number=-1, args...;
     @info "nepoch: $nepoch, " * (reposition_flag ? "patient: $patient" : "reposition off")
     updated = get(resource, :updated, nothing)
     while ep < nepoch
+        callback_pre(ep)
         nc = trainer(ts, args...; resource..., optimiser=optimiser, unique=false, kargs...)
         ep += 1
         update!(indi_r, nc)
