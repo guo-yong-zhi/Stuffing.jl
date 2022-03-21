@@ -352,7 +352,7 @@ function dynamiccollisions(colliders::DynamicColliders; kargs...)
     r
 end
 ########## place!
-function findroom_uniform(ground, q=[(length(ground), 1, 1)])
+function findroom_uniform(ground, q=Vector{Index}())
     if isempty(q)
         push!(q, (length(ground), 1, 1))
     end
@@ -362,53 +362,62 @@ function findroom_uniform(ground, q=[(length(ground), 1, 1)])
         if i[1] == 1
             if ground[i] == EMPTY return i end
         else
+            ans = nothing
             for cn in shuffle4()
                 ci = child(i, cn)
                 if ground[ci] == EMPTY
                     if rand() < 0.7 # 避免每次都是局部最优
-                        return ci
-                    else
-                        push!(q, ci)
+                        ans = ci
                     end
+                    push!(q, ci)
                 elseif ground[ci] == MIX
                     push!(q, ci)
                 end
             end
+            if !isempty(q) && q[1][1] != i[1]
+                # @assert q[1][1] == q[end][1]
+                shuffle!(q)
+            end
+            ans !== nothing && (return ans)
         end
     end
     return nothing
 end
-function findroom_gathering(ground, q=[]; level=5, p=2)
+function shufflesort!(q, ground, p)
+    # @assert q[1][1] == q[end][1]
+    ce = (1 + size(ground[q[1][1]], 1)) / 2
+    h,w = kernelsize(ground)
+    shuffle!(q)
+    sort!(q, by=i -> (abs((i[2] - ce) / h)^p + (abs(i[3] - ce) / w)^p)) # 椭圆p范数
+end
+function findroom_gathering(ground, q=Vector{Index}(); level=5, p=2)
     if isempty(q)
         l = max(1, length(ground) - level)
         s = size(ground[l], 1)
         append!(q, ((l, i, j) for i in 1:s for j in 1:s if ground[l, i, j] != FULL))
+        isempty(q) || shufflesort!(q, ground, p)
     end
     while !isempty(q)
-        # @assert q[1][1] == q[end][1]
-        ce = (1 + size(ground[q[1][1]], 1)) / 2
-        h,w = kernelsize(ground)
-        shuffle!(q)
-        sort!(q, by=i -> (abs((i[2] - ce) / h)^p + (abs(i[3] - ce) / w)^p)) # 椭圆p范数
-        lq = length(q)
-        for n in 1:lq
-            i = popfirst!(q)
-            if i[1] == 1
-                if ground[i] == EMPTY return i end
-            else
-                for cn in shuffle4()
-                    ci = child(i, cn)
-                    if ground[ci] == EMPTY
-                        if rand() < 0.7 # 避免每次都是局部最优
-                            return ci 
-                        else
-                            push!(q, ci)
-                        end
-                    elseif ground[ci] == MIX
-                        push!(q, ci)
+        i = popfirst!(q)
+        if i[1] == 1
+            if ground[i] == EMPTY return i end
+        else
+            ans = nothing
+            for cn in shuffle4()
+                ci = child(i, cn)
+                if ground[ci] == EMPTY
+                    if rand() < 0.7 # 避免每次都是局部最优
+                        ans = ci 
                     end
+                    push!(q, ci)
+                elseif ground[ci] == MIX
+                    push!(q, ci)
                 end
             end
+            if !isempty(q) && q[1][1] != i[1]
+                shufflesort!(q, ground, p)
+            end
+            ans !== nothing && (return ans)
         end
     end
     return nothing
@@ -471,8 +480,8 @@ function overlap!(tree::ShiftedQTree, trees::AbstractVector)
     tree
 end
 
-function place!(ground::ShiftedQTree, qtree::ShiftedQTree; roomfinder=findroom_uniform, kargs...)
-    ind = roomfinder(ground; kargs...)
+function place!(ground::ShiftedQTree, qtree::ShiftedQTree, args...; roomfinder=findroom_uniform, kargs...)
+    ind = roomfinder(ground, args...; kargs...)
     # @show ind
     if ind === nothing
         return nothing
@@ -481,35 +490,31 @@ function place!(ground::ShiftedQTree, qtree::ShiftedQTree; roomfinder=findroom_u
     return ind
 end
 
-function place!(ground::ShiftedQTree, sortedtrees::AbstractVector{U8SQTree}, index::Number; kargs...)
-    for i in 1:length(sortedtrees)
-        if i == index
-            continue
-        end
-        overlap!(ground, sortedtrees[i])
-    end
-    place!(ground, sortedtrees[index]; kargs...)
-end
 function place!(ground::ShiftedQTree, sortedtrees::AbstractVector{U8SQTree}, indexes; callback=x -> x, kargs...)
     for i in 1:length(sortedtrees)
         if i in indexes continue end
         overlap!(ground, sortedtrees[i])
     end
     ind = nothing
+    Q = Vector{Index}()
     for i in indexes
-        ind = place!(ground, sortedtrees[i]; kargs...)
+        ind = place!(ground, sortedtrees[i], Q; kargs...)
         if ind === nothing return ind end
         overlap!(ground, sortedtrees[i])
         callback(i)
     end
     ind
 end
+function place!(ground::ShiftedQTree, sortedtrees::AbstractVector{U8SQTree}, index::Number; kargs...)
+    place!(ground, sortedtrees, (index,); kargs...)
+end
 
 "将sortedtrees依次叠加到ground上，同时修改sortedtrees的shift"
 function place!(ground::ShiftedQTree, sortedtrees::AbstractVector{U8SQTree}; callback=x -> x, kargs...)
     ind = nothing
+    Q = Vector{Index}()
     for (i, t) in enumerate(sortedtrees)
-        ind = place!(ground, t; kargs...)
+        ind = place!(ground, t, Q; kargs...)
         if ind === nothing return ind end
         overlap!(ground, t)
         callback(i)
