@@ -45,10 +45,10 @@ eta!(o::SGD, e) = o.eta = e
 # near(a::Integer, b::Integer, r=1) = a-r:a+r, b-r:b+r
 # near(m::AbstractMatrix, a::Integer, b::Integer, r=1) = @view m[near(a, b, r)...]
 # const KERNEL = collect.(Iterators.product(-1:1,-1:1))
-# gard2d(m::AbstractMatrix) = sum(KERNEL .* m)
-# gard2d(t::ShiftedQTree, l, a, b) = gard2d(decode2(near(t[l],a,b)))|>Tuple
+# grad2d(m::AbstractMatrix) = sum(KERNEL .* m)
+# grad2d(t::ShiftedQTree, l, a, b) = grad2d(decode2(near(t[l],a,b)))|>Tuple
 
-function gard2d(t::ShiftedQTree, l, a, b) # FULL is white, Positive directions are right & down 
+function grad2d(t::ShiftedQTree, l, a, b) # FULL is white, Positive directions are right & down 
     m = t[l]
     diag = -decode2(m[a - 1, b - 1]) + decode2(m[a + 1, b + 1])
     cdiag = -decode2(m[a - 1, b + 1]) + decode2(m[a + 1, b - 1])
