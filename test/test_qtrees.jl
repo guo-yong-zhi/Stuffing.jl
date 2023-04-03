@@ -155,4 +155,16 @@ testqtree = Stuffing.testqtree
     @test QTrees.totalcollisions_native([qt1, qt2]) |> isempty
     @test QTrees.totalcollisions_spacial([qt1, qt2]) |> isempty
     @test QTrees.partialcollisions([qt1, qt2]) |> isempty
+    # ternary tree
+    qt1 = qtree(fill(0x03, 5, 6))
+    qt2 = qtree(fill(0x03, 5, 6))
+    qt3 = qtree(fill(0x02, 5, 6))
+    qt4 = qtree(fill(0x01, 5, 6))
+    @test QTrees.collision(qt1, qt2)[1] < 0
+    @test QTrees.collision(qt1, qt3)[1] > 0
+    @test QTrees.collision(qt1, qt4)[1] < 0
+    @test QTrees.collision_dfs(qt1, qt2)[1] < 0
+    @test QTrees.collision_dfs(qt1, qt3)[1] > 0
+    @test QTrees.collision_dfs(qt1, qt4)[1] < 0
+    @test QTrees.totalcollisions_spacial([qt1, qt2]) |> isempty
 end

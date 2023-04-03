@@ -10,10 +10,12 @@ function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(le
         return i
     end
     r = -i[1], i[2], i[3]
-    for cn in 1:4 # MIX
-        ci = child(i, cn)
-        r = collision_dfs(Q1, Q2, ci)
-        if r[1] > 0 return r end 
+    if i[1] > 1
+        for cn in 1:4 # MIX
+            ci = child(i, cn)
+            r = collision_dfs(Q1, Q2, ci)
+            if r[1] > 0 return r end 
+        end
     end
     return r # no collision
 end
@@ -36,7 +38,9 @@ function _collision_randbfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, 
                 if q1 == EMPTY
                     continue
                 elseif q1 == MIX
-                    push!(q, ci)
+                    if ci[1] > 1
+                        push!(q, ci)
+                    end
                     continue
                 else
                     return ci
@@ -430,7 +434,7 @@ function overlap(p1::UInt8, p2::UInt8)
     elseif p1 == EMPTY && p2 == EMPTY
         return EMPTY
     else
-        error("roung code")
+        return MIX
     end
 end
 

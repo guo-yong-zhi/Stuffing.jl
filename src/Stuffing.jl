@@ -13,18 +13,20 @@ include("utils.jl")
 
 @info "Threads.nthreads() = $(Threads.nthreads())"
 
+function qtree(pic::AbstractMatrix{UInt8}, args...)
+    qt = ShiftedQTree(pic, args..., default=QTrees.EMPTY) |> buildqtree!
+    return qt
+end
 function qtree(pic::AbstractArray{Bool,2}, args...)
     pic = map(x -> ifelse(x, QTrees.FULL, QTrees.EMPTY), pic)
-    qt = ShiftedQTree(pic, args..., default=QTrees.EMPTY) |> buildqtree!
 #     @show size(pic),m,s
-    return qt
+    return qtree(pic, args...)
 end
 function qtree(pic::AbstractMatrix, args...; background=pic[1])
     qtree(pic .!= background, args...)
 end
 
-function maskqtree(pic::AbstractArray{Bool,2})
-    pic = map(x -> ifelse(x, QTrees.EMPTY, QTrees.FULL), pic)
+function maskqtree(pic::AbstractMatrix{UInt8})
     ms = max(size(pic)...)
     b = max(ms * 0.024, 20)
     s = 2^ceil(Int, log2(ms + b))
@@ -34,6 +36,10 @@ function maskqtree(pic::AbstractArray{Bool,2})
     setrshift!(qt[1], (s - a) ÷ 2)
     setcshift!(qt[1], (s - b) ÷ 2)
     return qt |> buildqtree!
+end
+function maskqtree(pic::AbstractArray{Bool,2})
+    pic = map(x -> ifelse(x, QTrees.EMPTY, QTrees.FULL), pic)
+    return maskqtree(pic)
 end
 function maskqtree(pic::AbstractMatrix; background=pic[1])
     maskqtree(pic .!= background)

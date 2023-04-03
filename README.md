@@ -1,7 +1,7 @@
 # Stuffing
 [![CI](https://github.com/guo-yong-zhi/Stuffing.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/guo-yong-zhi/Stuffing.jl/actions/workflows/ci.yml) [![CI-nightly](https://github.com/guo-yong-zhi/Stuffing.jl/actions/workflows/ci-nightly.yml/badge.svg)](https://github.com/guo-yong-zhi/Stuffing.jl/actions/workflows/ci-nightly.yml) [![codecov](https://codecov.io/gh/guo-yong-zhi/Stuffing.jl/branch/main/graph/badge.svg?token=43TOrL25V7)](https://codecov.io/gh/guo-yong-zhi/Stuffing.jl) [![DOI](https://zenodo.org/badge/349631351.svg)](https://zenodo.org/badge/latestdoi/349631351)  
 This's an algorithm for solving **2D irregular nesting problems** (also known as cutting problems or packing problems).  
-The algorithm accepts arbitrary **binary raster masks** as inputs and is good at handling the nesting problems of many gadgets. The implementation is based on quadtree & gradient optimization. Also, it can be parallelized if you start `julia` with `julia --threads k`. This package is used by [WordCloud.jl](https://github.com/guo-yong-zhi/WordCloud.jl).  
+The algorithm accepts arbitrary **binary or ternary raster masks** as inputs and is good at handling the nesting problems of many gadgets. The implementation is based on quadtree & gradient optimization. Also, it can be parallelized if you start `julia` with `julia --threads k`. This package is used by [WordCloud.jl](https://github.com/guo-yong-zhi/WordCloud.jl).  
 Examples: [collision detection](./examples/collision.jl), [dynamic collision detection](./examples/dynamiccollisions.jl), [packing](./examples/packing.jl)  
 Benchmark: [collision benchmark](./examples/collision_benchmark.jl), [fit benchmark](https://github.com/guo-yong-zhi/WordCloud/blob/master/examples/benchmark.jl)  
 ***
