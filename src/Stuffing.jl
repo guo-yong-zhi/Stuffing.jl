@@ -11,7 +11,7 @@ using .QTrees
 using .Trainer
 include("utils.jl")
 
-@info "Threads.nthreads() = $(Threads.nthreads())"
+@debug "Threads.nthreads() = $(Threads.nthreads())"
 
 function qtree(pic::AbstractMatrix{UInt8}, args...)
     qt = ShiftedQTree(pic, args..., default=QTrees.EMPTY) |> buildqtree!
@@ -106,7 +106,7 @@ end
 function packing!(qts, args...; kargs...)
     place!(qts)
     nepoch, ncollection = fit!(qts, args...; kargs...)
-    @info "$nepoch epochs, $ncollection collections"
+    @debug "$nepoch epochs, $ncollection collections"
     if ncollection != 0
         colllist = first.(totalcollisions(qts))
         get_text(i) = i > 1 ? "obj_$(i - 1)" : "#MASK#"

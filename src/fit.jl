@@ -359,7 +359,7 @@ function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree};
         nc = filttrain!(qtrees, inpool, outpool, outlevel, optimiser=optimiser; kargs...)
         if first(levelpools[1]) < -length(qtrees[1]) + 2
             r = outpool !== nothing ? length(outpool) / length(inpool) : 1
-            # @info string(niter, "#"^(-first(levelpools[1])), "$(first(levelpools[1])) pool:$(length(inpool))($r) nc:$nc ")
+            # @debug string(niter, "#"^(-first(levelpools[1])), "$(first(levelpools[1])) pool:$(length(inpool))($r) nc:$nc ")
         end
         if (nc == 0) break end
         # if (nc < last_nc) last_nc = nc else break end
@@ -418,7 +418,7 @@ function reposition!(ts, colist=nothing, args...; kargs...)
     outlabels = outofkernelbounds(maskqt, ts[2:end]) .+ 1
     if !isempty(outlabels)
         place!(deepcopy(maskqt), ts, outlabels)
-        @info "$outlabels are out of bounds"
+        @debug "$outlabels are out of bounds"
         return outlabels
     end
     if colist !== nothing
@@ -479,7 +479,7 @@ function train!(ts, nepoch::Number=-1, args...;
         colist = resource[:levelpools][end] |> last
     end
     nepoch >= 0 || (nepoch = trainer(:nepoch))
-    @info "nepoch: $nepoch, " * (reposition_flag ? "patient: $patient" : "reposition off")
+    @debug "nepoch: $nepoch, " * (reposition_flag ? "patient: $patient" : "reposition off")
     updated = get(resource, :updated, nothing)
     while ep < nepoch
         callback_pre(ep)
@@ -491,7 +491,7 @@ function train!(ts, nepoch::Number=-1, args...;
         if nc != 0 && reposition_flag && length(ts) / 20 > length(colist) > 0 && patient > 0 && (indi_r.age >= patient || indi_r.age > length(colist)) # 超出耐心或少数几个碰撞
             force = reposition_count>=2
             repositioned = reposition!(ts, colist, from=from, force=force)
-            @info "@epoch $ep(+$(indi_r.age)), $nc($(length(colist))) collisions, reposition " * 
+            @debug "@epoch $ep(+$(indi_r.age)), $nc($(length(colist))) collisions, reposition " * 
             (length(repositioned) > 0 ? "$repositioned to $(getshift.(ts[repositioned]))" : "nothing") * (force ? " (forced)" : "")
             if length(repositioned) > 0
                 reset!(indi_r)
@@ -507,11 +507,11 @@ function train!(ts, nepoch::Number=-1, args...;
             last_repositioned = repositioned_set
             if reposition_count >= 1
                 if reposition_count >= 10
-                    @info "The repositioning strategy failed after $ep epochs"
+                    @debug "The repositioning strategy failed after $ep epochs"
                     break
                 end
                 moved = randommove!(ts, colist)
-                @info "@epoch $ep, random move $(length(moved)>0 ? moved : "nothing")"
+                @debug "@epoch $ep, random move $(length(moved)>0 ? moved : "nothing")"
             end
         end
         callback(ep)
@@ -521,7 +521,7 @@ function train!(ts, nepoch::Number=-1, args...;
             if outlen == 0
                 break
             else
-                @info "$outlabels out of bounds"
+                @debug "$outlabels out of bounds"
                 nc += outlen
                 updated !== nothing && union!(updated, outlabels)
             end
@@ -531,16 +531,16 @@ function train!(ts, nepoch::Number=-1, args...;
                 _eta = eta(optimiser)
                 push!(eta_list, (_eta, indi_s.min))
                 eta!(optimiser, scheduler(_eta))
-                @info "@epoch $ep(+$(indi_s.age)) η -> $(round(eta(optimiser), digits=3)) (current $nc collisions, best $(indi_s.min) collisions)"
+                @debug "@epoch $ep(+$(indi_s.age)) η -> $(round(eta(optimiser), digits=3)) (current $nc collisions, best $(indi_s.min) collisions)"
             else
                 last_eta, last_nc = pop!(eta_list)
                 eta!(optimiser, last_eta)
-                @info "@epoch $ep(+$(indi_s.age)) η <- $(round(eta(optimiser), digits=3)) (collisions $(indi_s.min) ≥ $(last_nc))"
+                @debug "@epoch $ep(+$(indi_s.age)) η <- $(round(eta(optimiser), digits=3)) (collisions $(indi_s.min) ≥ $(last_nc))"
             end
             reset!(indi_s)
         end
         if indi_g.age > max(2, 2patient, nepoch / 50 * max(1, (length(ts) / indi_g.min)))
-            @info "training early break after $ep(+$(indi_g.age)) epochs (current $nc collisions, best $(indi_g.min) collisions)"
+            @debug "training early break after $ep(+$(indi_g.age)) epochs (current $nc collisions, best $(indi_g.min) collisions)"
             break
         end
     end
