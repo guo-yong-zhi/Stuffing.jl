@@ -46,8 +46,8 @@ include("test_fit.jl")
     @test collision(qts[1], qts[2])[1] < 0
 
     ncollection = -1
-    nepoch = 0
-    while ncollection != 0 && nepoch < 10000
+    epochs = 0
+    while ncollection != 0 && epochs < 10000
         mask = fill(true, 500, 800) # can be any AbstractMatrix
         objs = []
         for i in 1:30
@@ -60,7 +60,7 @@ include("test_fit.jl")
         qts = qtrees(objs, mask=mask);
         setpositions!(qts, :, (200, 300))
         ep, nc = packing!(qts, trainer=Trainer.trainepoch_P2!)
-        nepoch += ep
+        epochs += ep
         ncollection = nc
     end
     getpositions(qts)

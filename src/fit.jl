@@ -81,7 +81,7 @@ trainepoch_E!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :pairlist => Vector{Tuple{Int, Int}}(),
                             :updated => Set{Int}(),
                             :spqtree => QTrees.hash_spacial_qtree(inputs))
-trainepoch_E!(s::Symbol) = get(Dict(:patient => 20, :nepoch => 2000), s, nothing)
+trainepoch_E!(s::Symbol) = get(Dict(:patience => 20, :epochs => 2000), s, nothing)
 function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, 
     colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
@@ -106,7 +106,7 @@ trainepoch_EM!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :pairlist => Vector{Tuple{Int, Int}}(),
                             :updated => Set{Int}(),
                             :spqtree => QTrees.hash_spacial_qtree(inputs))
-trainepoch_EM!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
+trainepoch_EM!(s::Symbol) = get(Dict(:patience => 10, :epochs => 1000), s, nothing)
 function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
     colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
@@ -222,7 +222,7 @@ trainepoch_D!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :sptqree2 => QTrees.hash_spacial_qtree(inputs),
                             :lbcollector => Vector{Int}(),
                             :treenodestack => Vector{QTrees.SpacialQTreeNode}())
-trainepoch_D!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 2000), s, nothing)
+trainepoch_D!(s::Symbol) = get(Dict(:patience => 10, :epochs => 2000), s, nothing)
 function trainepoch_D!(qtrees::AbstractVector{<:ShiftedQTree}; spqtree, optimiser=(t, Δ) -> Δ ./ 6, 
     colist=Vector{QTrees.CoItem}(), updated=Set{Int}(), loops=1, kargs...)
     for ni in 1:loops
@@ -262,7 +262,7 @@ end
 trainepoch_P!(;inputs) = Dict(:colist => Vector{Tuple{Int,Int}}(),
                             :queue => QTrees.thread_queue(),
                             :nearlist => Vector{Tuple{Int,Int}}())
-trainepoch_P!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 100), s, nothing)
+trainepoch_P!(s::Symbol) = get(Dict(:patience => 10, :epochs => 100), s, nothing)
 function trainepoch_P!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, nearlevel=-length(qtrees[1]) / 2, 
     nearlist=Vector{Tuple{Int,Int}}(), colist=Vector{Tuple{Int,Int}}(), kargs...)
     nearlevel = min(-1, nearlevel)
@@ -291,7 +291,7 @@ trainepoch_P2!(;inputs) = Dict(:colist => Vector{Tuple{Int,Int}}(),
                             :queue => QTrees.thread_queue(),
                             :nearlist1 => Vector{Tuple{Int,Int}}(),
                             :nearlist2 => Vector{Tuple{Int,Int}}())
-trainepoch_P2!(s::Symbol) = get(Dict(:patient => 2, :nepoch => 100), s, nothing)
+trainepoch_P2!(s::Symbol) = get(Dict(:patience => 2, :epochs => 100), s, nothing)
 function trainepoch_P2!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, 
     nearlevel1=-length(qtrees[1]) * 0.75, 
     nearlevel2=-length(qtrees[1]) * 0.5, 
@@ -343,7 +343,7 @@ end
 "pairwise trainer(general levels)"
 trainepoch_Px!(;inputs) = Dict(:levelpools => levelpools(inputs),
                             :queue => QTrees.thread_queue())
-trainepoch_Px!(s::Symbol) = get(Dict(:patient => 10, :nepoch => 1000), s, nothing)
+trainepoch_Px!(s::Symbol) = get(Dict(:patience => 10, :epochs => 1000), s, nothing)
 function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree}; 
     levelpools::AbstractVector{<:Pair{Int,<:AbstractVector{Tuple{Int,Int}}}}=levelpools(qtrees),
     optimiser=(t, Δ) -> Δ ./ 6, kargs...)
@@ -443,8 +443,8 @@ function randommove!(ts, colist)
     end
     return maximum.(first.(selected))
 end
-function train!(ts, nepoch::Number=-1, args...; 
-    trainer=trainepoch_EM2!, patient::Number=trainer(:patient), 
+function train!(ts, epochs::Number=-1, args...; 
+    trainer=trainepoch_EM2!, patience::Number=trainer(:patience), 
     optimiser=Momentum(η=1/4), scheduler=lr->lr*√0.5,
     callback=x -> x, callback_pre=x -> x, reposition=i -> true, resource=trainer(inputs=ts), kargs...)
     reposition_flag = true
@@ -467,7 +467,7 @@ function train!(ts, nepoch::Number=-1, args...;
     ep = 0
     nc = 0
     indi_r = MonotoneIndicator{Int}() #for reposition
-    indi_g = MonotoneIndicator{Int}() #for global patient
+    indi_g = MonotoneIndicator{Int}() #for global patience
     indi_s = MonotoneIndicator{Int}() #for lr scheduler
     eta_list = []
     reposition_count = 0.
@@ -478,17 +478,17 @@ function train!(ts, nepoch::Number=-1, args...;
     else
         colist = resource[:levelpools][end] |> last
     end
-    nepoch >= 0 || (nepoch = trainer(:nepoch))
-    @debug "nepoch: $nepoch, " * (reposition_flag ? "patient: $patient" : "reposition off")
+    epochs >= 0 || (epochs = trainer(:epochs))
+    @debug "epochs: $epochs, " * (reposition_flag ? "patience: $patience" : "reposition off")
     updated = get(resource, :updated, nothing)
-    while ep < nepoch
+    while ep < epochs
         callback_pre(ep)
         nc = trainer(ts, args...; resource..., optimiser=optimiser, unique=false, kargs...)
         ep += 1
         update!(indi_r, nc)
         update!(indi_g, nc)
         update!(indi_s, nc)
-        if nc != 0 && reposition_flag && length(ts) / 20 > length(colist) > 0 && patient > 0 && (indi_r.age >= patient || indi_r.age > length(colist)) # 超出耐心或少数几个碰撞
+        if nc != 0 && reposition_flag && length(ts) / 20 > length(colist) > 0 && patience > 0 && (indi_r.age >= patience || indi_r.age > length(colist)) # 超出耐心或少数几个碰撞
             force = reposition_count>=2
             repositioned = reposition!(ts, colist, from=from, force=force)
             @debug "@epoch $ep(+$(indi_r.age)), $nc($(length(colist))) collisions, reposition " * 
@@ -526,7 +526,7 @@ function train!(ts, nepoch::Number=-1, args...;
                 updated !== nothing && union!(updated, outlabels)
             end
         end
-        if indi_s.age > max(1, patient, nepoch / 50)
+        if indi_s.age > max(1, patience, epochs / 50)
             if isempty(eta_list) || indi_s.min < eta_list[end][2] || (indi_s.min == eta_list[end][2] && rand()>0.5)
                 _eta = eta(optimiser)
                 push!(eta_list, (_eta, indi_s.min))
@@ -539,7 +539,7 @@ function train!(ts, nepoch::Number=-1, args...;
             end
             reset!(indi_s)
         end
-        if indi_g.age > max(2, 2patient, nepoch / 50 * max(1, (length(ts) / indi_g.min)))
+        if indi_g.age > max(2, 2patience, epochs / 50 * max(1, (length(ts) / indi_g.min)))
             @debug "training early break after $ep(+$(indi_g.age)) epochs (current $nc collisions, best $(indi_g.min) collisions)"
             break
         end
