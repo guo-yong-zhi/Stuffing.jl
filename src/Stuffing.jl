@@ -75,27 +75,27 @@ end
 QTrees.overlap!(qtrees::AbstractVector{<:ShiftedQTree}; karg...) = QTrees.overlap!(qtrees[1], qtrees[2:end]; karg...)
 QTrees.overlap(qtrees::AbstractVector{<:ShiftedQTree}; karg...) = QTrees.overlap!(deepcopy(qtrees[1]), qtrees[2:end]; karg...)
 
-function getpositions(mask::ShiftedQTree, qtrees::AbstractVector, inds=:; type=getshift)
+function getpositions(mask::ShiftedQTree, qtrees::AbstractVector, inds=:; mode=getshift)
     msy, msx = getshift(mask)
-    pos = type.(qtrees[inds])
+    pos = mode.(qtrees[inds])
     eltype(pos) <: Number && (pos = Ref(pos))
     Broadcast.broadcast(p -> (p[2] - msx + 1, p[1] - msy + 1), pos) # 左上角重合时返回(1,1)
 end
-function getpositions(qtrees::AbstractVector{<:ShiftedQTree}, inds=:; type=getshift)
+function getpositions(qtrees::AbstractVector{<:ShiftedQTree}, inds=:; mode=getshift)
     @assert length(qtrees) >= 1
-    getpositions(qtrees[1], @view(qtrees[2:end]), inds, type=type)
+    getpositions(qtrees[1], @view(qtrees[2:end]), inds, mode=mode)
 end
-function setpositions!(mask::ShiftedQTree, qtrees::AbstractVector, inds, x_y; type=setshift!)
+function setpositions!(mask::ShiftedQTree, qtrees::AbstractVector, inds, x_y; mode=setshift!)
     msy, msx = getshift(mask)
     eltype(x_y) <: Number && (x_y = Ref(x_y))
     Broadcast.broadcast(qtrees[inds], x_y) do qt, p
-        type(qt, (p[2] - 1 + msy, p[1] - 1 + msx))
+        mode(qt, (p[2] - 1 + msy, p[1] - 1 + msx))
     end
     x_y
 end
-function setpositions!(qtrees::AbstractVector{<:ShiftedQTree}, inds, x_y; type=setshift!)
+function setpositions!(qtrees::AbstractVector{<:ShiftedQTree}, inds, x_y; mode=setshift!)
     @assert length(qtrees) >= 1
-    setpositions!(qtrees[1], @view(qtrees[2:end]), inds, x_y, type=type)
+    setpositions!(qtrees[1], @view(qtrees[2:end]), inds, x_y, mode=mode)
 end
 
 function packing(mask, objs, args...; background=:auto, maskbackground=:auto, kargs...)
@@ -105,14 +105,14 @@ function packing(mask, objs, args...; background=:auto, maskbackground=:auto, ka
 end
 function packing!(qts, args...; kargs...)
     place!(qts)
-    epochs, ncollection = fit!(qts, args...; kargs...)
-    @debug "$epochs epochs, $ncollection collections"
-    if ncollection != 0
+    epochs, collisions = fit!(qts, args...; kargs...)
+    @debug "$epochs epochs, $collisions collisions"
+    if collisions != 0
         colllist = first.(totalcollisions(qts))
         get_text(i) = i > 1 ? "obj_$(i - 1)" : "#MASK#"
         @warn "have $(length(colllist)) collisions:\n" * 
             string([(get_text(i), get_text(j)) for (i, j) in colllist])
     end
-    epochs, ncollection
+    epochs, collisions
 end
 end

@@ -45,9 +45,9 @@ include("test_fit.jl")
     setshift!(qts[1], (-1000, -1000))
     @test collision(qts[1], qts[2])[1] < 0
 
-    ncollection = -1
+    collisions = -1
     epochs = 0
-    while ncollection != 0 && epochs < 10000
+    while collisions != 0 && epochs < 10000
         mask = fill(true, 500, 800) # can be any AbstractMatrix
         objs = []
         for i in 1:30
@@ -61,7 +61,7 @@ include("test_fit.jl")
         setpositions!(qts, :, (200, 300))
         ep, nc = packing!(qts, trainer=Trainer.trainepoch_P2!)
         epochs += ep
-        ncollection = nc
+        collisions = nc
     end
     getpositions(qts)
     @test isempty(outofkernelbounds(qts[1], qts[2:end]))
