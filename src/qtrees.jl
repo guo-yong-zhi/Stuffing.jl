@@ -15,7 +15,7 @@ const PERM4 = ((1, 2, 3, 4), (1, 2, 4, 3), (1, 3, 2, 4), (1, 3, 4, 2), (1, 4, 2,
 @assert length(PERM4) == 24
 @inline shuffle4() = @inbounds PERM4[rand(1:24)]
 const Index = Tuple{Int, Int, Int}
-@inline function child(ind::Index, n::Int)
+@inline function child(ind::Index, n::Int) # n: 0 or 4, 1, 2, 3
     @inbounds (ind[1] - 1, 2ind[2] - n & 0x01, 2ind[3] - (n & 0x02) >> 1)
 end
 @inline parent(ind::Index) = @inbounds (ind[1] + 1, (ind[2] + 1) ÷ 2, (ind[3] + 1) ÷ 2)
@@ -23,12 +23,10 @@ indexcenter(l::Integer, a::Integer, b::Integer) = l == 1 ? (a, b) : (2^(l - 1) *
 indexcenter(ind) = indexcenter(ind...)
 function childnumber(ancestor::Index, descendant::Index) #assume the ancestor-descendant relationship exists
     o2, o3 = indexcenter(ancestor[1] - descendant[1] + 1, ancestor[2], ancestor[3])
-    n = ((descendant[3] <= o3)<<1) | (descendant[2] <= o2)
-    n == 0 ? 4 : n
+    ((descendant[3] <= o3) << 1) | (descendant[2] <= o2) # 0, 1, 2, 3
 end
 function childnumber(ind::Index)
-    n = ((ind[3]&0x01)<<0x01)| (ind[2]&0x01)
-    n == 0 ? 4 : n
+    ((ind[3]&0x01)<<0x01) | (ind[2]&0x01) # 0, 1, 2, 3
 end
 function indexrange(l::Integer, a::Integer, b::Integer)
     r = 2^(l - 1)
@@ -472,7 +470,7 @@ function remove_tree_node(t::LinkedSpacialQTree, node::SpacialQTreeNode)
     p = node.parent
     ind = spacial_index(node)
     # @show ind
-    p.children[childnumber(ind)] = p
+    p.children[childnumber(ind)+1] = p
 end
 function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
     # @show ind, label
@@ -485,10 +483,10 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
             aind[1] <= ind[1] && break
             cn = childnumber(aind, ind)
             # @show aind, ind, cn
-            cnode = tn.children[cn]
+            cnode = tn.children[cn+1]
             if isemptychild(tn, cnode)
                 cnode = new_spacial_qtree_node(t, tn, child(aind, cn))
-                tn.children[cn] = cnode
+                tn.children[cn+1] = cnode
             end
             tn = cnode
         end
