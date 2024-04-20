@@ -211,8 +211,8 @@ function buildqtree!(t::ShiftedQTree, layer=2)
     for l in layer:length(t)
         m = rshift(t[l - 1])
         n = cshift(t[l - 1])
-        m2 = floor(Int, m / 2)
-        n2 = floor(Int, n / 2)
+        m2 = m ÷ 2
+        n2 = n ÷ 2
         setrshift!(t[l], m2)
         setcshift!(t[l], n2)
         for r in 1:kernelsize(t[l])[1]
