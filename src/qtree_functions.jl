@@ -68,6 +68,12 @@ end
 const CoItem = Pair{Tuple{Int,Int}, Index}
 const AbstractThreadQueue = AbstractVector{<:AbstractVector{Index}}
 thread_queue() = [Vector{Tuple{Int,Int,Int}}() for i = 1:2Threads.nthreads()]
+function index_chunk(l, n, ichunk) # ChunkSplitters.jl
+    n_per_chunk, n_remaining = divrem(l, n)
+    first = 1 + (ichunk - 1) * n_per_chunk + ifelse(ichunk <= n_remaining, ichunk - 1, n_remaining)
+    last = (first - 1) + n_per_chunk + ifelse(ichunk <= n_remaining, 1, 0)
+    return first:last
+end
 # assume inkernelbounds(qtree, at) is true
 function _totalcollisions_native(qtrees::AbstractVector, copairs; 
         colist=Vector{CoItem}(),
@@ -77,7 +83,7 @@ function _totalcollisions_native(qtrees::AbstractVector, copairs;
     nchunks = min(length(queue), max(1, length(copairs)÷4))
     Threads.@threads for ichunk in 1:nchunks
         que = @inbounds queue[ichunk]
-        for ind in ichunk : nchunks : length(copairs)
+        for ind in index_chunk(length(copairs), nchunks, ichunk)
             i1, i2 = copairs[ind]
             empty!(que)
             push!(que, at)
@@ -95,7 +101,7 @@ function _totalcollisions_native(qtrees::AbstractVector, coitems::Vector{CoItem}
     nchunks = min(length(queue), max(1, length(coitems)÷4))
     Threads.@threads for ichunk in 1:nchunks
         que = @inbounds queue[ichunk]
-        for ind in ichunk : nchunks : length(coitems)
+        for ind in index_chunk(length(coitems), nchunks, ichunk)
             (i1, i2), at = coitems[ind]
             empty!(que)
             push!(que, at)
