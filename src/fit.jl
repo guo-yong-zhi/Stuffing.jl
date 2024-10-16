@@ -241,16 +241,21 @@ function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser,
     colist = Vector{QTrees.CoItem}()
     sl1 = Threads.SpinLock()
     sl2 = Threads.SpinLock()
-    Threads.@threads for (i1, i2) in inpool |> shuffle!
-        que = queue[Threads.threadid()]
-        cp = QTrees._collision_randbfs(qtrees[i1], qtrees[i2], empty!(que))
-        if cp[1] >= nearlevel2
-            if outpool !== nothing
-                @Base.lock sl1 push!(outpool, (i1, i2))
-            end
-            if cp[1] > 0
-                @Base.lock sl2 push!(colist, (i1, i2) => cp)
-                nc1 += 1
+    shuffle!(inpool)
+    nchunks = min(length(queue), max(1, length(inpool)÷4))
+    Threads.@threads for ichunk in 1:nchunks
+        que = @inbounds queue[ichunk]
+        for ind in ichunk : nchunks : length(inpool)
+            i1, i2 = inpool[ind]
+            cp = QTrees._collision_randbfs(qtrees[i1], qtrees[i2], empty!(que))
+            if cp[1] >= nearlevel2
+                if outpool !== nothing
+                    @Base.lock sl1 push!(outpool, (i1, i2))
+                end
+                if cp[1] > 0
+                    @Base.lock sl2 push!(colist, (i1, i2) => cp)
+                    nc1 += 1
+                end
             end
         end
     end

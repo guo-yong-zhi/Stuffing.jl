@@ -67,20 +67,24 @@ function collision(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree)
 end
 const CoItem = Pair{Tuple{Int,Int}, Index}
 const AbstractThreadQueue = AbstractVector{<:AbstractVector{Index}}
-thread_queue() = [Vector{Tuple{Int,Int,Int}}() for i = 1:Threads.nthreads()]
+thread_queue() = [Vector{Tuple{Int,Int,Int}}() for i = 1:2Threads.nthreads()]
 # assume inkernelbounds(qtree, at) is true
 function _totalcollisions_native(qtrees::AbstractVector, copairs; 
         colist=Vector{CoItem}(),
         queue::AbstractThreadQueue=thread_queue(),
         at=(length(qtrees[1]), 1, 1))
     sl = Threads.SpinLock()
-    Threads.@threads for (i1, i2) in copairs
-        que = @inbounds queue[Threads.threadid()]
-        empty!(que)
-        push!(que, at)
-        cp = @inbounds _collision_randbfs(qtrees[i1], qtrees[i2], que)
-        if cp[1] >= 0
-            @Base.lock sl push!(colist, (i1, i2) => cp)
+    nchunks = min(length(queue), max(1, length(copairs)÷4))
+    Threads.@threads for ichunk in 1:nchunks
+        que = @inbounds queue[ichunk]
+        for ind in ichunk : nchunks : length(copairs)
+            i1, i2 = copairs[ind]
+            empty!(que)
+            push!(que, at)
+            cp = @inbounds _collision_randbfs(qtrees[i1], qtrees[i2], que)
+            if cp[1] >= 0
+                @Base.lock sl push!(colist, (i1, i2) => cp)
+            end
         end
     end
     colist
@@ -88,13 +92,17 @@ end
 function _totalcollisions_native(qtrees::AbstractVector, coitems::Vector{CoItem}; 
     colist=Vector{CoItem}(), queue::AbstractThreadQueue=thread_queue())
     sl = Threads.SpinLock()
-    Threads.@threads for ((i1, i2), at) in coitems
-        que = @inbounds queue[Threads.threadid()]
-        empty!(que)
-        push!(que, at)
-        cp = @inbounds _collision_randbfs(qtrees[i1], qtrees[i2], que)
-        if cp[1] >= 0
-            @Base.lock sl push!(colist, (i1, i2) => cp)
+    nchunks = min(length(queue), max(1, length(coitems)÷4))
+    Threads.@threads for ichunk in 1:nchunks
+        que = @inbounds queue[ichunk]
+        for ind in ichunk : nchunks : length(coitems)
+            (i1, i2), at = coitems[ind]
+            empty!(que)
+            push!(que, at)
+            cp = @inbounds _collision_randbfs(qtrees[i1], qtrees[i2], que)
+            if cp[1] >= 0
+                @Base.lock sl push!(colist, (i1, i2) => cp)
+            end
         end
     end
     colist
