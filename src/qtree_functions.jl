@@ -81,9 +81,9 @@ function _totalcollisions_native(qtrees::AbstractVector, copairs;
         at=(length(qtrees[1]), 1, 1))
     sl = Threads.SpinLock()
     nchunks = min(length(queue), max(1, length(copairs)÷4))
-    Threads.@threads for ichunk in 1:nchunks
+    @sync for ichunk in 1:nchunks
         que = @inbounds queue[ichunk]
-        for ind in index_chunk(length(copairs), nchunks, ichunk)
+        Threads.@spawn for ind in index_chunk(length(copairs), nchunks, ichunk)
             i1, i2 = copairs[ind]
             empty!(que)
             push!(que, at)
@@ -99,9 +99,9 @@ function _totalcollisions_native(qtrees::AbstractVector, coitems::Vector{CoItem}
     colist=Vector{CoItem}(), queue::AbstractThreadQueue=thread_queue())
     sl = Threads.SpinLock()
     nchunks = min(length(queue), max(1, length(coitems)÷4))
-    Threads.@threads for ichunk in 1:nchunks
+    @sync for ichunk in 1:nchunks
         que = @inbounds queue[ichunk]
-        for ind in index_chunk(length(coitems), nchunks, ichunk)
+        Threads.@spawn for ind in index_chunk(length(coitems), nchunks, ichunk)
             (i1, i2), at = coitems[ind]
             empty!(que)
             push!(que, at)

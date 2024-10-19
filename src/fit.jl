@@ -243,9 +243,9 @@ function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser,
     sl2 = Threads.SpinLock()
     shuffle!(inpool)
     nchunks = min(length(queue), max(1, length(inpool)÷4))
-    Threads.@threads for ichunk in 1:nchunks
+    @sync for ichunk in 1:nchunks
         que = @inbounds queue[ichunk]
-        for ind in QTrees.index_chunk(length(inpool), nchunks, ichunk)
+        Threads.@spawn for ind in QTrees.index_chunk(length(inpool), nchunks, ichunk)
             i1, i2 = inpool[ind]
             cp = QTrees._collision_randbfs(qtrees[i1], qtrees[i2], empty!(que))
             if cp[1] >= nearlevel2
