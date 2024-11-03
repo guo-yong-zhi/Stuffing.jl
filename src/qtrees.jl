@@ -9,14 +9,16 @@ export AbstractStackedQTree, StackedQTree, ShiftedQTree, buildqtree!,
 using Random
 using ..LinkedList
 
-const PERM4 = ((1, 2, 3, 4), (1, 2, 4, 3), (1, 3, 2, 4), (1, 3, 4, 2), (1, 4, 2, 3), (1, 4, 3, 2), (2, 1, 3, 4), 
-(2, 1, 4, 3), (2, 3, 1, 4), (2, 3, 4, 1), (2, 4, 1, 3), (2, 4, 3, 1), (3, 1, 2, 4), (3, 1, 4, 2), (3, 2, 1, 4), 
-(3, 2, 4, 1), (3, 4, 1, 2), (3, 4, 2, 1), (4, 1, 2, 3), (4, 1, 3, 2), (4, 2, 1, 3), (4, 2, 3, 1), (4, 3, 1, 2), (4, 3, 2, 1))
+const PERM4 = ((0, 1, 2, 3), (0, 1, 3, 2), (0, 2, 1, 3), (0, 2, 3, 1), (0, 3, 1, 2), (0, 3, 2, 1), 
+(1, 0, 2, 3), (1, 0, 3, 2), (1, 2, 0, 3), (1, 2, 3, 0), (1, 3, 0, 2), (1, 3, 2, 0), 
+(2, 0, 1, 3), (2, 0, 3, 1), (2, 1, 0, 3), (2, 1, 3, 0), (2, 3, 0, 1), (2, 3, 1, 0), 
+(3, 0, 1, 2), (3, 0, 2, 1), (3, 1, 0, 2), (3, 1, 2, 0), (3, 2, 0, 1), (3, 2, 1, 0))
 @assert length(PERM4) == 24
 @inline shuffle4() = @inbounds PERM4[rand(1:24)]
 const Index = Tuple{Int, Int, Int}
-@inline function child(ind::Index, n::Int) # n: 0 or 4, 1, 2, 3
-    @inbounds (ind[1] - 1, 2ind[2] - n & 0x01, 2ind[3] - (n & 0x02) >> 1)
+@inline function child(ind::Index, n::Int) # n: 0, 1, 2, 3
+    @assert 0 <= n <= 3
+    @inbounds (ind[1] - 1, 2ind[2] - n & 0x01, 2ind[3] - n >> 1)
 end
 @inline parent(ind::Index) = @inbounds (ind[1] + 1, (ind[2] + 1) ÷ 2, (ind[3] + 1) ÷ 2)
 indexcenter(l::Integer, a::Integer, b::Integer) = l == 1 ? (a, b) : (2^(l - 1) * (a - 1) + 2^(l - 2), 2^(l - 1) * (b - 1) + 2^(l - 2))
@@ -46,7 +48,7 @@ function inrange(a::Index, b::Index)
     end
 end
 Base.@propagate_inbounds function qcode(Q, i)
-    @inbounds (Q[child(i, 1)] | Q[child(i, 2)] | Q[child(i, 3)] | Q[child(i, 4)])
+    @inbounds (Q[child(i, 0)] | Q[child(i, 1)] | Q[child(i, 2)] | Q[child(i, 3)])
 end
 Base.@propagate_inbounds qcode!(Q, i) = @inbounds Q[i] = qcode(Q, i)
 decode(c) = (0., 1., 0.5)[c]
