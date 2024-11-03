@@ -11,7 +11,7 @@ function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(le
     end
     r = -i[1], i[2], i[3]
     if i[1] > 1
-        for cn in 0:3 # MIX
+        for cn in 0x00:0x03 # MIX
             ci = child(i, cn)
             r = collision_dfs(Q1, Q2, ci)
             if r[1] > 0 return r end 
@@ -476,7 +476,7 @@ function _overlap!(tree1::ShiftedQTree, tree2::ShiftedQTree, ind::Index)
         if ind[1] == 1
             @inbounds tree1[ind] = FULL
         else
-            for ci in 0:3
+            for ci in 0x00:0x03
                 _overlap!(tree1, tree2, child(ind, ci))
             end
             @inbounds qcode!(tree1, ind)

@@ -9,15 +9,15 @@ export AbstractStackedQTree, StackedQTree, ShiftedQTree, buildqtree!,
 using Random
 using ..LinkedList
 
-const PERM4 = ((0, 1, 2, 3), (0, 1, 3, 2), (0, 2, 1, 3), (0, 2, 3, 1), (0, 3, 1, 2), (0, 3, 2, 1), 
+const PERM4::NTuple{24, NTuple{4, UInt8}} = ((0, 1, 2, 3), (0, 1, 3, 2), (0, 2, 1, 3), (0, 2, 3, 1), (0, 3, 1, 2), (0, 3, 2, 1), 
 (1, 0, 2, 3), (1, 0, 3, 2), (1, 2, 0, 3), (1, 2, 3, 0), (1, 3, 0, 2), (1, 3, 2, 0), 
 (2, 0, 1, 3), (2, 0, 3, 1), (2, 1, 0, 3), (2, 1, 3, 0), (2, 3, 0, 1), (2, 3, 1, 0), 
 (3, 0, 1, 2), (3, 0, 2, 1), (3, 1, 0, 2), (3, 1, 2, 0), (3, 2, 0, 1), (3, 2, 1, 0))
 @assert length(PERM4) == 24
 @inline shuffle4() = @inbounds PERM4[rand(1:24)]
 const Index = Tuple{Int, Int, Int}
-@inline function child(ind::Index, n::Int) # n: 0, 1, 2, 3
-    @assert 0 <= n <= 3
+@inline function child(ind::Index, n::UInt8) # n: 0, 1, 2, 3
+    # @assert 0 <= n <= 3
     @inbounds (ind[1] - 1, 2ind[2] - n & 0x01, 2ind[3] - n >> 1)
 end
 @inline parent(ind::Index) = @inbounds (ind[1] + 1, (ind[2] + 1) ÷ 2, (ind[3] + 1) ÷ 2)
@@ -25,10 +25,10 @@ indexcenter(l::Integer, a::Integer, b::Integer) = l == 1 ? (a, b) : (2^(l - 1) *
 indexcenter(ind) = indexcenter(ind...)
 function childnumber(ancestor::Index, descendant::Index) #assume the ancestor-descendant relationship exists
     o2, o3 = indexcenter(ancestor[1] - descendant[1] + 1, ancestor[2], ancestor[3])
-    ((descendant[3] <= o3) << 1) | (descendant[2] <= o2) # 0, 1, 2, 3
+    (unsafe_trunc(UInt8, descendant[3] <= o3) << 1) | unsafe_trunc(UInt8, descendant[2] <= o2) # 0, 1, 2, 3
 end
 function childnumber(ind::Index)
-    ((ind[3]&0x01)<<0x01) | (ind[2]&0x01) # 0, 1, 2, 3
+    ((unsafe_trunc(UInt8, ind[3])&0x01)<<0x01) | (unsafe_trunc(UInt8, ind[2])&0x01) # 0, 1, 2, 3
 end
 function indexrange(l::Integer, a::Integer, b::Integer)
     r = 2^(l - 1)
@@ -48,7 +48,7 @@ function inrange(a::Index, b::Index)
     end
 end
 Base.@propagate_inbounds function qcode(Q, i)
-    @inbounds (Q[child(i, 0)] | Q[child(i, 1)] | Q[child(i, 2)] | Q[child(i, 3)])
+    @inbounds (Q[child(i, 0x00)] | Q[child(i, 0x01)] | Q[child(i, 0x02)] | Q[child(i, 0x03)])
 end
 Base.@propagate_inbounds qcode!(Q, i) = @inbounds Q[i] = qcode(Q, i)
 decode(c) = (0., 1., 0.5)[c]
