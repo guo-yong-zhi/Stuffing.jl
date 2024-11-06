@@ -446,9 +446,7 @@ function new_listnode_for_push(t::LinkedSpacialQTree, value::Int)
         return ListNode(value)
     else
         n = popfirst!(cache)
-        n.value = value
-        # n.prev = n #will be assigned in pushfirst!
-        # n.next = n
+        setvalue!(n, value)
         return n
     end
 end
@@ -512,7 +510,7 @@ function Base.push!(t::LinkedSpacialQTree, inds, label::Int)
 end
 function seek_treenode(listnode::ListNode{Int})
     head = seek_head(listnode)
-    unsafe_pointer_to_objref(Ptr{Any}(head.value))::SpacialQTreeNode
+    unsafe_pointer_to_objref(Ptr{Any}(value(head)))::SpacialQTreeNode
 end
 function Base.empty!(t::LinkedSpacialQTree, label)
     if haskey(t.map, label) && !isempty(t.map[label])

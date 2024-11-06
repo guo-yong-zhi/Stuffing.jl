@@ -1,5 +1,5 @@
 module LinkedList
-export DoubleList, ListNode, movetofirst!, IntMap, ishead, istail, seek_head, seek_tail
+export DoubleList, ListNode, movetofirst!, IntMap, next, prev, value, setvalue!, ishead, istail, seek_head, seek_tail
 mutable struct ListNode{T}
     value::T
     prev::ListNode{T}
@@ -17,28 +17,32 @@ function ListNode{T}(value::T) where T
     n
 end
 ListNode(value::T) where T = ListNode{T}(value)
-ishead(n::ListNode) = n.prev === n
-istail(n::ListNode) = n.next === n
+next(n::ListNode) = n.next
+prev(n::ListNode) = n.prev
+value(n::ListNode) = n.value
+setvalue!(n::ListNode, v) = n.value = v
+ishead(n::ListNode) = prev(n) === n
+istail(n::ListNode) = next(n) === n
 function Base.iterate(l::ListNode, p=l) # from this node to the end
-    istail(p) ? nothing : (p.value, p.next)
+    istail(p) ? nothing : (value(p), next(p))
 end
 Base.IteratorSize(::Type{<:ListNode}) = Base.SizeUnknown()
 Base.eltype(::Type{ListNode{T}}) where T = T
 function seek_tail(n::ListNode)
     while !istail(n)
-        n = n.next
+        n = next(n)
     end
     n
 end
 function seek_head(n::ListNode)
     while !ishead(n)
-        n = n.prev
+        n = prev(n)
     end
     n
 end
 function Base.pop!(n::ListNode)
-    n.prev.next = n.next
-    n.next.prev = n.prev
+    n.prev.next = next(n)
+    n.next.prev = prev(n)
     n
 end
 
@@ -64,67 +68,70 @@ function DoubleList{T}(hv::T) where T
     l.head.value = hv
     l
 end
-Base.isempty(l::DoubleList) = istail(l.head.next)
+head(l::DoubleList) = l.head
+Base.isempty(l::DoubleList) = istail(next(head(l)))
 function Base.pushfirst!(l::DoubleList, n::ListNode)
-    n.next = l.head.next
-    n.prev = l.head
-    l.head.next = n
-    n.next.prev = n
+    h = head(l)
+    hn = next(h)
+    n.next = hn
+    n.prev = h
+    h.next = n
+    hn.prev = n
     n
 end
 
-Base.pop!(l::DoubleList, n::ListNode) = Base.pop!(n)
-Base.popfirst!(l::DoubleList) = (@assert !isempty(l); pop!(l.head.next))
+Base.pop!(l::DoubleList, n::ListNode) = pop!(n)
+Base.popfirst!(l::DoubleList) = (@assert !isempty(l); pop!(next(head(l))))
 
 function movetofirst!(l::DoubleList, n::ListNode)
     pop!(l, n)
     pushfirst!(l, n)
 end
-Base.iterate(l::DoubleList, args...) = iterate(l.head.next, args...)
+Base.iterate(l::DoubleList, args...) = iterate(next(head(l)), args...)
 Base.IteratorSize(::Type{<:DoubleList}) = Base.SizeUnknown()
 Base.eltype(::Type{DoubleList{T}}) where T = T
 
 function collect!(l::DoubleList, collection)
-    p = l.head.next
+    p = next(head(l))
     while !istail(p)
-        push!(collection, p.value)
-        p = p.next
+        push!(collection, value(p))
+        p = next(p)
     end
     # @assert p === l.tail
     collection
 end
 function collect!(l::DoubleList, collection, firstn)
-    p = l.head.next
+    p = next(head(l))
     for i in 1:firstn
         if istail(p)
             # @assert p === l.tail
             break
         end
-        push!(collection, p.value)
-        p = p.next
+        push!(collection, value(p))
+        p = next(p)
     end
     collection
 end
 function collect!(filter, l::DoubleList, collection)
-    p = l.head.next
+    p = next(head(l))
     while !istail(p)
-        v = p.value
+        v = value(p)
         filter(v) && push!(collection, v)
-        p = p.next
+        p = next(p)
     end
     # @assert p === l.tail
     collection
 end
 function collect!(filter, l::DoubleList, collection, firstn)
-    p = l.head.next
+    p = next(head(l))
     for i in 1:firstn
         if istail(p)
             # @assert p === l.tail
             break
         end
-        v = p.value
+        v = value(p)
         filter(v) && push!(collection, v)
-        p = p.next
+        p = next(p)
     end
     collection
 end

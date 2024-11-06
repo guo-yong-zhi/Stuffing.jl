@@ -294,7 +294,7 @@ function partialcollisions(qtrees::AbstractVector,
             # 但要保证更prev的node在`labels`中
             treenode = seek_treenode(listnode)
             spindex = spacial_index(treenode)
-            append!(itemlist, (((label, lb) => spindex) for lb in listnode.next))
+            append!(itemlist, (((label, lb) => spindex) for lb in next(listnode)))
             tn = treenode
             while !isroot(tn)
                 tn = tn.parent #root不是哨兵，值需要遍历
