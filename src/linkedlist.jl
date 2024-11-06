@@ -17,6 +17,8 @@ function ListNode{T}(value::T) where T
     n
 end
 ListNode(value::T) where T = ListNode{T}(value)
+ishead(n::ListNode) = n.prev === n
+istail(n::ListNode) = n.next === n
 function Base.iterate(l::ListNode, p=l)
     istail(p) ?  nothing : (p.value, p.next)
 end
@@ -27,6 +29,11 @@ function seek_tail(l::ListNode)
         l = l.next
     end
     l
+end
+function Base.pop!(n::ListNode)
+    n.prev.next = n.next
+    n.next.prev = n.prev
+    n
 end
 
 mutable struct DoubleList{T}
@@ -46,8 +53,7 @@ function DoubleList{T}(hv::T, tv::T) where T
     l.tail.value = tv
     l
 end
-ishead(n::ListNode) = n.prev === n
-istail(n::ListNode) = n.next === n
+
 Base.isempty(l::DoubleList) = l.head.next === l.tail
 function Base.pushfirst!(l::DoubleList, n::ListNode)
     n.next = l.head.next
@@ -56,11 +62,7 @@ function Base.pushfirst!(l::DoubleList, n::ListNode)
     n.next.prev = n
     n
 end
-function Base.pop!(n::ListNode)
-    n.prev.next = n.next
-    n.next.prev = n.prev
-    n
-end
+
 Base.pop!(l::DoubleList, n::ListNode) = Base.pop!(n)
 Base.popfirst!(l::DoubleList) = (@assert !isempty(l); pop!(l.head.next))
 
@@ -68,25 +70,24 @@ function movetofirst!(l::DoubleList, n::ListNode)
     pop!(l, n)
     pushfirst!(l, n)
 end
-function Base.iterate(l::DoubleList, p=l.head.next)
-    p === l.tail && return nothing
-    p.value, p.next
-end
+Base.iterate(l::DoubleList, args...) = iterate(l.head.next, args...)
 Base.IteratorSize(::Type{<:DoubleList}) = Base.SizeUnknown()
 Base.eltype(::Type{DoubleList{T}}) where T = T
 
 function collect!(l::DoubleList, collection)
     p = l.head.next
-    while p !== l.tail
+    while !istail(p)
         push!(collection, p.value)
         p = p.next
     end
+    # @assert p === l.tail
     collection
 end
 function collect!(l::DoubleList, collection, firstn)
     p = l.head.next
     for i in 1:firstn
-        if p === l.tail
+        if istail(p)
+            # @assert p === l.tail
             break
         end
         push!(collection, p.value)
@@ -96,17 +97,19 @@ function collect!(l::DoubleList, collection, firstn)
 end
 function collect!(filter, l::DoubleList, collection)
     p = l.head.next
-    while p !== l.tail
+    while !istail(p)
         v = p.value
         filter(v) && push!(collection, v)
         p = p.next
     end
+    # @assert p === l.tail
     collection
 end
 function collect!(filter, l::DoubleList, collection, firstn)
     p = l.head.next
     for i in 1:firstn
-        if p === l.tail
+        if istail(p)
+            # @assert p === l.tail
             break
         end
         v = p.value
