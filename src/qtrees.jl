@@ -420,8 +420,7 @@ const SpacialQTreeNode = QTreeNode{LabelList}
 new_spacial_qtree_node(index::Index) = QTreeNode(LabelList(index))
 new_spacial_qtree_node() = QTreeNode(LabelList())
 function new_labellist(node::QTreeNode)
-    dl = DoubleList{Int}()
-    dl.tail.value = Int(pointer_from_objref(node))
+    dl = DoubleList{Int}(Int(pointer_from_objref(node)))
     # @assert node == seek_treenode(dl.tail)
     node.value.list = dl
 end
@@ -512,8 +511,8 @@ function Base.push!(t::LinkedSpacialQTree, inds, label::Int)
     end
 end
 function seek_treenode(listnode::ListNode{Int})
-    tail = seek_tail(listnode)
-    unsafe_pointer_to_objref(Ptr{Any}(tail.value))::SpacialQTreeNode
+    head = seek_head(listnode)
+    unsafe_pointer_to_objref(Ptr{Any}(head.value))::SpacialQTreeNode
 end
 function Base.empty!(t::LinkedSpacialQTree, label)
     if haskey(t.map, label) && !isempty(t.map[label])

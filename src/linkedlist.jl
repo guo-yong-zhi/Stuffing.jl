@@ -1,5 +1,5 @@
 module LinkedList
-export DoubleList, ListNode, movetofirst!, IntMap, ishead, istail, seek_tail
+export DoubleList, ListNode, movetofirst!, IntMap, ishead, istail, seek_head, seek_tail
 mutable struct ListNode{T}
     value::T
     prev::ListNode{T}
@@ -19,16 +19,22 @@ end
 ListNode(value::T) where T = ListNode{T}(value)
 ishead(n::ListNode) = n.prev === n
 istail(n::ListNode) = n.next === n
-function Base.iterate(l::ListNode, p=l)
-    istail(p) ?  nothing : (p.value, p.next)
+function Base.iterate(l::ListNode, p=l) # from this node to the end
+    istail(p) ? nothing : (p.value, p.next)
 end
 Base.IteratorSize(::Type{<:ListNode}) = Base.SizeUnknown()
 Base.eltype(::Type{ListNode{T}}) where T = T
-function seek_tail(l::ListNode)
-    while !istail(l)
-        l = l.next
+function seek_tail(n::ListNode)
+    while !istail(n)
+        n = n.next
     end
-    l
+    n
+end
+function seek_head(n::ListNode)
+    while !ishead(n)
+        n = n.prev
+    end
+    n
 end
 function Base.pop!(n::ListNode)
     n.prev.next = n.next
@@ -38,23 +44,27 @@ end
 
 mutable struct DoubleList{T}
     head::ListNode{T}
-    tail::ListNode{T}
+    # tail::ListNode{T}
 end
 function DoubleList{T}() where T
     h = ListNode{T}()
     t = ListNode{T}()
     h.next = t
     t.prev = h
-    DoubleList(h, t)
+    DoubleList(h)
 end
 function DoubleList{T}(hv::T, tv::T) where T
     l = DoubleList{T}()
     l.head.value = hv
-    l.tail.value = tv
+    l.head.next.value = tv
     l
 end
-
-Base.isempty(l::DoubleList) = l.head.next === l.tail
+function DoubleList{T}(hv::T) where T
+    l = DoubleList{T}()
+    l.head.value = hv
+    l
+end
+Base.isempty(l::DoubleList) = istail(l.head.next)
 function Base.pushfirst!(l::DoubleList, n::ListNode)
     n.next = l.head.next
     n.prev = l.head
