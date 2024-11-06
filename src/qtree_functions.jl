@@ -283,7 +283,6 @@ function partialcollisions(qtrees::AbstractVector,
     spqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
     labels::AbstractSet{Int}=Set(1:length(qtrees)); 
     colist=Vector{CoItem}(), itemlist::AbstractVector{CoItem}=Vector{CoItem}(),
-    lbcollector = Vector{Int}(),
     treenodestack = Vector{SpacialQTreeNode}(),
     unique=true, kargs...)
     empty!(itemlist)
@@ -291,17 +290,11 @@ function partialcollisions(qtrees::AbstractVector,
     for label in labels
         # @show label
         for listnode in spacial_indexesof(spqtree, label)
-            empty!(lbcollector)
-            ln = listnode.next
-            while !istail(ln) #tail是哨兵，本身的value不遍历
-                push!(lbcollector, ln.value)
-                ln = ln.next
-            end
             # 更prev的node都是move过的，在其向后遍历时会加入与当前node的pair，故不需要向前遍历
             # 但要保证更prev的node在`labels`中
-            treenode = seek_treenode(ln)
+            treenode = seek_treenode(listnode)
             spindex = spacial_index(treenode)
-            append!(itemlist, (((label, lb) => spindex) for lb in lbcollector))
+            append!(itemlist, (((label, lb) => spindex) for lb in listnode.next))
             tn = treenode
             while !isroot(tn)
                 tn = tn.parent #root不是哨兵，值需要遍历
@@ -357,7 +350,7 @@ Base.iterate(s::UpdatedSet, args...) = iterate(s.set, args...)
 Base.in(item, s::UpdatedSet) = in(item, s.set)
 Base.in(s::UpdatedSet) = in(s.set)
 function totalcollisions_kw(qtrees; sptqree2=hash_spacial_qtree(qtrees), 
-    spqtree=nothing, lbcollector=nothing, treenodestack=nothing, kargs...)
+    spqtree=nothing, treenodestack=nothing, kargs...)
     totalcollisions(qtrees; spqtree=sptqree2, kargs...)
 end
 partialcollisions_kw(qtrees, spqtree, updated; sptqree2=nothing, pairlist=nothing, kargs...) = partialcollisions(qtrees, spqtree, updated; kargs...)

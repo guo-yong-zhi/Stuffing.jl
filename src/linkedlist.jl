@@ -1,5 +1,5 @@
 module LinkedList
-export DoubleList, ListNode, movetofirst!, IntMap, ishead, istail
+export DoubleList, ListNode, movetofirst!, IntMap, ishead, istail, seek_tail
 mutable struct ListNode{T}
     value::T
     prev::ListNode{T}
@@ -17,6 +17,17 @@ function ListNode{T}(value::T) where T
     n
 end
 ListNode(value::T) where T = ListNode{T}(value)
+function Base.iterate(l::ListNode, p=l)
+    istail(p) ?  nothing : (p.value, p.next)
+end
+Base.IteratorSize(::Type{<:ListNode}) = Base.SizeUnknown()
+Base.eltype(::Type{ListNode{T}}) where T = T
+function seek_tail(l::ListNode)
+    while !istail(l)
+        l = l.next
+    end
+    l
+end
 
 mutable struct DoubleList{T}
     head::ListNode{T}

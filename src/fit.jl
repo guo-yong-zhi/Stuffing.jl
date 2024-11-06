@@ -218,9 +218,8 @@ trainepoch_D!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(),
                             :pairlist => Vector{Tuple{Int, Int}}(),
                             :updated => QTrees.UpdatedSet(1:length(inputs)),
                             :loops => 10,
-                            :spqtree => QTrees.linked_spacial_qtree(inputs), #fllowing 4 tiems: pre-allocating for dynamiccollisions
+                            :spqtree => QTrees.linked_spacial_qtree(inputs), #fllowing 3 tiems: pre-allocating for dynamiccollisions
                             :sptqree2 => QTrees.hash_spacial_qtree(inputs),
-                            :lbcollector => Vector{Int}(),
                             :treenodestack => Vector{QTrees.SpacialQTreeNode}())
 trainepoch_D!(s::Symbol) = get(Dict(:patience => 10, :epochs => 2000), s, nothing)
 function trainepoch_D!(qtrees::AbstractVector{<:ShiftedQTree}; spqtree, optimiser=(t, Δ) -> Δ ./ 6, 

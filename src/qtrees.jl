@@ -511,9 +511,9 @@ function Base.push!(t::LinkedSpacialQTree, inds, label::Int)
         push!(t, ind, label)
     end
 end
-function seek_treenode(listnode::ListNode)
-    # @assert istail(listnode)
-    unsafe_pointer_to_objref(Ptr{Any}(listnode.value))::SpacialQTreeNode
+function seek_treenode(listnode::ListNode{Int})
+    tail = seek_tail(listnode)
+    unsafe_pointer_to_objref(Ptr{Any}(tail.value))::SpacialQTreeNode
 end
 function Base.empty!(t::LinkedSpacialQTree, label)
     if haskey(t.map, label) && !isempty(t.map[label])
