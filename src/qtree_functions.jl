@@ -141,21 +141,6 @@ end
 hash_spacial_qtree() = HashSpacialQTree()
 hash_spacial_qtree(qts) = hash_spacial_qtree()
 
-mutable struct Indices4
-    i1::Index
-    i2::Index
-    i3::Index
-	i4::Index
-	len::Int
-	Indices4() = (ii = new(); ii.len = 0; ii)
-end
-Base.getindex(ii::Indices4, i) = getfield(ii, i)
-Base.setindex!(ii::Indices4, x, i) = setfield!(ii, i, x)
-Base.push!(ii::Indices4, x) = ii[ii.len += 1] = x
-Base.length(ii::Indices4) = ii.len
-Base.iterate(ii::Indices4, i=1) = i <= length(ii) ? (ii[i], i+1) : nothing
-Base.eltype(::Type{Indices4}) = Index
-
 function locate!(qt::AbstractStackedQTree, spqtree::Union{HashSpacialQTree, LinkedSpacialQTree}, label::Int)
     l = length(qt) #l always >= 2
     # @assert kernelsize(qt[l], 1) <= 2 && kernelsize(qt[l], 2) <= 2
@@ -171,7 +156,7 @@ function locate!(qt::AbstractStackedQTree, spqtree::Union{HashSpacialQTree, Link
     # @assert l >= 2
     @inbounds mat = qt[l]
     rs, cs = getshift(mat)
-    inds = Indices4()
+    inds = SVector4{Index}()
     @inbounds mat[rs+1, cs+1] != EMPTY && push!(inds, (l, rs+1, cs+1))
     @inbounds mat[rs+1, cs+2] != EMPTY && push!(inds, (l, rs+1, cs+2))
     @inbounds mat[rs+2, cs+1] != EMPTY && push!(inds, (l, rs+2, cs+1))
@@ -180,7 +165,7 @@ function locate!(qt::AbstractStackedQTree, spqtree::Union{HashSpacialQTree, Link
         l = l + 1
         @inbounds mat = qt[l]
         rs, cs = getshift(mat)
-        inds2 = Indices4()
+        inds2 = SVector4{Index}()
         @inbounds mat[rs+1, cs+1] != EMPTY && push!(inds2, (l, rs+1, cs+1))
         @inbounds mat[rs+1, cs+2] != EMPTY && push!(inds2, (l, rs+1, cs+2))
         @inbounds mat[rs+2, cs+1] != EMPTY && push!(inds2, (l, rs+2, cs+1))

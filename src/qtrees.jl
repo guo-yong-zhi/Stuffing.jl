@@ -339,11 +339,11 @@ end
 mutable struct QTreeNode{T}
     value::T
     parent::QTreeNode{T}
-    children::Vector{QTreeNode{T}}
+    children::SVector4{QTreeNode{T}}
     function QTreeNode{T}() where T
         n = new{T}()
         n.parent = n
-        n.children = [n, n, n, n]
+        n.children = SVector4{QTreeNode{T}}(n, n, n, n)
         n
     end
     QTreeNode{T}(v, p, c) where T = new{T}(v, p, c)
