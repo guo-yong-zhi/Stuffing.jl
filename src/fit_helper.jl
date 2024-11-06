@@ -1,4 +1,4 @@
-using ..LinkedList
+using ..CommonDatatypes
 abstract type AbstractOptimiser end
 function apply(o::AbstractOptimiser, x, Δ) end
 function apply!(o::AbstractOptimiser, x, Δ)
@@ -95,8 +95,8 @@ function Base.push!(lru::LRU, v)
     end
     v
 end
-collect!(lru::LRU, args...) = LinkedList.collect!(lru.list, args...)
-Base.collect(lru::LRU, args...) = LinkedList.collect(lru.list, args...)
+collect!(lru::LRU, args...) = CommonDatatypes.collect!(lru.list, args...)
+Base.collect(lru::LRU, args...) = CommonDatatypes.collect(lru.list, args...)
 Base.broadcastable(lru::LRU) = Ref(lru)
 
 intlru(n) = LRU{Int}(IntMap(Vector{ListNode{Int}}(undef, n)))

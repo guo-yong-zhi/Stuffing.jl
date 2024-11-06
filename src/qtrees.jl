@@ -7,7 +7,7 @@ export AbstractStackedQTree, StackedQTree, ShiftedQTree, buildqtree!,
     kernelsize, place!, overlap, overlap!, decode, charimage
 
 using Random
-using ..LinkedList
+using ..CommonDatatypes
 
 const PERM4 = ((0, 1, 2, 3), (0, 1, 3, 2), (0, 2, 1, 3), (0, 2, 3, 1), (0, 3, 1, 2), (0, 3, 2, 1), 
 (1, 0, 2, 3), (1, 0, 3, 2), (1, 2, 0, 3), (1, 2, 3, 0), (1, 3, 0, 2), (1, 3, 2, 0), 

@@ -4,7 +4,7 @@ export QTrees, getshift, getcenter, setshift!, setcenter!, outofbounds, outofker
     dynamiccollisions, partialcollisions, totalcollisions, collision, findroom_uniform, findroom_gathering,
     DynamicColliders, locate!, linked_spacial_qtree, hash_spacial_qtree
 export Trainer, train!, fit!, Momentum, SGD
-include("linkedlist.jl")
+include("common_datatypes.jl")
 include("qtrees.jl")
 include("fit.jl")
 using .QTrees

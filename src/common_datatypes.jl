@@ -1,5 +1,5 @@
-module LinkedList
-export DoubleList, ListNode, movetofirst!, IntMap, next, prev, value, setvalue!, ishead, istail, seek_head, seek_tail
+module CommonDatatypes
+export DoubleList, ListNode, IntMap, movetofirst!, next, prev, value, setvalue!, ishead, istail, seek_head, seek_tail
 mutable struct ListNode{T}
     value::T
     prev::ListNode{T}
@@ -137,11 +137,11 @@ function collect!(filter, l::DoubleList, collection, firstn)
 end
 Base.collect(l::DoubleList{T}, args...) where T = collect!(l, Vector{T}(), args...)
 Base.collect(filter, l::DoubleList{T}, args...) where T = collect!(filter, l, Vector{T}(), args...)
+
 struct IntMap{T}
     map::T
 end
 Base.haskey(im::IntMap, key) = isassigned(im.map, key)
 Base.getindex(im::IntMap, ind...) = getindex(im.map, ind...)
 Base.setindex!(im::IntMap, v, ind...) = setindex!(im.map, v, ind...)
-
 end
