@@ -341,10 +341,11 @@ partialcollisions_kw(qtrees, spqtree, labels; sptqree2=nothing, pairlist=nothing
 function dynamiccollisions(qtrees::AbstractVector,
     spqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
     labels::AbstractSet{Int}=Set(1:length(qtrees));
-    updated::AbstractSet{Int}=Set(1:length(qtrees)),
+    updated::AbstractSet{Int},
     kargs...)
     if length(labels) / length(qtrees) > 0.6
         r = totalcollisions_kw(qtrees; kargs...)
+        union!(updated, labels)
     else
         locate!(qtrees, (i for i in updated if i ∉ labels), spqtree)
         empty!(updated)
@@ -362,9 +363,8 @@ struct DynamicColliders
 end
 function Base.union!(dc::DynamicColliders, c)
     union!(dc.colabels, c)
-    union!(dc.updated, c)
 end
-DynamicColliders(qtrees::AbstractVector{U8SQTree}) = DynamicColliders(qtrees, linked_spacial_qtree(qtrees), Set(1:length(qtrees)), Set(1:length(qtrees)))
+DynamicColliders(qtrees::AbstractVector{U8SQTree}) = DynamicColliders(qtrees, linked_spacial_qtree(qtrees), Set(1:length(qtrees)), Set{Int}())
 function dynamiccollisions(colliders::DynamicColliders; kargs...)
     r = dynamiccollisions(colliders.qtrees, colliders.spqtree, colliders.colabels; updated=colliders.updated, kargs...)
     r

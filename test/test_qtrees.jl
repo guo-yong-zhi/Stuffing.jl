@@ -82,7 +82,7 @@ testqtree = Stuffing.testqtree
         union!(updated, [3, 7]) #other updated labels
     end
     colabels = Set(1:length(qts));
-    updated = Set(1:length(qts));
+    updated = Set{Int}();
     spqtree = linked_spacial_qtree(qts);
     for i in 1:10
         C1 = dynamiccollisions(qts, spqtree, colabels; updated=updated);
@@ -93,7 +93,6 @@ testqtree = Stuffing.testqtree
         Stuffing.Trainer.batchsteps!(qts, C1)
         QTrees.shift!(qts[3], 1, -1, -1)
         QTrees.shift!(qts[7], 1, 1, 1)
-        union!(updated, [3, 7]) #other updated labels
         union!(colabels, [3, 7]) #other updated labels
     end
     colliders = DynamicColliders(qts);
