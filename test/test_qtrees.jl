@@ -81,11 +81,11 @@ testqtree = Stuffing.testqtree
         QTrees.shift!(qts[7], 1, -1, -1)
         union!(updated, [3, 7]) #other updated labels
     end
-    updated = QTrees.UpdatedSet(length(qts));
+    colabels = Set(1:length(qts));
+    updated = Set(1:length(qts));
     spqtree = linked_spacial_qtree(qts);
     for i in 1:10
-        C1 = dynamiccollisions(qts, spqtree, updated);
-        union!(updated, first.(C1) |> Iterators.flatten) #all collided labels
+        C1 = dynamiccollisions(qts, spqtree, colabels; updated=updated);
         C2 = QTrees.totalcollisions_native(qts);
         C3 = QTrees.totalcollisions(qts); 
         @test length(C1) == length(C2) || length(C1) == length(C3)
@@ -94,6 +94,7 @@ testqtree = Stuffing.testqtree
         QTrees.shift!(qts[3], 1, -1, -1)
         QTrees.shift!(qts[7], 1, 1, 1)
         union!(updated, [3, 7]) #other updated labels
+        union!(colabels, [3, 7]) #other updated labels
     end
     colliders = DynamicColliders(qts);
     for i in 1:10
@@ -108,7 +109,7 @@ testqtree = Stuffing.testqtree
         begin #other moved labels
             QTrees.shift!(qts[3], 1, -1, -1)
             QTrees.shift!(qts[7], 1, 1, 1)
-            union!(colliders.updated, [3, 7]) #other updated labels
+            union!(colliders, [3, 7]) #other updated labels
         end
     end
     #edge cases

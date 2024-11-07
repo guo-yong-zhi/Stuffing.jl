@@ -177,13 +177,13 @@ function locate!(qt::AbstractStackedQTree, spqtree::Union{HashSpacialQTree, Link
     push!(spqtree, inds, label)
     nothing
 end
-function locate!(qts::AbstractVector, spqtree=hash_spacial_qtree(qts))
+function locate!(qts::AbstractVector, spqtree::Union{HashSpacialQTree, LinkedSpacialQTree}=hash_spacial_qtree(qts))
     for (i, qt) in enumerate(qts)
         locate!(qt, spqtree, i)
     end
     spqtree
 end
-function locate!(qts::AbstractVector, labels::Union{AbstractVector{Int},AbstractSet{Int}}, spqtree=hash_spacial_qtree(qts))
+function locate!(qts::AbstractVector, labels, spqtree=hash_spacial_qtree(qts))
     for l in labels
         locate!(qts[l], spqtree, l)
     end
@@ -313,51 +313,60 @@ function partialcollisions(qtrees::AbstractVector,
             end
         end
     end
-    empty!(labels)
     # @show length(itemlist), length(colist)
     r = _totalcollisions_native(qtrees, itemlist; colist=colist, kargs...)
     unique ? unique!(first, sort!(r)) : r
 end
-mutable struct UpdatedSet{T} <: AbstractSet{T}
-    updatelen::Int
-    maxlen::Int
-    set::Set{T}
-end
-UpdatedSet(maxlen::Int) = UpdatedSet(maxlen, maxlen, Set{Int}(1:maxlen))
-UpdatedSet(labels, maxlen::Int=length(labels)) = UpdatedSet(length(labels), maxlen, Set{Int}(labels))
-function Base.union!(s::UpdatedSet, c)
-    s.updatelen = length(c)
-    length(s.set) == s.maxlen ? s : union!(s.set, c)
-end
-Base.empty!(s::UpdatedSet) = empty!(s.set)
-Base.length(s::UpdatedSet) = length(s.set)
-Base.iterate(s::UpdatedSet, args...) = iterate(s.set, args...)
-Base.in(item, s::UpdatedSet) = in(item, s.set)
-Base.in(s::UpdatedSet) = in(s.set)
+# mutable struct UpdatedSet{T} <: AbstractSet{T}
+#     updatelen::Int
+#     maxlen::Int
+#     set::Set{T}
+# end
+# UpdatedSet(maxlen::Int) = UpdatedSet(maxlen, maxlen, Set{Int}(1:maxlen))
+# UpdatedSet(labels, maxlen::Int=length(labels)) = UpdatedSet(length(labels), maxlen, Set{Int}(labels))
+# function Base.union!(s::UpdatedSet, c)
+#     s.updatelen = length(c)
+#     length(s.set) == s.maxlen ? s : union!(s.set, c)
+# end
+# Base.empty!(s::UpdatedSet) = empty!(s.set)
+# Base.length(s::UpdatedSet) = length(s.set)
+# Base.iterate(s::UpdatedSet, args...) = iterate(s.set, args...)
+# Base.in(item, s::UpdatedSet) = in(item, s.set)
+# Base.in(s::UpdatedSet) = in(s.set)
 function totalcollisions_kw(qtrees; sptqree2=hash_spacial_qtree(qtrees), 
     spqtree=nothing, treenodestack=nothing, kargs...)
     totalcollisions(qtrees; spqtree=sptqree2, kargs...)
 end
-partialcollisions_kw(qtrees, spqtree, updated; sptqree2=nothing, pairlist=nothing, kargs...) = partialcollisions(qtrees, spqtree, updated; kargs...)
+partialcollisions_kw(qtrees, spqtree, labels; sptqree2=nothing, pairlist=nothing, kargs...) = partialcollisions(qtrees, spqtree, labels; kargs...)
 function dynamiccollisions(qtrees::AbstractVector,
     spqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
-    updated::UpdatedSet{Int}=UpdatedSet(1:length(qtrees));
+    labels::AbstractSet{Int}=Set(1:length(qtrees));
+    updated::AbstractSet{Int}=Set(1:length(qtrees)),
     kargs...)
-    if updated.updatelen / updated.maxlen > 0.6
-        return totalcollisions_kw(qtrees; kargs...)
+    if length(labels) / length(qtrees) > 0.6
+        r = totalcollisions_kw(qtrees; kargs...)
     else
-        return partialcollisions_kw(qtrees, spqtree, updated; kargs...)
+        locate!(qtrees, (i for i in updated if i ∉ labels), spqtree)
+        empty!(updated)
+        r = partialcollisions_kw(qtrees, spqtree, labels; kargs...)
     end
+    empty!(labels)
+    union!(labels, first.(r) |> Iterators.flatten)
+    r
 end
 struct DynamicColliders
     qtrees::Vector{U8SQTree}
     spqtree::LinkedSpacialQTree
-    updated::UpdatedSet
+    colabels::Set{Int}
+    updated::Set{Int}
 end
-DynamicColliders(qtrees::AbstractVector{U8SQTree}) = DynamicColliders(qtrees, linked_spacial_qtree(qtrees), UpdatedSet(length(qtrees)))
+function Base.union!(dc::DynamicColliders, c)
+    union!(dc.colabels, c)
+    union!(dc.updated, c)
+end
+DynamicColliders(qtrees::AbstractVector{U8SQTree}) = DynamicColliders(qtrees, linked_spacial_qtree(qtrees), Set(1:length(qtrees)), Set(1:length(qtrees)))
 function dynamiccollisions(colliders::DynamicColliders; kargs...)
-    r = dynamiccollisions(colliders.qtrees, colliders.spqtree, colliders.updated; kargs...)
-    union!(colliders.updated, first.(r) |> Iterators.flatten)
+    r = dynamiccollisions(colliders.qtrees, colliders.spqtree, colliders.colabels; updated=colliders.updated, kargs...)
     r
 end
 ########## place!
