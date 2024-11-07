@@ -265,16 +265,16 @@ function totalcollisions(args...; kargs...)
     end
 end
 function partialcollisions(qtrees::AbstractVector,
-    spqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
+    linkedspqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
     labels::AbstractSet{Int}=Set(1:length(qtrees)); 
     colist=Vector{CoItem}(), itemlist::AbstractVector{CoItem}=Vector{CoItem}(),
     treenodestack = Vector{SpacialQTreeNode}(),
     unique=true, kargs...)
     empty!(itemlist)
-    locate!(qtrees, labels, spqtree) #需要将labels中的label移动到链表首
+    locate!(qtrees, labels, linkedspqtree) #需要将labels中的label移动到链表首
     for label in labels
         # @show label
-        for listnode in spacial_indexesof(spqtree, label)
+        for listnode in spacial_indexesof(linkedspqtree, label)
             # 更prev的node都是move过的，在其向后遍历时会加入与当前node的pair，故不需要向前遍历
             # 但要保证更prev的node在`labels`中
             treenode = seek_treenode(listnode)
@@ -284,7 +284,7 @@ function partialcollisions(qtrees::AbstractVector,
             while !isroot(tn)
                 tn = tn.parent #root不是哨兵，值需要遍历
                 if !isemptylabels(tn)
-                    plbs = Iterators.filter(!in(labels), labelsof(tn)) #moved了的plb不加入，等候其向下遍历时加，避免重复
+                    plbs = Iterators.filter(!in(labels), labelsof(tn)) #move了的plb不加入，等候其向下遍历时加，避免重复
                     collisions_boundsfilter(qtrees, spindex, label, plbs, itemlist, colist)
                 end
             end
@@ -309,7 +309,7 @@ function partialcollisions(qtrees::AbstractVector,
                         # @show itemlist
                     end
                 end
-                emptyflag && remove_tree_node(spqtree, tn)
+                emptyflag && remove_tree_node(linkedspqtree, tn)
             end
         end
     end
@@ -333,40 +333,43 @@ end
 # Base.iterate(s::UpdatedSet, args...) = iterate(s.set, args...)
 # Base.in(item, s::UpdatedSet) = in(item, s.set)
 # Base.in(s::UpdatedSet) = in(s.set)
-function totalcollisions_kw(qtrees; sptqree2=hash_spacial_qtree(qtrees), 
-    spqtree=nothing, treenodestack=nothing, kargs...)
-    totalcollisions(qtrees; spqtree=sptqree2, kargs...)
+function totalcollisions_kw(args...; 
+    linkedspqtree=nothing, treenodestack=nothing, kargs...)
+    totalcollisions(args...; kargs...)
 end
-partialcollisions_kw(qtrees, spqtree, labels; sptqree2=nothing, pairlist=nothing, kargs...) = partialcollisions(qtrees, spqtree, labels; kargs...)
+function partialcollisions_kw(args...; 
+    spqtree=nothing, pairlist=nothing, kargs...)
+    partialcollisions(args...; kargs...)
+end
 function dynamiccollisions(qtrees::AbstractVector,
-    spqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
-    labels::AbstractSet{Int}=Set(1:length(qtrees));
-    updated::AbstractSet{Int},
+    linkedspqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
+    moved::AbstractSet{Int}=Set(1:length(qtrees));
+    unlocated::AbstractSet{Int},
     kargs...)
-    if length(labels) / length(qtrees) > 0.6
+    if length(moved) / length(qtrees) > 0.6
         r = totalcollisions_kw(qtrees; kargs...)
-        union!(updated, labels)
+        union!(unlocated, moved)
     else
-        locate!(qtrees, (i for i in updated if i ∉ labels), spqtree)
-        empty!(updated)
-        r = partialcollisions_kw(qtrees, spqtree, labels; kargs...)
+        locate!(qtrees, (i for i in unlocated if i ∉ moved), linkedspqtree)
+        empty!(unlocated)
+        r = partialcollisions_kw(qtrees, linkedspqtree, moved; kargs...)
     end
-    empty!(labels)
-    union!(labels, first.(r) |> Iterators.flatten)
+    empty!(moved)
+    union!(moved, first.(r) |> Iterators.flatten)
     r
 end
 struct DynamicColliders
     qtrees::Vector{U8SQTree}
     spqtree::LinkedSpacialQTree
-    colabels::Set{Int}
-    updated::Set{Int}
+    moved::Set{Int}
+    unlocated::Set{Int}
 end
 function Base.union!(dc::DynamicColliders, c)
-    union!(dc.colabels, c)
+    union!(dc.moved, c)
 end
 DynamicColliders(qtrees::AbstractVector{U8SQTree}) = DynamicColliders(qtrees, linked_spacial_qtree(qtrees), Set(1:length(qtrees)), Set{Int}())
 function dynamiccollisions(colliders::DynamicColliders; kargs...)
-    r = dynamiccollisions(colliders.qtrees, colliders.spqtree, colliders.colabels; updated=colliders.updated, kargs...)
+    r = dynamiccollisions(colliders.qtrees, colliders.spqtree, colliders.moved; unlocated=colliders.unlocated, kargs...)
     r
 end
 ########## place!

@@ -16,9 +16,9 @@ for i in 1:10
     C1 = dynamiccollisions(colliders);
     test_collision_results(C1, qts)
     Stuffing.Trainer.batchsteps!(qts, C1) #move objects in C1
-    begin #other moved labels
+    begin #other moved objects
         QTrees.shift!(qts[3], 1, -1, -1)
         QTrees.shift!(qts[7], 1, 1, 1)
-        union!(colliders, [3, 7]) #other updated labels
+        union!(colliders, [3, 7]) #other moved objects
     end
 end
