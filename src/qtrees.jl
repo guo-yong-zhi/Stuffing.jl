@@ -386,7 +386,7 @@ function Base.empty!(t::AbstractSpacialQTree, label::Int) end
 function tree(t::AbstractSpacialQTree) end
 Base.iterate(t::AbstractSpacialQTree, args...) = iterate(tree(t), args...)
 Base.get(t::AbstractSpacialQTree, args...) = get(tree(t), args...)
-Base.getindex(t::AbstractSpacialQTree, args...) = getindex(tree(t), args...)
+Base.@propagate_inbounds Base.getindex(t::AbstractSpacialQTree, args...) = getindex(tree(t), args...)
 Base.keys(t::AbstractSpacialQTree) = keys(tree(t))
 Base.values(t::AbstractSpacialQTree) = values(tree(t))
 Base.haskey(t::AbstractSpacialQTree, args...) = haskey(tree(t), args...)
