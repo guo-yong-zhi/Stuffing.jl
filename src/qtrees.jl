@@ -408,7 +408,7 @@ tree(t::HashSpacialQTree) = t.qtree
 ################ LinkedSpacialQTree
 mutable struct LabelList
     index::Index
-    list::DoubleList{Int}
+    list::DoublyLinkedList{ListNode{Int}}
     function LabelList(index::Index)
         l = new()
         l.index = index
@@ -420,18 +420,18 @@ const SpacialQTreeNode = QTreeNode{LabelList}
 new_spacial_qtree_node(index::Index) = QTreeNode(LabelList(index))
 new_spacial_qtree_node() = QTreeNode(LabelList())
 function new_labellist(node::QTreeNode)
-    dl = DoubleList{Int}(Int(pointer_from_objref(node)))
+    dl = DoublyLinkedList{ListNode{Int}}(Int(pointer_from_objref(node)))
     # @assert node == seek_treenode(dl.tail)
     node.value.list = dl
 end
 struct LinkedSpacialQTree
     qtree::SpacialQTreeNode
     map::IntMap{Vector{Vector{ListNode{Int}}}}
-    listnode_cache::DoubleList{Int}
+    listnode_cache::DoublyLinkedList{ListNode{Int}}
     treenode_cache::Vector{SpacialQTreeNode}
 end
-LinkedSpacialQTree(index::Index, map) = LinkedSpacialQTree(new_spacial_qtree_node(index), map, DoubleList{Int}(), Vector{SpacialQTreeNode}())
-LinkedSpacialQTree(map) = LinkedSpacialQTree(new_spacial_qtree_node(), map, DoubleList{Int}(), Vector{SpacialQTreeNode}())
+LinkedSpacialQTree(index::Index, map) = LinkedSpacialQTree(new_spacial_qtree_node(index), map, DoublyLinkedList{ListNode{Int}}(), Vector{SpacialQTreeNode}())
+LinkedSpacialQTree(map) = LinkedSpacialQTree(new_spacial_qtree_node(), map, DoublyLinkedList{ListNode{Int}}(), Vector{SpacialQTreeNode}())
 tree(t::LinkedSpacialQTree) = t.qtree
 spacial_index(n::QTreeNode) = n.value.index
 labelsof(n::QTreeNode) = n.value.list

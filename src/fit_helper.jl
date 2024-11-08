@@ -77,12 +77,12 @@ function intlog2(x::Float64) # not safe, x>0 and x can't be nan or inf
     (b64 >> 52 - 1023) # 符号位:1-2S (1->-1、0->1)，指数位 - 1023
 end
 
-struct LRU{T,MAPTYPE}
-    list::DoubleList{T}
+struct LRU{T, MAPTYPE}
+    list::DoublyLinkedList{ListNode{T}}
     map::MAPTYPE
 end
-LRU{T}() where T = LRU{T,Dict}(DoubleList{T}(), Dict())
-LRU{T}(map::U) where {T,U} = LRU{T,U}(DoubleList{T}(), map)
+LRU{T}() where T = LRU{T,Dict}(DoublyLinkedList{ListNode{T}}(), Dict())
+LRU{T}(map::U) where {T,U} = LRU{T,U}(DoublyLinkedList{ListNode{T}}(), map)
 
 function Base.push!(lru::LRU, v)
     if haskey(lru.map, v)

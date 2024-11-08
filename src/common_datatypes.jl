@@ -1,5 +1,5 @@
 module CommonDatatypes
-export DoubleList, ListNode, IntMap, SVector4, IntSet, movetofirst!, next, prev, value, setvalue!, ishead, istail, seek_head, seek_tail
+export DoublyLinkedList, ListNode, IntMap, SVector4, IntSet, movetofirst!, next, prev, value, setvalue!, ishead, istail, seek_head, seek_tail
 mutable struct ListNode{T}
     value::T
     prev::ListNode{T}
@@ -20,6 +20,8 @@ ListNode(value::T) where T = ListNode{T}(value)
 next(n::ListNode) = n.next
 prev(n::ListNode) = n.prev
 value(n::ListNode) = n.value
+setnext!(n::ListNode, nn) = n.next = nn
+setprev!(n::ListNode, nn) = n.prev = nn
 setvalue!(n::ListNode, v) = n.value = v
 ishead(n::ListNode) = prev(n) === n
 istail(n::ListNode) = next(n) === n
@@ -46,52 +48,51 @@ function Base.pop!(n::ListNode)
     n
 end
 
-mutable struct DoubleList{T}
-    head::ListNode{T}
-    # tail::ListNode{T}
+mutable struct DoublyLinkedList{T}
+    head::T
 end
-function DoubleList{T}() where T
-    h = ListNode{T}()
-    t = ListNode{T}()
-    h.next = t
-    t.prev = h
-    DoubleList(h)
+function DoublyLinkedList{T}() where T
+    h = T()
+    t = T()
+    setnext!(h, t)
+    setprev!(t, h)
+    DoublyLinkedList(h)
 end
-function DoubleList{T}(hv::T, tv::T) where T
-    l = DoubleList{T}()
-    l.head.value = hv
-    l.head.next.value = tv
+function DoublyLinkedList{T}(hv, tv) where T
+    l = DoublyLinkedList{T}()
+    setvalue!(l|>head, hv)
+    setvalue!(l|>head|>next, tv)
     l
 end
-function DoubleList{T}(hv::T) where T
-    l = DoubleList{T}()
-    l.head.value = hv
+function DoublyLinkedList{T}(hv) where T
+    l = DoublyLinkedList{T}()
+    setvalue!(l|>head, hv)
     l
 end
-head(l::DoubleList) = l.head
-Base.isempty(l::DoubleList) = istail(next(head(l)))
-function Base.pushfirst!(l::DoubleList, n::ListNode)
+head(l::DoublyLinkedList) = l.head
+Base.isempty(l::DoublyLinkedList) = istail(next(head(l)))
+function Base.pushfirst!(l::DoublyLinkedList, n)
     h = head(l)
     hn = next(h)
-    n.next = hn
-    n.prev = h
-    h.next = n
-    hn.prev = n
+    setnext!(n, hn)
+    setprev!(n, h)
+    setnext!(h, n)
+    setprev!(hn, n)
     n
 end
 
-Base.pop!(l::DoubleList, n::ListNode) = pop!(n)
-Base.popfirst!(l::DoubleList) = (@assert !isempty(l); pop!(next(head(l))))
+Base.pop!(l::DoublyLinkedList, n) = pop!(n)
+Base.popfirst!(l::DoublyLinkedList) = (@assert !isempty(l); pop!(next(head(l))))
 
-function movetofirst!(l::DoubleList, n::ListNode)
+function movetofirst!(l::DoublyLinkedList, n)
     pop!(l, n)
     pushfirst!(l, n)
 end
-Base.iterate(l::DoubleList, args...) = iterate(next(head(l)), args...)
-Base.IteratorSize(::Type{<:DoubleList}) = Base.SizeUnknown()
-Base.eltype(::Type{DoubleList{T}}) where T = T
+Base.iterate(l::DoublyLinkedList, args...) = iterate(next(head(l)), args...)
+Base.IteratorSize(::Type{<:DoublyLinkedList}) = Base.SizeUnknown()
+Base.eltype(::Type{DoublyLinkedList{T}}) where T = eltype(T)
 
-function collect!(l::DoubleList, collection)
+function collect!(l::DoublyLinkedList, collection)
     p = next(head(l))
     while !istail(p)
         push!(collection, value(p))
@@ -100,7 +101,7 @@ function collect!(l::DoubleList, collection)
     # @assert p === l.tail
     collection
 end
-function collect!(l::DoubleList, collection, firstn)
+function collect!(l::DoublyLinkedList, collection, firstn)
     p = next(head(l))
     for i in 1:firstn
         if istail(p)
@@ -112,7 +113,7 @@ function collect!(l::DoubleList, collection, firstn)
     end
     collection
 end
-function collect!(filter, l::DoubleList, collection)
+function collect!(filter, l::DoublyLinkedList, collection)
     p = next(head(l))
     while !istail(p)
         v = value(p)
@@ -122,7 +123,7 @@ function collect!(filter, l::DoubleList, collection)
     # @assert p === l.tail
     collection
 end
-function collect!(filter, l::DoubleList, collection, firstn)
+function collect!(filter, l::DoublyLinkedList, collection, firstn)
     p = next(head(l))
     for i in 1:firstn
         if istail(p)
@@ -135,8 +136,8 @@ function collect!(filter, l::DoubleList, collection, firstn)
     end
     collection
 end
-Base.collect(l::DoubleList{T}, args...) where T = collect!(l, Vector{T}(), args...)
-Base.collect(filter, l::DoubleList{T}, args...) where T = collect!(filter, l, Vector{T}(), args...)
+Base.collect(l::DoublyLinkedList, args...) where T = collect!(l, Vector{eltype(l)}(), args...)
+Base.collect(filter, l::DoublyLinkedList, args...) where T = collect!(filter, l, Vector{eltype(l)}(), args...)
 
 struct IntMap{T}
     map::T
