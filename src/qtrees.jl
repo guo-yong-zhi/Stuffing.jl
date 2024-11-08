@@ -348,24 +348,25 @@ mutable struct QTreeNode{T}
     end
     QTreeNode{T}(v, p, c) where T = new{T}(v, p, c)
 end
-
+function QTreeNode{T}(value::T) where T
+    n = QTreeNode{T}()
+    n.value = value
+    n
+end
+function QTreeNode{T}(parent::QTreeNode{T}) where T
+    n = QTreeNode{T}()
+    n.parent = parent
+    n
+end
+function QTreeNode{T}(parent::QTreeNode{T}, value::T) where T
+    n = QTreeNode{T}()
+    n.parent = parent
+    n.value = value
+    n
+end
+QTreeNode(value::T) where T = QTreeNode{T}(value)
 QTreeNode(value::T, parent, children) where T = QTreeNode{T}(value, parent, children)
-function QTreeNode(value::T) where T
-    n = QTreeNode{T}()
-    n.value = value
-    n
-end
-function QTreeNode(parent::QTreeNode{T}) where T
-    n = QTreeNode{T}()
-    n.parent = parent
-    n
-end
-function QTreeNode(parent::QTreeNode{T}, value::T) where T
-    n = QTreeNode{T}()
-    n.parent = parent
-    n.value = value
-    n
-end
+QTreeNode(parent::QTreeNode{T}, args...) where T = QTreeNode{T}(parent, args...)
 isroot(n::QTreeNode) = n === n.parent
 isemptychild(n::QTreeNode, c::QTreeNode) = n === c
 function Base.iterate(n::QTreeNode, Q=[n])
@@ -377,6 +378,8 @@ function Base.iterate(n::QTreeNode, Q=[n])
     return n, Q
 end
 Base.eltype(::Type{QTreeNode{T}}) where T = QTreeNode{T}
+CommonDatatypes.next(n::QTreeNode) = n.parent # use as a linked list node
+CommonDatatypes.setnext!(n::QTreeNode, next::QTreeNode) = n.parent = next
 
 ################ HashSpacialQTree
 abstract type AbstractSpacialQTree end
@@ -427,11 +430,11 @@ end
 struct LinkedSpacialQTree
     qtree::SpacialQTreeNode
     map::IntMap{Vector{Vector{ListNode{Int}}}}
-    listnode_cache::DoublyLinkedList{ListNode{Int}}
-    treenode_cache::Vector{SpacialQTreeNode}
+    listnode_pool::LinkedList{ListNode{Int}}
+    treenode_pool::LinkedList{SpacialQTreeNode}
 end
-LinkedSpacialQTree(index::Index, map) = LinkedSpacialQTree(new_spacial_qtree_node(index), map, DoublyLinkedList{ListNode{Int}}(), Vector{SpacialQTreeNode}())
-LinkedSpacialQTree(map) = LinkedSpacialQTree(new_spacial_qtree_node(), map, DoublyLinkedList{ListNode{Int}}(), Vector{SpacialQTreeNode}())
+LinkedSpacialQTree(index::Index, map) = LinkedSpacialQTree(new_spacial_qtree_node(index), map, LinkedList{ListNode{Int}}(), LinkedList{SpacialQTreeNode}())
+LinkedSpacialQTree(map) = LinkedSpacialQTree(new_spacial_qtree_node(), map, LinkedList{ListNode{Int}}(), LinkedList{SpacialQTreeNode}())
 tree(t::LinkedSpacialQTree) = t.qtree
 spacial_index(n::QTreeNode) = n.value.index
 labelsof(n::QTreeNode) = n.value.list
@@ -441,7 +444,7 @@ function spacial_indexesof(t::LinkedSpacialQTree, label)
     haskey(m, label) ? m[label] : Vector{ListNode{Int}}()
 end
 function new_listnode_for_push(t::LinkedSpacialQTree, value::Int)
-    cache = t.listnode_cache
+    cache = t.listnode_pool
     if isempty(cache)
         return newnode(cache, value)
     else
@@ -451,13 +454,13 @@ function new_listnode_for_push(t::LinkedSpacialQTree, value::Int)
     end
 end
 function new_spacial_qtree_node(t::LinkedSpacialQTree, parent::SpacialQTreeNode, index::Index)
-    cache = t.treenode_cache
+    cache = t.treenode_pool
     if isempty(cache)
         # @show index
-        return QTreeNode(parent, LabelList(index))
+        return newnode(cache, parent, LabelList(index))
     else
         # @show length(cache)
-        n = pop!(cache)
+        n = popfirst!(cache)
         # @assert n.children == [n,n,n,n]
         n.parent = parent
         n.value.index = index
@@ -465,11 +468,11 @@ function new_spacial_qtree_node(t::LinkedSpacialQTree, parent::SpacialQTreeNode,
     end
 end
 function remove_tree_node(t::LinkedSpacialQTree, node::SpacialQTreeNode)
-    push!(t.treenode_cache, node)
     p = node.parent
     ind = spacial_index(node)
     # @show ind
     p.children[childnumber(ind)+1] = p
+    pushfirst!(t.treenode_pool, node)
 end
 function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
     # @show ind, label
@@ -516,7 +519,7 @@ function Base.empty!(t::LinkedSpacialQTree, label)
     if haskey(t.map, label) && !isempty(t.map[label])
         nodes = t.map[label]
         for n in nodes
-            pushfirst!(t.listnode_cache, pop!(n))
+            pushfirst!(t.listnode_pool, pop!(n))
         end
         empty!(t.map[label])
     end
