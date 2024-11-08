@@ -171,10 +171,10 @@ Base.eltype(::Type{SVector4{T}}) where T = T
 
 mutable struct IntSet <: AbstractSet{Int}
     list::Vector{Int}
-    slots::Vector{Bool} # todo: use Memory type
+    slots::BitVector
 end
-IntSet(len::Integer, ::Val{:empty}) = IntSet(Vector{Int}(), zeros(Bool, len))
-IntSet(len::Integer, ::Val{:full}) = IntSet(Vector{Int}(1:len), ones(Bool, len))
+IntSet(len::Integer, ::Val{:empty}) = IntSet(Vector{Int}(), falses(len))
+IntSet(len::Integer, ::Val{:full}) = IntSet(Vector{Int}(1:len), trues(len))
 IntSet(len::Integer) = IntSet(len, Val(:empty))
 function Base.push!(s::IntSet, x::Int)
     s.slots[x] || (push!(s.list, x); s.slots[x] = true)
