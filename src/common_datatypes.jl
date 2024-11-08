@@ -1,5 +1,5 @@
 module CommonDatatypes
-export DoubleList, ListNode, IntMap, SVector4, movetofirst!, next, prev, value, setvalue!, ishead, istail, seek_head, seek_tail
+export DoubleList, ListNode, IntMap, SVector4, IntSet, movetofirst!, next, prev, value, setvalue!, ishead, istail, seek_head, seek_tail
 mutable struct ListNode{T}
     value::T
     prev::ListNode{T}
@@ -169,5 +169,25 @@ Base.length(v::SVector4) = v.len
 Base.iterate(v::SVector4, i=1) = i <= length(v) ? (v[i], i+1) : nothing
 Base.eltype(::Type{SVector4{T}}) where T = T
 
+mutable struct IntSet <: AbstractSet{Int}
+    list::Vector{Int}
+    slots::Vector{Bool} # todo: use Memory type
+end
+IntSet(len::Integer, ::Val{:empty}) = IntSet(Vector{Int}(), zeros(Bool, len))
+IntSet(len::Integer, ::Val{:full}) = IntSet(Vector{Int}(1:len), ones(Bool, len))
+IntSet(len::Integer) = IntSet(len, Val(:empty))
+function Base.push!(s::IntSet, x::Int)
+    s.slots[x] || (push!(s.list, x); s.slots[x] = true)
+    s
+end
+function Base.empty!(s::IntSet)
+    empty!(s.list)
+    fill!(s.slots, false)
+    s
+end
+# pop! is not allowed
+Base.iterate(s::IntSet, args...) = iterate(s.list, args...)
+Base.length(s::IntSet) = length(s.list)
+Base.in(x::Int, s::IntSet) = s.slots[x]
 
 end

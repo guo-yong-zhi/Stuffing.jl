@@ -266,7 +266,7 @@ function totalcollisions(args...; kargs...)
 end
 function partialcollisions(qtrees::AbstractVector,
     linkedspqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
-    labels::AbstractSet{Int}=Set(1:length(qtrees)); 
+    labels::AbstractSet{Int}=IntSet(length(qtrees), Val(:full)); 
     colist=Vector{CoItem}(), itemlist::AbstractVector{CoItem}=Vector{CoItem}(),
     treenodestack = Vector{SpacialQTreeNode}(),
     unique=true, kargs...)
@@ -317,22 +317,7 @@ function partialcollisions(qtrees::AbstractVector,
     r = _totalcollisions_native(qtrees, itemlist; colist=colist, kargs...)
     unique ? unique!(first, sort!(r)) : r
 end
-# mutable struct UpdatedSet{T} <: AbstractSet{T}
-#     updatelen::Int
-#     maxlen::Int
-#     set::Set{T}
-# end
-# UpdatedSet(maxlen::Int) = UpdatedSet(maxlen, maxlen, Set{Int}(1:maxlen))
-# UpdatedSet(labels, maxlen::Int=length(labels)) = UpdatedSet(length(labels), maxlen, Set{Int}(labels))
-# function Base.union!(s::UpdatedSet, c)
-#     s.updatelen = length(c)
-#     length(s.set) == s.maxlen ? s : union!(s.set, c)
-# end
-# Base.empty!(s::UpdatedSet) = empty!(s.set)
-# Base.length(s::UpdatedSet) = length(s.set)
-# Base.iterate(s::UpdatedSet, args...) = iterate(s.set, args...)
-# Base.in(item, s::UpdatedSet) = in(item, s.set)
-# Base.in(s::UpdatedSet) = in(s.set)
+
 function totalcollisions_kw(args...; 
     linkedspqtree=nothing, treenodestack=nothing, kargs...)
     totalcollisions(args...; kargs...)
@@ -343,7 +328,7 @@ function partialcollisions_kw(args...;
 end
 function dynamiccollisions(qtrees::AbstractVector,
     linkedspqtree::LinkedSpacialQTree=linked_spacial_qtree(qtrees), 
-    moved::AbstractSet{Int}=Set(1:length(qtrees));
+    moved::AbstractSet{Int}=IntSet(length(qtrees), Val(:full));
     unlocated::AbstractSet{Int},
     kargs...)
     if length(moved) / length(qtrees) > 0.6
@@ -361,13 +346,13 @@ end
 struct DynamicColliders
     qtrees::Vector{U8SQTree}
     spqtree::LinkedSpacialQTree
-    moved::Set{Int}
-    unlocated::Set{Int}
+    moved::IntSet
+    unlocated::IntSet
 end
 function Base.union!(dc::DynamicColliders, c)
     union!(dc.moved, c)
 end
-DynamicColliders(qtrees::AbstractVector{U8SQTree}) = DynamicColliders(qtrees, linked_spacial_qtree(qtrees), Set(1:length(qtrees)), Set{Int}())
+DynamicColliders(qtrees::AbstractVector{U8SQTree}) = DynamicColliders(qtrees, linked_spacial_qtree(qtrees), IntSet(length(qtrees), Val(:full)), IntSet(length(qtrees)))
 function dynamiccollisions(colliders::DynamicColliders; kargs...)
     r = dynamiccollisions(colliders.qtrees, colliders.spqtree, colliders.moved; unlocated=colliders.unlocated, kargs...)
     r

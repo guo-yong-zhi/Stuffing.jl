@@ -75,15 +75,15 @@ function batchsteps!(qtrees, colist::Vector{QTrees.CoItem}, optimiser=(t, Δ) ->
 end
 
 "element-wise trainer"
-trainepoch_E!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
+trainepoch_E!(;qtrees) = Dict(:colist => Vector{QTrees.CoItem}(), 
                             :queue => QTrees.thread_queue(),
                             :itemlist => Vector{QTrees.CoItem}(),
                             :pairlist => Vector{Tuple{Int, Int}}(),
-                            :moved => Set{Int}(),
-                            :spqtree => QTrees.hash_spacial_qtree(inputs))
+                            :moved => IntSet(length(qtrees)),
+                            :spqtree => QTrees.hash_spacial_qtree(qtrees))
 trainepoch_E!(s::Symbol) = get(Dict(:patience => 20, :epochs => 2000), s, nothing)
 function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), moved=Set{Int}(), kargs...)
+    colist=Vector{QTrees.CoItem}(), moved=IntSet(length(qtrees)), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
     nc = length(colist)
     if nc == 0 return nc end
@@ -99,16 +99,16 @@ function trainepoch_E!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ)
 end
 
 "element-wise trainer with LRU"
-trainepoch_EM!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
+trainepoch_EM!(;qtrees) = Dict(:colist => Vector{QTrees.CoItem}(), 
                             :queue => QTrees.thread_queue(), 
-                            :memory => intlru(length(inputs)),
+                            :memory => intlru(length(qtrees)),
                             :itemlist => Vector{QTrees.CoItem}(),
                             :pairlist => Vector{Tuple{Int, Int}}(),
-                            :moved => Set{Int}(),
-                            :spqtree => QTrees.hash_spacial_qtree(inputs))
+                            :moved => IntSet(length(qtrees)),
+                            :spqtree => QTrees.hash_spacial_qtree(qtrees))
 trainepoch_EM!(s::Symbol) = get(Dict(:patience => 10, :epochs => 1000), s, nothing)
 function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), moved=Set{Int}(), kargs...)
+    colist=Vector{QTrees.CoItem}(), moved=IntSet(length(qtrees)), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
     nc = length(colist)
     if nc == 0 return nc end
@@ -132,10 +132,10 @@ function trainepoch_EM!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimise
     nc
 end
 "element-wise trainer with LRU(more levels)"
-trainepoch_EM2!(;inputs) = trainepoch_EM!(;inputs=inputs)
+trainepoch_EM2!(;qtrees) = trainepoch_EM!(;qtrees=qtrees)
 trainepoch_EM2!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), moved=Set{Int}(), kargs...)
+    colist=Vector{QTrees.CoItem}(), moved=IntSet(length(qtrees)), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
     nc = length(colist)
     if nc == 0 return nc end
@@ -168,10 +168,10 @@ function trainepoch_EM2!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimis
 end
 
 "element-wise trainer with LRU(more-more levels)"
-trainepoch_EM3!(;inputs) = trainepoch_EM!(;inputs=inputs)
+trainepoch_EM3!(;qtrees) = trainepoch_EM!(;qtrees=qtrees)
 trainepoch_EM3!(s::Symbol) = trainepoch_EM!(s)
 function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimiser=(t, Δ) -> Δ ./ 6, 
-    colist=Vector{QTrees.CoItem}(), moved=Set{Int}(), kargs...)
+    colist=Vector{QTrees.CoItem}(), moved=IntSet(length(qtrees)), kargs...)
     totalcollisions(qtrees; colist=empty!(colist), kargs...)
     nc = length(colist)
     if nc == 0 return nc end
@@ -212,13 +212,13 @@ function trainepoch_EM3!(qtrees::AbstractVector{<:ShiftedQTree}; memory, optimis
 end
 
 "dynamic trainer"
-trainepoch_D!(;inputs) = Dict(:colist => Vector{QTrees.CoItem}(), 
+trainepoch_D!(;qtrees) = Dict(:colist => Vector{QTrees.CoItem}(), 
                             :queue => QTrees.thread_queue(),
                             :itemlist => Vector{QTrees.CoItem}(),
                             :pairlist => Vector{Tuple{Int, Int}}(),
-                            :moved => DynamicColliders(inputs),
+                            :moved => DynamicColliders(qtrees),
                             :loops => 10,
-                            :spqtree => QTrees.hash_spacial_qtree(inputs), #fllowing 2 tiems: pre-allocating for dynamiccollisions
+                            :spqtree => QTrees.hash_spacial_qtree(qtrees), #fllowing 2 tiems: pre-allocating for dynamiccollisions
                             :treenodestack => Vector{QTrees.SpacialQTreeNode}())
 trainepoch_D!(s::Symbol) = get(Dict(:patience => 10, :epochs => 2000), s, nothing)
 function trainepoch_D!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ) -> Δ ./ 6, 
@@ -261,7 +261,7 @@ function filttrain!(qtrees, inpool, outpool, nearlevel2; optimiser,
 end
 
 "pairwise trainer"
-trainepoch_P!(;inputs) = Dict(:colist => Vector{Tuple{Int,Int}}(),
+trainepoch_P!(;qtrees) = Dict(:colist => Vector{Tuple{Int,Int}}(),
                             :queue => QTrees.thread_queue(),
                             :nearlist => Vector{Tuple{Int,Int}}())
 trainepoch_P!(s::Symbol) = get(Dict(:patience => 10, :epochs => 100), s, nothing)
@@ -289,7 +289,7 @@ function trainepoch_P!(qtrees::AbstractVector{<:ShiftedQTree}; optimiser=(t, Δ)
 end
 
 "pairwise trainer(more level)"
-trainepoch_P2!(;inputs) = Dict(:colist => Vector{Tuple{Int,Int}}(),
+trainepoch_P2!(;qtrees) = Dict(:colist => Vector{Tuple{Int,Int}}(),
                             :queue => QTrees.thread_queue(),
                             :nearlist1 => Vector{Tuple{Int,Int}}(),
                             :nearlist2 => Vector{Tuple{Int,Int}}())
@@ -343,7 +343,7 @@ function levelpools(qtrees, levels=[-length(qtrees[1]):4:-3..., -1])
     pools
 end
 "pairwise trainer(general levels)"
-trainepoch_Px!(;inputs) = Dict(:levelpools => levelpools(inputs),
+trainepoch_Px!(;qtrees) = Dict(:levelpools => levelpools(qtrees),
                             :queue => QTrees.thread_queue())
 trainepoch_Px!(s::Symbol) = get(Dict(:patience => 10, :epochs => 1000), s, nothing)
 function trainepoch_Px!(qtrees::AbstractVector{<:ShiftedQTree}; 
@@ -448,7 +448,7 @@ end
 function train!(ts, epochs::Number=-1, args...; 
     trainer=trainepoch_EM2!, patience::Number=trainer(:patience), 
     optimiser=Momentum(η=1/4), scheduler=lr->lr*√0.5,
-    callback=x -> x, callback_pre=x -> x, reposition=i -> true, resource=trainer(inputs=ts), kargs...)
+    callback=x -> x, callback_pre=x -> x, reposition=i -> true, resource=trainer(qtrees=ts), kargs...)
     reposition_flag = true
     if reposition isa Function
         from = reposition
