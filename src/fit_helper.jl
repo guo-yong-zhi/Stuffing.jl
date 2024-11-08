@@ -89,9 +89,7 @@ function Base.push!(lru::LRU, v)
         n = lru.map[v]
         movetofirst!(lru.list, n)
     else
-        n = ListNode(v)
-        lru.map[v] = n
-        pushfirst!(lru.list, n)
+        lru.map[v] = pushfirst!(lru.list, v)
     end
     v
 end

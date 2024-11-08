@@ -443,7 +443,7 @@ end
 function new_listnode_for_push(t::LinkedSpacialQTree, value::Int)
     cache = t.listnode_cache
     if isempty(cache)
-        return ListNode(value)
+        return newnode(cache, value)
     else
         n = popfirst!(cache)
         setvalue!(n, value)

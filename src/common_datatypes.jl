@@ -1,5 +1,8 @@
 module CommonDatatypes
-export DoublyLinkedList, ListNode, IntMap, SVector4, IntSet, movetofirst!, next, prev, value, setvalue!, ishead, istail, seek_head, seek_tail
+export ListNode, LinkedList, DoublyLinkedList, IntMap, SVector4, IntSet,
+    newnode, next, prev, value, setnext!, setprev!, setvalue!, ishead, istail, seek_head, seek_tail, movetofirst!
+
+##### ListNode
 mutable struct ListNode{T}
     value::T
     prev::ListNode{T}
@@ -48,15 +51,50 @@ function Base.pop!(n::ListNode)
     n
 end
 
-mutable struct DoublyLinkedList{T}
-    head::T
+##### LinkedList
+mutable struct LinkedList{NodeType}
+    head::NodeType
 end
-function DoublyLinkedList{T}() where T
+function LinkedList{T}() where T
     h = T()
-    t = T()
-    setnext!(h, t)
-    setprev!(t, h)
-    DoublyLinkedList(h)
+    LinkedList(h)
+end
+newnode(l::LinkedList{T}, args...) where T = T(args...)
+head(l::LinkedList) = l.head
+ishead(l::LinkedList, n) = head(l) === n
+Base.isempty(l::LinkedList) = ishead(l, next(head(l))) # doesn't have a tail sentinel
+function Base.pushfirst!(l::LinkedList{T}, n::T) where T
+    h = head(l)
+    setnext!(n, next(h))
+    setnext!(h, n)
+    n
+end
+Base.pushfirst!(l::LinkedList, v) = pushfirst!(l, newnode(l, v))
+function Base.popfirst!(l::LinkedList)
+    @assert !isempty(l)
+    h = head(l)
+    n = next(h)
+    setnext!(h, next(n))
+    n
+end
+Base.IteratorSize(::Type{<:LinkedList}) = Base.SizeUnknown()
+Base.eltype(::Type{LinkedList{T}}) where T = eltype(T)
+function Base.iterate(l::LinkedList, p=next(head(l)))
+    ishead(l, p) ? nothing : (value(p), next(p))
+end
+
+##### DoublyLinkedList
+mutable struct DoublyLinkedList{NodeType}
+    head::NodeType
+    function DoublyLinkedList{T}() where T
+        l = new()
+        h = T()
+        t = T()
+        setnext!(h, t)
+        setprev!(t, h)
+        l.head = h
+        l
+    end
 end
 function DoublyLinkedList{T}(hv, tv) where T
     l = DoublyLinkedList{T}()
@@ -69,9 +107,10 @@ function DoublyLinkedList{T}(hv) where T
     setvalue!(l|>head, hv)
     l
 end
+newnode(l::DoublyLinkedList{T}, args...) where T = T(args...)
 head(l::DoublyLinkedList) = l.head
 Base.isempty(l::DoublyLinkedList) = istail(next(head(l)))
-function Base.pushfirst!(l::DoublyLinkedList, n)
+function Base.pushfirst!(l::DoublyLinkedList{T}, n::T) where T
     h = head(l)
     hn = next(h)
     setnext!(n, hn)
@@ -80,7 +119,7 @@ function Base.pushfirst!(l::DoublyLinkedList, n)
     setprev!(hn, n)
     n
 end
-
+Base.pushfirst!(l::DoublyLinkedList, v) = pushfirst!(l, newnode(l, v))
 Base.pop!(l::DoublyLinkedList, n) = pop!(n)
 Base.popfirst!(l::DoublyLinkedList) = (@assert !isempty(l); pop!(next(head(l))))
 
@@ -136,9 +175,10 @@ function collect!(filter, l::DoublyLinkedList, collection, firstn)
     end
     collection
 end
-Base.collect(l::DoublyLinkedList, args...) where T = collect!(l, Vector{eltype(l)}(), args...)
-Base.collect(filter, l::DoublyLinkedList, args...) where T = collect!(filter, l, Vector{eltype(l)}(), args...)
+Base.collect(l::DoublyLinkedList, args...) = collect!(l, Vector{eltype(l)}(), args...)
+Base.collect(filter, l::DoublyLinkedList, args...) = collect!(filter, l, Vector{eltype(l)}(), args...)
 
+##### IntMap
 struct IntMap{T}
     map::T
 end
@@ -146,6 +186,7 @@ Base.haskey(im::IntMap, key) = isassigned(im.map, key)
 Base.getindex(im::IntMap, ind...) = getindex(im.map, ind...)
 Base.setindex!(im::IntMap, v, ind...) = setindex!(im.map, v, ind...)
 
+##### SVector4
 mutable struct SVector4{T} 
     e1::T
     e2::T
@@ -170,6 +211,7 @@ Base.length(v::SVector4) = v.len
 Base.iterate(v::SVector4, i=1) = i <= length(v) ? (v[i], i+1) : nothing
 Base.eltype(::Type{SVector4{T}}) where T = T
 
+##### IntSet
 mutable struct IntSet <: AbstractSet{Int}
     list::Vector{Int}
     slots::BitVector
