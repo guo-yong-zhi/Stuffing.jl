@@ -1,20 +1,19 @@
 ########## totalcollisions
 function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(length(Q1), 1, 1)) #faster than _collision_randbfs (6:7)
 #     @assert size(Q1) == size(Q2)
-    n1 = Q1[i]
-    n2 = Q2[i]
-    if n1 == EMPTY || n2 == EMPTY
-        return -i[1], i[2], i[3]
-    end
-    if n1 == FULL || n2 == FULL
+    code = Q1[i] & Q2[i]
+    if code == FULL # Q1[i] == FULL || Q2[i] == FULL && (Q1[i] != EMPTY && Q2[i] != EMPTY)
         return i
-    end
-    r = -i[1], i[2], i[3]
-    if i[1] > 1
-        for cn in 0:3 # MIX
-            ci = child(i, cn)
-            r = collision_dfs(Q1, Q2, ci)
-            if r[1] > 0 return r end 
+    else
+        r = -i[1], i[2], i[3]
+        if code == MIX  # Q1[i] == MIX && Q2[i] == MIX
+            if i[1] > 1
+                for cn in 0:3
+                    ci = child(i, cn)
+                    r = collision_dfs(Q1, Q2, ci)
+                    if r[1] > 0 return r end 
+                end
+            end
         end
     end
     return r # no collision
@@ -30,27 +29,13 @@ function _collision_randbfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, 
         i = popfirst!(q)
         for cn in shuffle4()
             ci = child(i, cn)
-            q2 = @inbounds Q2[ci]
-            if q2 == EMPTY # assume q2 is more empty
-                continue
-            elseif q2 == MIX
-                q1 = @inbounds Q1[ci]
-                if q1 == EMPTY
-                    continue
-                elseif q1 == MIX
-                    if ci[1] > 1
-                        push!(q, ci)
-                    end
-                    continue
-                else
-                    return ci
-                end
-            else
-                q1 = @inbounds Q1[ci]
-                if q1 == EMPTY
-                    continue
-                end
+            code = @inbounds Q1[ci] & Q2[ci]
+            if code == FULL # assume q2 is more empty
                 return ci
+            elseif code == MIX
+                if ci[1] > 1
+                    push!(q, ci)
+                end
             end
         end
     end
