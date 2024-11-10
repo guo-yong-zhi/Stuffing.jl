@@ -430,14 +430,17 @@ function findroom_gathering(ground, q=Vector{Index}(); level=5, p=2)
 end
 
 
+# function overlap(p1::UInt8, p2::UInt8)
+#     if p1 == FULL || p2 == FULL
+#         return FULL
+#     elseif p1 == EMPTY && p2 == EMPTY
+#         return EMPTY
+#     else
+#         return MIX
+#     end
+# end
 function overlap(p1::UInt8, p2::UInt8)
-    if p1 == FULL || p2 == FULL
-        return FULL
-    elseif p1 == EMPTY && p2 == EMPTY
-        return EMPTY
-    else
-        return MIX
-    end
+	((p1 ⊻ EMPTY) | (p2 ⊻ EMPTY)) ⊻ EMPTY 
 end
 
 overlap(p1::AbstractMatrix, p2::AbstractMatrix) = overlap.(p1, p2)
@@ -462,7 +465,7 @@ end
 function _overlap!(tree1::ShiftedQTree, tree2::ShiftedQTree, ind::Index)
     if @inbounds !(tree1[ind] == FULL || tree2[ind] == EMPTY)
         if ind[1] == 1
-            @inbounds tree1[ind] = FULL
+            @inbounds tree1[ind] = tree2[ind]
         else
             for ci in 0:3
                 _overlap!(tree1, tree2, child(ind, ci))
