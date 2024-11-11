@@ -1,6 +1,6 @@
 module CommonDatatypes
 export ListNode, LinkedList, DoublyLinkedList, IntMap, SVector4, IntSet,
-    newnode, next, prev, value, setnext!, setprev!, setvalue!, ishead, istail, seek_head, seek_tail, movetofirst!
+    newnode, next, prev, value, setnext!, setprev!, setvalue!, ishead, istail, seekhead, seektail, movetofirst!
 
 ##### ListNode
 mutable struct ListNode{T}
@@ -33,13 +33,13 @@ function Base.iterate(l::ListNode, p=l) # from this node to the end
 end
 Base.IteratorSize(::Type{<:ListNode}) = Base.SizeUnknown()
 Base.eltype(::Type{ListNode{T}}) where T = T
-function seek_tail(n::ListNode)
+function seektail(n::ListNode)
     while !istail(n)
         n = next(n)
     end
     n
 end
-function seek_head(n::ListNode)
+function seekhead(n::ListNode)
     while !ishead(n)
         n = prev(n)
     end

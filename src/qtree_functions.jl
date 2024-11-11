@@ -259,17 +259,18 @@ function partialcollisions(qtrees::AbstractVector,
     locate!(qtrees, labels, linkedspqtree) #需要将labels中的label移动到链表首
     for label in labels
         # @show label
-        for listnode in spacial_indexesof(linkedspqtree, label)
+        isemptylabelnodes(linkedspqtree, label) && continue
+        for listnode in getlabelnodes(linkedspqtree, label)
             # 更prev的node都是move过的，在其向后遍历时会加入与当前node的pair，故不需要向前遍历
             # 但要保证更prev的node在`labels`中
-            treenode = seek_treenode(listnode)
-            spindex = spacial_index(treenode)
+            treenode = seektreenode(listnode)
+            spindex = spacialindex(treenode)
             append!(itemlist, (((label, lb) => spindex) for lb in next(listnode)))
             tn = treenode
             while !isroot(tn)
                 tn = tn.parent #root不是哨兵，值需要遍历
-                if !isemptylabels(tn)
-                    plbs = Iterators.filter(!in(labels), labelsof(tn)) #move了的plb不加入，等候其向下遍历时加，避免重复
+                if !isemptynodelist(tn)
+                    plbs = Iterators.filter(!in(labels), getnodelist(tn)) #move了的plb不加入，等候其向下遍历时加，避免重复
                     collisions_boundsfilter(qtrees, spindex, label, plbs, itemlist, colist)
                 end
             end
@@ -280,10 +281,10 @@ function partialcollisions(qtrees::AbstractVector,
             while !isempty(treenodestack)
                 tn = pop!(treenodestack)
                 emptyflag = true
-                if !isemptylabels(tn)
+                if !isemptynodelist(tn)
                     emptyflag = false
-                    cspindex = spacial_index(tn)
-                    clbs = labelsof(tn)
+                    cspindex = spacialindex(tn)
+                    clbs = getnodelist(tn)
                     # @show cspindex clbs
                     collisions_boundsfilter(qtrees, cspindex, clbs, label, itemlist, colist)
                 end
