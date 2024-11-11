@@ -169,6 +169,7 @@ Base.size(l::PaddedMat) = l.size
 
 struct ShiftedQTree{T <: AbstractVector{<:PaddedMat}} <: AbstractStackedQTree
     layers::T
+    sizelevel::Int
 end
 const U8SQTree = ShiftedQTree{Vector{PaddedMat{Matrix{UInt8}}}}
 ShiftedQTree(l::T) where T = ShiftedQTree{T}(l)
@@ -178,12 +179,17 @@ function ShiftedQTree(pic::PaddedMat{T}) where T
     @assert isinteger(log2(sz))
     l = [pic]
     m, n = kernelsize(l[end])
+    sizelevel = -1
     while sz != 1
         sz ÷= 2
         m, n = m ÷ 2 + 1, n ÷ 2 + 1
         push!(l, PaddedMat{T}((m, n), (sz, sz), default=getdefault(pic)))
+        if sizelevel == -1 && m <= 2 && n <= 2
+            sizelevel = length(l)
+        end
     end
-    ShiftedQTree(l)
+    @assert sizelevel != -1
+    ShiftedQTree(l, sizelevel)
 end
 function ShiftedQTree(pic::AbstractMatrix{UInt8}, sz::Integer; default=EMPTY)
     @assert isinteger(log2(sz))
@@ -207,6 +213,7 @@ Base.@propagate_inbounds function Base.getindex(t::ShiftedQTree, l, r, c)
 end
 
 Base.length(t::ShiftedQTree) = length(t.layers)
+sizelevel(t::ShiftedQTree) = t.sizelevel
 inkernelbounds(t::ShiftedQTree, l, a, b) = inkernelbounds(t[l], a, b)
 inkernelbounds(t::ShiftedQTree, ind) = inkernelbounds(t, ind...)
 function buildqtree!(t::ShiftedQTree, layer=2)

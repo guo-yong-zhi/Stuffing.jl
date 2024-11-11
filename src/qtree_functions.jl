@@ -157,16 +157,8 @@ function positionlower(qt, ind)
     ind
 end
 function locate!(qt::AbstractStackedQTree, spqtree::AbstractSpacialQTree, label::Int)
-    l = length(qt) #l always >= 2
+    l = sizelevel(qt) #l always >= 2
     # @assert kernelsize(qt[l], 1) <= 2 && kernelsize(qt[l], 2) <= 2
-    while true
-        l -= 1
-        s1, s2 = kernelsize(@inbounds qt[l])
-        if s1 > 2 || s2 > 2 || l < 2 # >= 2 for _collision_randbfs
-            l += 1
-            break
-        end
-    end
     # @assert l <= length(qt)
     # @assert l >= 2
     @inbounds mat = qt[l]
