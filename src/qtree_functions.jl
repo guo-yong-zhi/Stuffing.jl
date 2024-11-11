@@ -65,8 +65,8 @@ end
 # assume inkernelbounds(qtree, at) is true
 function _totalcollisions_native(
     qtrees::AbstractVector, 
-    copairs; 
-    colist=Vector{CoItem}(),
+    copairs, 
+    colist=Vector{CoItem}();
     queue::AbstractThreadQueue=thread_queue(),
     at::Index=(length(qtrees[1]), 1, 1),
     )
@@ -88,8 +88,8 @@ function _totalcollisions_native(
 end
 function _totalcollisions_native(
     qtrees::AbstractVector, 
-    coitems::Vector{CoItem}; 
-    colist=Vector{CoItem}(), 
+    coitems::Vector{CoItem}, 
+    colist=Vector{CoItem}();
     queue::AbstractThreadQueue=thread_queue(),
     )
     sl = Threads.SpinLock()
@@ -108,23 +108,26 @@ function _totalcollisions_native(
     end
     colist
 end
-function _totalcollisions_native(qtrees::AbstractVector, 
-    labels::AbstractVector{<:Integer}=1:length(qtrees); 
-    pairlist::AbstractVector{Tuple{Int, Int}}=Vector{Tuple{Int, Int}}(), kargs...)
+function _totalcollisions_native(
+    qtrees::AbstractVector, 
+    labels::AbstractVector{<:Integer}=1:length(qtrees),
+    colist=Vector{CoItem}();
+    pairlist::AbstractVector{Tuple{Int, Int}}=Vector{Tuple{Int, Int}}(), 
+    kargs...
+    )
     l = length(labels)
     empty!(pairlist)
     append!(pairlist, (@inbounds (labels[i], labels[j]) for i in 1:l for j in l:-1:i + 1))
-    _totalcollisions_native(qtrees, pairlist; kargs...)
+    _totalcollisions_native(qtrees, pairlist, colist; kargs...)
 end
-function _totalcollisions_native(qtrees::AbstractVector, labels::AbstractSet{<:Integer}; kargs...)
-    _totalcollisions_native(qtrees, labels |> collect; kargs...)
+function _totalcollisions_native(qtrees::AbstractVector, labels::AbstractSet{<:Integer}, colist=Vector{CoItem}(); kargs...)
+    _totalcollisions_native(qtrees, labels |> collect, colist; kargs...)
 end
-function totalcollisions_native(qtrees::AbstractVector{U8SQTree}, labels=1:length(qtrees);  
-    colist=Vector{CoItem}(), kargs...)
+function totalcollisions_native(qtrees::AbstractVector{U8SQTree}, labels=1:length(qtrees); colist=Vector{CoItem}(), kargs...)
     length(qtrees) > 1 || return colist
     l = length(@inbounds qtrees[1])
     labels = [i for i in labels if inkernelbounds(@inbounds(qtrees[i][l]), 1, 1)]
-    _totalcollisions_native(qtrees, labels; colist=colist, kargs...)
+    _totalcollisions_native(qtrees, labels, colist; kargs...)
 end
 function linked_spacial_qtree(qts)
     if !isempty(qts)
@@ -233,7 +236,7 @@ function totalcollisions_spacial(qtrees::AbstractVector, spqtree::HashSpacialQTr
         end
     end
     # @show length(itemlist), length(colist)
-    r = _totalcollisions_native(qtrees, itemlist; colist=colist, kargs...)
+    r = _totalcollisions_native(qtrees, itemlist, colist; kargs...)
     unique ? unique!(first, sort!(r)) : r
 end
 function totalcollisions_spacial(qtrees::AbstractVector{U8SQTree};
@@ -310,7 +313,7 @@ function partialcollisions(qtrees::AbstractVector,
         end
     end
     # @show length(itemlist), length(colist)
-    r = _totalcollisions_native(qtrees, itemlist; colist=colist, kargs...)
+    r = _totalcollisions_native(qtrees, itemlist, colist; kargs...)
     unique ? unique!(first, sort!(r)) : r
 end
 
