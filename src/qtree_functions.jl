@@ -1,5 +1,5 @@
 ########## totalcollisions
-function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(length(Q1), 1, 1)) #faster than _collision_randbfs (6:7)
+function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i::Index=(length(Q1), 1, 1)) #faster than _collision_randbfs (6:7)
     # @assert size(Q1) == size(Q2)
     code = Q1[i] & Q2[i]
     if code == FULL # Q1[i] == FULL || Q2[i] == FULL && (Q1[i] != EMPTY && Q2[i] != EMPTY)
@@ -138,7 +138,7 @@ function linked_spacial_qtree(qts)
 end
 hash_spacial_qtree() = HashSpacialQTree()
 hash_spacial_qtree(qts) = hash_spacial_qtree()
-function positionlower(qt, ind)
+function positionlower(qt, ind::Index)
     while ind[1] > 2
         cind = ind
         flag = false

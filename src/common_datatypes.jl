@@ -187,27 +187,31 @@ Base.getindex(im::IntMap, ind...) = getindex(im.map, ind...)
 Base.setindex!(im::IntMap, v, ind...) = setindex!(im.map, v, ind...)
 
 ##### SVector4
-mutable struct SVector4{T} 
+mutable struct SVector4Core{T} 
     e1::T
     e2::T
     e3::T
     e4::T
-    len::Int
-    SVector4{T}() where T = (v = new(); v.len = 0; v)
+    SVector4Core{T}() where T = new()
 end
+mutable struct SVector4{T} 
+    vec::SVector4Core{T}
+    len::Int
+end
+SVector4{T}() where T = SVector4{T}(SVector4Core{T}(), 0)
 function SVector4{T}(e1, e2, e3, e4) where T
     v = SVector4{T}()
-    v.e1 = e1
-    v.e2 = e2
-    v.e3 = e3
-    v.e4 = e4
+    v.vec.e1 = e1
+    v.vec.e2 = e2
+    v.vec.e3 = e3
+    v.vec.e4 = e4
     v.len = 4
     v
 end
 SVector4(e1::T, e2::T, e3::T, e4::T) where T = SVector4{T}(e1, e2, e3, e4)
-Base.getindex(v::SVector4, i) = getfield(v, i)
-Base.setindex!(v::SVector4, x, i) = setfield!(v, i, x)
-Base.push!(v::SVector4, x) = v[v.len += 1] = x
+Base.getindex(v::SVector4{T}, i) where T = getfield(v.vec, i)::T
+Base.setindex!(v::SVector4{T}, x::T, i) where T = setfield!(v.vec, i, x)
+Base.push!(v::SVector4{T}, x::T) where T = v[v.len += 1] = x
 Base.length(v::SVector4) = v.len
 Base.iterate(v::SVector4, i=1) = i <= length(v) ? (v[i], i+1) : nothing
 Base.eltype(::Type{SVector4{T}}) where T = T

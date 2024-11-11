@@ -119,8 +119,8 @@ function PaddedMat(l::T, sz::Tuple{Int,Int}=size(l), rshift=0, cshift=0; default
     m.kernel[2:end - 2, 2:end - 2] .= l
     m
 end
-function PaddedMat{T}(kernelsz::Tuple{Int,Int}, sz::Tuple{Int,Int}=size(l), 
-    rshift=0, cshift=0; default=0x00) where {T <: AbstractMatrix{UInt8}}
+function PaddedMat{T}(kernelsz::Tuple{Int,Int}, sz::Tuple{Int,Int}, 
+    rshift=0, cshift=0; default=zero(T)) where {T <: AbstractMatrix{UInt8}}
     k = similar(T, kernelsz .+ 3) # +3 to keep top-down getindex in _collision_randbfs within the kernel bounds
     k[[1, end - 1, end], :] .= default
     k[:, [1, end - 1, end]] .= default
