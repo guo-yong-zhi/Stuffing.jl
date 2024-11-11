@@ -126,7 +126,7 @@ end
 hash_spacial_qtree() = HashSpacialQTree()
 hash_spacial_qtree(qts) = hash_spacial_qtree()
 
-function locate!(qt::AbstractStackedQTree, spqtree::Union{HashSpacialQTree, LinkedSpacialQTree}, label::Int)
+function locate!(qt::AbstractStackedQTree, spqtree::AbstractSpacialQTree, label::Int)
     l = length(qt) #l always >= 2
     # @assert kernelsize(qt[l], 1) <= 2 && kernelsize(qt[l], 2) <= 2
     while true
@@ -159,10 +159,10 @@ function locate!(qt::AbstractStackedQTree, spqtree::Union{HashSpacialQTree, Link
             inds = inds2
         end
     end
-    push!(spqtree, inds, label)
+    update!(spqtree, inds, label)
     nothing
 end
-function locate!(qts::AbstractVector, spqtree::Union{HashSpacialQTree, LinkedSpacialQTree}=hash_spacial_qtree(qts))
+function locate!(qts::AbstractVector, spqtree::AbstractSpacialQTree=hash_spacial_qtree(qts))
     for (i, qt) in enumerate(qts)
         locate!(qt, spqtree, i)
     end

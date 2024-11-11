@@ -45,7 +45,7 @@ testqtree = Stuffing.testqtree
     spt1_ = Dict([p for p in QTrees.tree(spt1) if QTrees.inrange(QTrees.spacialindex(QTrees.tree(spt2)), first(p))]) #inrange filter
     spt2_ = QTrees.collect_tree(spt2) #to hash
     @test Dict([k=>Set(v) for (k,v) in spt1_]) == Dict([k=>Set(v) for (k,v) in spt2_])
-    empty!(spt2, 1)
+    QTrees.clear!(spt2, 1)
     spt2_ = QTrees.collect_tree(spt2)
     for inds2 in values(spt2_)
         @assert !(1 in inds2)

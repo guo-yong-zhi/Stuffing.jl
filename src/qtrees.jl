@@ -384,29 +384,27 @@ CommonDatatypes.setnext!(n::QTreeNode, next::QTreeNode) = n.parent = next
 ################ HashSpacialQTree
 abstract type AbstractSpacialQTree end
 function Base.push!(t::AbstractSpacialQTree, ind::Index, label) end
-function Base.empty!(t::AbstractSpacialQTree) end
-function Base.empty!(t::AbstractSpacialQTree, label::Int) end
+function clear!(t::AbstractSpacialQTree, label::Int) end
 function tree(t::AbstractSpacialQTree) end
 Base.iterate(t::AbstractSpacialQTree, args...) = iterate(tree(t), args...)
-Base.get(t::AbstractSpacialQTree, args...) = get(tree(t), args...)
-Base.@propagate_inbounds Base.getindex(t::AbstractSpacialQTree, args...) = getindex(tree(t), args...)
-Base.keys(t::AbstractSpacialQTree) = keys(tree(t))
-Base.values(t::AbstractSpacialQTree) = values(tree(t))
-Base.haskey(t::AbstractSpacialQTree, args...) = haskey(tree(t), args...)
+function update!(t::AbstractSpacialQTree, inds, label::Int)
+    clear!(t, label)
+    for ind in inds
+        push!(t, ind, label)
+    end
+end
 struct HashSpacialQTree <: AbstractSpacialQTree
     qtree::Dict{Index, Vector{Int}}
 end
 HashSpacialQTree() = HashSpacialQTree(Dict{Index, Vector{Int}}())
 Base.push!(t::HashSpacialQTree, ind::Index, label::Int) = push!(get!(Vector{Int}, t.qtree, ind), label)
-function Base.push!(t::HashSpacialQTree, inds, label::Int)
-    empty!(t, label)
-    for ind in inds
-        push!(t, ind, label)
-    end
-end
 Base.empty!(t::HashSpacialQTree) = (empty!(t.qtree); t)
-# Base.empty!(t::HashSpacialQTree, label) = nothing #not implemented
 tree(t::HashSpacialQTree) = t.qtree
+Base.get(t::HashSpacialQTree, args...) = get(tree(t), args...)
+Base.@propagate_inbounds Base.getindex(t::HashSpacialQTree, args...) = getindex(tree(t), args...)
+Base.keys(t::HashSpacialQTree) = keys(tree(t))
+Base.values(t::HashSpacialQTree) = values(tree(t))
+Base.haskey(t::HashSpacialQTree, args...) = haskey(tree(t), args...)
 
 ################ LinkedSpacialQTree
 mutable struct TreeNodeData
@@ -433,7 +431,7 @@ function getnodelist!(node::SpacialQTreeNode)
     end
     node.value.list
 end
-struct LinkedSpacialQTree
+struct LinkedSpacialQTree <: AbstractSpacialQTree
     qtree::SpacialQTreeNode
     label_to_nodes::IntMap{Vector{SVector4{ListNode{Int}}}}
     listnode_pool::LinkedList{ListNode{Int}}
@@ -509,17 +507,12 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
         push!(getlabelnodes!(t, label), n)
     end
 end
-function Base.push!(t::LinkedSpacialQTree, inds, label::Int)
-    empty!(t, label)
-    for ind in inds
-        push!(t, ind, label)
-    end
-end
+
 function seektreenode(listnode::ListNode{Int})
     head = seekhead(listnode)
     unsafe_pointer_to_objref(Ptr{Any}(value(head)))::SpacialQTreeNode
 end
-function Base.empty!(t::LinkedSpacialQTree, label)
+function clear!(t::LinkedSpacialQTree, label::Int)
     if haskey(t.label_to_nodes, label) && !isempty(t.label_to_nodes[label])
         nodes = t.label_to_nodes[label]
         for n in nodes
