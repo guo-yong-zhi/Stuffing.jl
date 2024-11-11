@@ -429,7 +429,7 @@ function new_labellist(node::QTreeNode)
 end
 struct LinkedSpacialQTree
     qtree::SpacialQTreeNode
-    map::IntMap{Vector{Vector{ListNode{Int}}}}
+    map::IntMap{Vector{SVector4{ListNode{Int}}}}
     listnode_pool::LinkedList{ListNode{Int}}
     treenode_pool::LinkedList{SpacialQTreeNode}
 end
@@ -441,7 +441,7 @@ labelsof(n::QTreeNode) = n.value.list
 isemptylabels(n::QTreeNode) = (!isdefined(n.value, :list)) || isempty(labelsof(n))
 function spacial_indexesof(t::LinkedSpacialQTree, label)
     m = t.map
-    haskey(m, label) ? m[label] : Vector{ListNode{Int}}()
+    haskey(m, label) ? m[label] : SVector4{ListNode{Int}}()
 end
 function new_listnode_for_push(t::LinkedSpacialQTree, value::Int)
     cache = t.listnode_pool
@@ -499,7 +499,7 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
         if haskey(t.map, label)
             loc = t.map[label]
         else
-            loc = Vector{ListNode{Int}}()
+            loc = SVector4{ListNode{Int}}()
             t.map[label] = loc
         end
         push!(loc, n)

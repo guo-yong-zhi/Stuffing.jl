@@ -210,6 +210,8 @@ Base.push!(v::SVector4, x) = v[v.len += 1] = x
 Base.length(v::SVector4) = v.len
 Base.iterate(v::SVector4, i=1) = i <= length(v) ? (v[i], i+1) : nothing
 Base.eltype(::Type{SVector4{T}}) where T = T
+Base.empty!(v::SVector4) = (v.len = 0)
+Base.isempty(v::SVector4) = v.len == 0
 
 ##### IntSet
 mutable struct IntSet <: AbstractSet{Int}

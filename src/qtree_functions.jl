@@ -118,9 +118,9 @@ function totalcollisions_native(qtrees::AbstractVector{U8SQTree}, labels=1:lengt
 end
 function linked_spacial_qtree(qts)
     if !isempty(qts)
-        return LinkedSpacialQTree((length(qts[1]), 1, 1), IntMap(Vector{Vector{ListNode{Int}}}(undef, length(qts))))
+        return LinkedSpacialQTree((length(qts[1]), 1, 1), IntMap(Vector{SVector4{ListNode{Int}}}(undef, length(qts))))
     else
-        return LinkedSpacialQTree(IntMap(Vector{Vector{ListNode{Int}}}(undef, length(qts))))
+        return LinkedSpacialQTree(IntMap(Vector{SVector4{ListNode{Int}}}(undef, length(qts))))
     end
 end
 hash_spacial_qtree() = HashSpacialQTree()
