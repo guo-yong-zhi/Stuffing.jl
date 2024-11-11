@@ -350,7 +350,7 @@ mutable struct QTreeNode{T}
     function QTreeNode{T}() where T
         n = new{T}()
         n.parent = n
-        n.children = SVector4{QTreeNode{T}}(n, n, n, n)
+        n.children = SVector4(n, n, n, n)
         n
     end
     QTreeNode{T}(v, p, c) where T = new{T}(v, p, c)
@@ -374,19 +374,25 @@ end
 QTreeNode(value::T) where T = QTreeNode{T}(value)
 QTreeNode(value::T, parent, children) where T = QTreeNode{T}(value, parent, children)
 QTreeNode(parent::QTreeNode{T}, args...) where T = QTreeNode{T}(parent, args...)
-isroot(n::QTreeNode) = n === n.parent
+parent(n::QTreeNode) = n.parent
+setparent!(n::QTreeNode, p::QTreeNode) = n.parent = p
+children(n::QTreeNode) = n.children
+Base.@propagate_inbounds child(n::QTreeNode, i) = n.children[i]
+Base.@propagate_inbounds setchild!(n::QTreeNode, c::QTreeNode, i) = n.children[i] = c
+isroot(n::QTreeNode) = n === parent(n)
 isemptychild(n::QTreeNode, c::QTreeNode) = n === c
 function Base.iterate(n::QTreeNode, Q=[n])
     isempty(Q) && return nothing
     n = popfirst!(Q)
-    for c in n.children
+    for c in children(n)
         (!isemptychild(n, c)) && push!(Q, c)
     end
     return n, Q
 end
+
 Base.eltype(::Type{QTreeNode{T}}) where T = QTreeNode{T}
-CommonDatatypes.next(n::QTreeNode) = n.parent # use as a linked list node
-CommonDatatypes.setnext!(n::QTreeNode, next::QTreeNode) = n.parent = next
+CommonDatatypes.next(n::QTreeNode) = parent(n) # use as a linked list node
+CommonDatatypes.setnext!(n::QTreeNode, next::QTreeNode) = setparent!(n, next)
 
 ################ HashSpacialQTree
 abstract type AbstractSpacialQTree end
@@ -478,16 +484,16 @@ function new_spacial_qtree_node(t::LinkedSpacialQTree, parent::SpacialQTreeNode,
         # @show length(cache)
         n = popfirst!(cache)
         # @assert n.children == [n,n,n,n]
-        n.parent = parent
+        setparent!(n, parent)
         n.value.index = index
         return n
     end
 end
 function remove_tree_node(t::LinkedSpacialQTree, node::SpacialQTreeNode)
-    p = node.parent
+    p = parent(node)
     ind = spacialindex(node)
     # @show ind
-    p.children[childnumber(ind)+1] = p
+    setchild!(p, p, childnumber(ind)+1)
     pushfirst!(t.treenode_pool, node)
 end
 function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
@@ -501,10 +507,10 @@ function Base.push!(t::LinkedSpacialQTree, ind::Index, label::Int)
             aind[1] <= ind[1] && break
             cn = childnumber(aind, ind)
             # @show aind, ind, cn
-            cnode = tn.children[cn+1]
+            cnode = child(tn, cn+1)
             if isemptychild(tn, cnode)
                 cnode = new_spacial_qtree_node(t, tn, child(aind, cn))
-                tn.children[cn+1] = cnode
+                setchild!(tn, cnode, cn+1)
             end
             tn = cnode
         end
@@ -520,12 +526,12 @@ function seektreenode(listnode::ListNode{Int})
     unsafe_pointer_to_objref(Ptr{Any}(value(head)))::SpacialQTreeNode
 end
 function clear!(t::LinkedSpacialQTree, label::Int)
-    if haskey(t.label_to_nodes, label) && !isempty(t.label_to_nodes[label])
-        nodes = t.label_to_nodes[label]
+    if !isemptylabelnodes(t, label)
+        nodes = getlabelnodes(t, label)
         for n in nodes
             pushfirst!(t.listnode_pool, pop!(n))
         end
-        empty!(t.label_to_nodes[label])
+        empty!(nodes)
     end
 end
 

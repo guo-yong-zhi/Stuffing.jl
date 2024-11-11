@@ -204,6 +204,7 @@ function SVector4{T}(e1, e2, e3, e4) where T
     v.len = 4
     v
 end
+SVector4(e1::T, e2::T, e3::T, e4::T) where T = SVector4{T}(e1, e2, e3, e4)
 Base.getindex(v::SVector4, i) = getfield(v, i)
 Base.setindex!(v::SVector4, x, i) = setfield!(v, i, x)
 Base.push!(v::SVector4, x) = v[v.len += 1] = x

@@ -293,14 +293,14 @@ function partialcollisions(qtrees::AbstractVector,
             append!(itemlist, (((label, lb) => spindex) for lb in next(listnode)))
             tn = treenode
             while !isroot(tn)
-                tn = tn.parent #root不是哨兵，值需要遍历
+                tn = parent(tn) #root不是哨兵，值需要遍历
                 if !isemptynodelist(tn)
                     plbs = Iterators.filter(!in(labels), getnodelist(tn)) #move了的plb不加入，等候其向下遍历时加，避免重复
                     collisions_boundsfilter(qtrees, spindex, label, plbs, itemlist, colist)
                 end
             end
             empty!(treenodestack)
-            for c in treenode.children
+            for c in children(treenode)
                 isemptychild(treenode, c) || push!(treenodestack, c)
             end
             while !isempty(treenodestack)
@@ -313,7 +313,7 @@ function partialcollisions(qtrees::AbstractVector,
                     # @show cspindex clbs
                     collisions_boundsfilter(qtrees, cspindex, clbs, label, itemlist, colist)
                 end
-                for c in tn.children
+                for c in children(tn)
                     if !isemptychild(tn, c) #如果isemptychild则该child无意义
                         emptyflag = false
                         push!(treenodestack, c)
