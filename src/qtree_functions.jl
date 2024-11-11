@@ -1,6 +1,6 @@
 ########## totalcollisions
 function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(length(Q1), 1, 1)) #faster than _collision_randbfs (6:7)
-#     @assert size(Q1) == size(Q2)
+    # @assert size(Q1) == size(Q2)
     code = Q1[i] & Q2[i]
     if code == FULL # Q1[i] == FULL || Q2[i] == FULL && (Q1[i] != EMPTY && Q2[i] != EMPTY)
         return i
@@ -20,10 +20,9 @@ function collision_dfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, i=(le
 end
 function _collision_randbfs(Q1::AbstractStackedQTree, Q2::AbstractStackedQTree, q::AbstractVector{Index}=[(length(Q1), 1, 1)])
     #no bounds checking and assume Index[1] >= 2
-#     @assert size(Q1) == size(Q2)
-    if isempty(q)
-        push!(q, (length(Q1), 1, 1))
-    end
+    # @assert size(Q1) == size(Q2)
+    # @assert !isempty(q)
+    # @assert q[1][1] >= 2
     i = @inbounds q[1]
     while !isempty(q)
         i = popfirst!(q)
