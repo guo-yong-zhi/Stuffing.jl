@@ -138,7 +138,24 @@ function linked_spacial_qtree(qts)
 end
 hash_spacial_qtree() = HashSpacialQTree()
 hash_spacial_qtree(qts) = hash_spacial_qtree()
-
+function positionlower(qt, ind)
+    while ind[1] > 2
+        cind = ind
+        flag = false
+        for i in 0:3
+            ci = child(ind, i)
+            if @inbounds qt[ci] != EMPTY
+                flag && return ind
+                flag = true
+                cind = ci
+            end
+        end
+        # @show flag, ind => cind
+        # @assert sum((qt[child(ind, i)] != EMPTY) for i in 0:3) <= 1
+        ind = cind
+    end
+    ind
+end
 function locate!(qt::AbstractStackedQTree, spqtree::AbstractSpacialQTree, label::Int)
     l = length(qt) #l always >= 2
     # @assert kernelsize(qt[l], 1) <= 2 && kernelsize(qt[l], 2) <= 2
@@ -171,6 +188,9 @@ function locate!(qt::AbstractStackedQTree, spqtree::AbstractSpacialQTree, label:
         if length(inds2) < length(inds)-1
             inds = inds2
         end
+    end
+    for i in 1:length(inds)
+        inds[i] = positionlower(qt, inds[i])
     end
     update!(spqtree, inds, label)
     nothing
@@ -237,7 +257,7 @@ function totalcollisions_spacial(qtrees::AbstractVector, spqtree::HashSpacialQTr
     end
     # @show length(itemlist), length(colist)
     r = _totalcollisions_native(qtrees, itemlist, colist; kargs...)
-    unique ? unique!(first, sort!(r)) : r
+    unique ? unique!(i->minmax(first(i)...), sort!(r)) : r
 end
 function totalcollisions_spacial(qtrees::AbstractVector{U8SQTree};
     spqtree=hash_spacial_qtree(qtrees), kargs...)
@@ -314,7 +334,7 @@ function partialcollisions(qtrees::AbstractVector,
     end
     # @show length(itemlist), length(colist)
     r = _totalcollisions_native(qtrees, itemlist, colist; kargs...)
-    unique ? unique!(first, sort!(r)) : r
+    unique ? unique!(i->minmax(first(i)...), sort!(r)) : r
 end
 
 function totalcollisions_kw(args...; 
