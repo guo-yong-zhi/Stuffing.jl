@@ -115,8 +115,12 @@ mutable struct PaddedMat{T <: AbstractMatrix{UInt8}} <: AbstractMatrix{UInt8}
 end
 
 function PaddedMat(l::T, sz::Tuple{Int,Int}=size(l), rshift=0, cshift=0; default=0x00) where {T <: AbstractMatrix{UInt8}}
-    m = PaddedMat{T}(size(l), sz, rshift, cshift; default=default)
-    m.kernel[2:end - 2, 2:end - 2] .= l
+    (sz[1] >= size(l, 1) && sz[2] >= size(l, 2)) || (@warn "PaddedMat cut off: $(size(l))>$sz")
+    ksz = min.(size(l), sz)
+    b1, b2 = (size(l) .- ksz) .÷ 2
+    e1, e2 = (b1, b2) .+ ksz
+    m = PaddedMat{T}(ksz, sz, rshift, cshift; default=default)
+    m.kernel[2:end - 2, 2:end - 2] .= l[b1+1:e1, b2+1:e2]
     m
 end
 function PaddedMat{T}(kernelsz::Tuple{Int,Int}, sz::Tuple{Int,Int}, 
@@ -193,7 +197,6 @@ function ShiftedQTree(pic::PaddedMat{T}) where T
 end
 function ShiftedQTree(pic::AbstractMatrix{UInt8}, sz::Integer; default=EMPTY)
     @assert isinteger(log2(sz))
-    (sz >= size(pic, 1) && sz >= size(pic, 2)) || (@warn "ShiftedQTree cut off: $(size(pic))>$sz")
     ShiftedQTree(PaddedMat(pic, (sz, sz), default=default))
 end
 function ShiftedQTree(pic::AbstractMatrix{UInt8}; default=EMPTY)
