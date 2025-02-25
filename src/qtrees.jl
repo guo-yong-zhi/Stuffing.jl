@@ -188,7 +188,9 @@ function ShiftedQTree(pic::PaddedMat{T}) where T
             sizelevel = length(l)
         end
     end
-    @assert sizelevel != -1
+    if sizelevel != -1
+        sizelevel = length(l)
+    end
     ShiftedQTree(l, sizelevel)
 end
 function ShiftedQTree(pic::AbstractMatrix{UInt8}, sz::Integer; default=EMPTY)
