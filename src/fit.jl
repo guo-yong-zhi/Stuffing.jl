@@ -19,7 +19,7 @@ function move!(qt, delta)
     # @assert delta_m >= 1
     u = intlog2(delta_m)
     # @assert u == floor(Int, log2(delta_m))
-    shift!(qt, 1 + u, (trunc.(Int, delta) .÷ 2^u)...) # 舍尾，保留最高二进制位
+    shift!(qt, min(length(qt), 1 + u), (trunc.(Int, delta) .÷ 2^u)...) # 舍尾，保留最高二进制位
 end
 
 function step!(t1, t2, collisionpoint::Tuple{Integer,Integer,Integer}, optimiser=(t, Δ) -> Δ ./ 6)
